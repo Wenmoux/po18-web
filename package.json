@@ -1,0 +1,38 @@
+{
+  "name": "po18-novel-downloader",
+  "version": "1.0.0",
+  "description": "PO18小说下载网站 - 支持搜索、下载、书库管理和共享功能",
+  "main": "server/app.js",
+  "scripts": {
+    "start": "node server/app.js",
+    "dev": "nodemon server/app.js"
+  },
+  "dependencies": {
+    "archiver": "^6.0.1",
+    "axios": "^1.6.0",
+    "better-sqlite3": "^9.2.2",
+    "cheerio": "^1.0.0-rc.12",
+    "cors": "^2.8.5",
+    "epub-gen": "^0.1.0",
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "jsdom": "^27.0.1",
+    "jszip": "^3.10.1",
+    "multer": "^1.4.5-lts.1",
+    "parse5": "^8.0.0",
+    "uuid": "^9.0.0",
+    "webdav": "^5.8.0",
+    "xml2js": "^0.6.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "po18",
+    "novel",
+    "downloader",
+    "ebook"
+  ],
+  "author": "",
+  "license": "MIT"
+}

@@ -1,0 +1,59 @@
+# 依赖
+node_modules/
+
+# 数据库
+*.db
+*.db-journal
+data/
+
+# 下载文件
+downloads/
+shared/
+temp/
+
+# 日志
+*.log
+npm-debug.log*
+
+# 环境变量
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 测试文件
+*_test.js
+test_*.js
+simple_test.js
+minimal_test.js
+http_test.js
+
+# 临时文件
+*.tmp
+*.bak
+
+# 油猴脚本源文件（保留在scripts目录）
+1.js
+
+# 空文档
+ARCHITECTURE_CHANGE.md
+BUGFIX.md
+CHANGELOG.md
+IMPLEMENTATION_PLAN.md
+UI_CHANGES.md
+WEBDAV_INTEGRATION.md
+check_cookie.js
+check_db.js
+clean_cookies.js
+clean_db.js
+clean_shared.js
+create_cache_table.js

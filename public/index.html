@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PO18小说下载站</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- 顶部导航 - MD3风格 -->
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">📚</span>
+                <span class="logo-text">PO18书库</span>
+            </div>
+            <nav class="nav" id="main-nav">
+                <a href="#" class="nav-link active" data-page="download">快速下载</a>
+                <a href="#" class="nav-link" data-page="rankings">排行榜</a>
+                <a href="#" class="nav-link" data-page="purchased">已购书籍</a>
+                <a href="#" class="nav-link" data-page="downloads">下载管理</a>
+                <a href="#" class="nav-link" data-page="library">我的书库</a>
+                <a href="#" class="nav-link" data-page="settings">设置</a>
+            </nav>
+            <div class="user-area" id="user-area">
+                <button class="btn btn-primary" id="btn-login">登录</button>
+                <button class="btn btn-outline" id="btn-register">注册</button>
+            </div>
+            <div class="user-info" id="user-info" style="display: none;">
+                <span id="username-display"></span>
+                <a href="/admin.html" id="admin-link" class="btn btn-sm btn-tonal" style="display: none;">📊 管理</a>
+                <button class="btn btn-sm btn-tonal" id="btn-settings">⚙️ 设置</button>
+                <button class="btn btn-sm btn-outline" id="btn-logout">登出</button>
+            </div>
+        </header>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+
+            <!-- 快速下载页（整合搜索和共享书库） -->
+            <section class="page active" id="page-download">
+                <div class="page-header">
+                    <h2>快速下载</h2>
+                    <p class="page-subtitle">通过书籍ID或链接直接下载</p>
+                </div>
+                
+                <!-- 统一搜索栏 -->
+                <div class="unified-search-card">
+                    <div class="unified-search-form">
+                        <div class="input-group" style="flex: 1; margin-bottom: 0;">
+                            <input type="text" id="unified-input" class="md-input" placeholder="输入书籍ID、链接或书名搜索">
+                        </div>
+                        <div class="button-group" style="display: flex; gap: 10px; align-items: center;">
+                            <select id="quick-download-format" class="md-select" style="min-width: 120px;">
+                                <option value="txt">TXT格式</option>
+                                <option value="epub">EPUB格式</option>
+                            </select>
+                            <button class="btn btn-outline" id="parse-book-btn">解析</button>
+                            <button class="btn btn-primary" id="quick-download-btn">下载</button>
+                            <button class="btn btn-tonal" id="search-btn">搜索</button>
+                        </div>
+                    </div>
+                    <div id="parsed-book-info"></div>
+                </div>
+                
+                <!-- 搜索结果 -->
+                <div class="search-results" id="search-results" style="margin-top: 20px;">
+                    <p class="empty-message">输入关键词搜索已收录的书籍，或输入ID/链接直接下载</p>
+                </div>
+                
+                <!-- 共享书库部分（根据是否开启共享显示） -->
+                <div id="shared-section" style="margin-top: 30px;">
+                    <div class="page-header">
+                        <h3>共享书库</h3>
+                        <p class="page-subtitle">浏览和下载其他用户分享的书籍</p>
+                    </div>
+                    <div class="share-info" id="share-info">
+                        <div class="share-notice md-card">
+                            <div class="notice-icon">📚</div>
+                            <div class="notice-content">
+                                <h3>共享书库规则</h3>
+                                <ul>
+                                    <li>启用共享后，可将书库中的书籍分享给其他用户</li>
+                                    <li>上传至少 <strong>3本书籍</strong> 后，即可访问完整共享书库</li>
+                                    <li>共享的书籍将自动上传至公共WebDAV服务器</li>
+                                </ul>
+                                <button class="btn btn-primary" id="enable-share-btn">启用共享</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="share-search" id="share-search" style="display: none;">
+                        <input type="text" id="share-search-input" class="md-input" placeholder="搜索共享书库...">
+                        <button class="btn btn-primary" id="share-search-btn">搜索</button>
+                    </div>
+                    <!-- 共享书库筛选器 -->
+                    <div class="filter-bar" id="shared-filter-bar" style="display: none;">
+                        <select id="shared-category-filter" class="md-select">
+                            <option value="">所有分类</option>
+                            <option value="高H">高H</option>
+                            <option value="1V1">1V1</option>
+                            <option value="HNP">HNP</option>
+                            <option value="BG">BG</option>
+                            <option value="BL">BL</option>
+                            <option value="骨科">骨科</option>
+                            <option value="古代">古代</option>
+                            <option value="現代">現代</option>
+                            <option value="穿越">穿越</option>
+                            <option value="重生">重生</option>
+                            <option value="甜文">甜文</option>
+                            <option value="耕美">耕美</option>
+                            <option value="百合">百合</option>
+                        </select>
+                        <select id="shared-format-filter" class="md-select">
+                            <option value="">所有格式</option>
+                        </select>
+                        <button class="btn btn-outline" id="shared-clear-filter">清除筛选</button>
+                    </div>
+                    <div class="shared-list" id="shared-list"></div>
+                </div>
+            </section>
+
+            <!-- 排行榜页 -->
+            <section class="page" id="page-rankings">
+                <div class="page-header">
+                    <h2>📊 排行榜</h2>
+                    <p class="page-subtitle">每6小时自动更新</p>
+                </div>
+                
+                <div class="rankings-tabs">
+                    <button class="ranking-tab active" data-type="favorites">收藏榜</button>
+                    <button class="ranking-tab" data-type="comments">留言榜</button>
+                    <button class="ranking-tab" data-type="monthly">月人气</button>
+                    <button class="ranking-tab" data-type="total">总人气</button>
+                    <button class="ranking-tab" data-type="wordcount">字数榜</button>
+                    <button class="ranking-tab" data-type="latest">最近更新</button>
+                </div>
+                
+                <div class="ranking-list" id="ranking-list">
+                    <p class="empty-message">加载中...</p>
+                </div>
+            </section>
+
+            <!-- 已购书籍页 -->
+            <section class="page" id="page-purchased">
+                <div class="page-header">
+                    <h2>已购书籍</h2>
+                    <button class="btn btn-outline" id="refresh-purchased">刷新</button>
+                </div>
+                <div class="login-required" id="purchased-login-required">
+                    <p>请先登录并设置PO18 Cookie</p>
+                    <button class="btn btn-primary" id="purchased-login-btn">登录</button>
+                </div>
+                <div class="book-list" id="purchased-list"></div>
+            </section>
+
+            <!-- 下载管理页（单列表显示） -->
+            <section class="page" id="page-downloads">
+                <div class="page-header">
+                    <h2>下载管理</h2>
+                    <button class="btn btn-outline" id="clear-completed">清除已完成</button>
+                </div>
+                
+                <!-- 统一下载列表 -->
+                <div class="download-list" id="download-list">
+                    <p class="empty-message">暂无下载记录</p>
+                </div>
+            </section>
+
+            <!-- 我的书库页 -->
+            <section class="page" id="page-library">
+                <div class="page-header">
+                    <h2>我的书库</h2>
+                    <p class="page-subtitle">管理您下载的书籍</p>
+                </div>
+                <!-- 筛选器 -->
+                <div class="filter-bar" id="library-filter-bar">
+                    <select id="library-category-filter" class="md-select">
+                        <option value="">所有分类</option>
+                        <option value="高H">高H</option>
+                        <option value="1V1">1V1</option>
+                        <option value="HNP">HNP</option>
+                        <option value="BG">BG</option>
+                        <option value="BL">BL</option>
+                        <option value="骨科">骨科</option>
+                        <option value="古代">古代</option>
+                        <option value="現代">現代</option>
+                        <option value="穿越">穿越</option>
+                        <option value="重生">重生</option>
+                        <option value="甜文">甜文</option>
+                    </select>
+                    <select id="library-author-filter" class="md-select">
+                        <option value="">所有作者</option>
+                    </select>
+                    <select id="library-format-filter" class="md-select">
+                        <option value="">所有格式</option>
+                    </select>
+                    <button class="btn btn-outline" id="library-clear-filter">清除筛选</button>
+                </div>
+                <div class="library-list" id="library-list">
+                    <p class="empty-message">书库为空，去下载一些小说吧</p>
+                </div>
+            </section>
+            
+            <!-- 设置页 -->
+            <section class="page" id="page-settings">
+                <div class="page-header">
+                    <h2>设置</h2>
+                </div>
+                <!-- TODO: 设置内容 -->
+                <p class="empty-message">设置功能开发中...</p>
+            </section>
+        </main>
+
+        <!-- 底部 -->
+        <footer class="footer">
+            <p>PO18小说下载站 &copy; 2024 | 仅供学习交流使用</p>
+        </footer>
+    </div>
+
+    <!-- 登录/注册弹窗 -->
+    <div class="modal-overlay" id="auth-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="auth-modal-title">登录</h3>
+                <button class="modal-close" id="auth-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="auth-form">
+                    <div class="form-group">
+                        <label for="auth-username">用户名</label>
+                        <input type="text" id="auth-username" required minlength="3">
+                    </div>
+                    <div class="form-group">
+                        <label for="auth-password">密码</label>
+                        <input type="password" id="auth-password" required minlength="6">
+                    </div>
+                    <div class="form-error" id="auth-error"></div>
+                    <button type="submit" class="btn btn-primary btn-block" id="auth-submit">登录</button>
+                </form>
+                <div class="auth-switch">
+                    <span id="auth-switch-text">还没有账号？</span>
+                    <a href="#" id="auth-switch-link">去注册</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置弹窗 -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h3>设置</h3>
+                <button class="modal-close" id="settings-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-tabs">
+                    <button class="settings-tab active" data-tab="po18">PO18账号</button>
+                    <button class="settings-tab" data-tab="webdav">个人WebDAV</button>
+                    <button class="settings-tab" data-tab="share">共享设置</button>
+                </div>
+                
+                <div class="settings-content active" id="settings-po18">
+                    <h4>PO18 Cookie设置</h4>
+                    <p class="settings-desc">请在PO18网站登录后，复制浏览器的Cookie粘贴到此处</p>
+                    <div class="form-group">
+                        <label>Cookie</label>
+                        <textarea id="po18-cookie" class="md-textarea" rows="4" placeholder="粘贴PO18网站的Cookie..."></textarea>
+                    </div>
+                    <div class="cookie-status" id="cookie-status"></div>
+                    <div class="button-group">
+                        <button class="btn btn-primary" id="save-cookie">保存Cookie</button>
+                        <button class="btn btn-outline" id="validate-cookie">验证Cookie</button>
+                    </div>
+                </div>
+                
+                <div class="settings-content" id="settings-webdav">
+                    <h4>个人WebDAV配置</h4>
+                    <p class="settings-desc">配置个人WebDAV服务器，下载完成后自动上传。支持添加多个书库配置</p>
+                    
+                    <!-- WebDAV配置列表 -->
+                    <div id="webdav-list" style="margin-bottom: 20px;"></div>
+                    
+                    <!-- 添加新配置表单 -->
+                    <div class="form-group">
+                        <label>书库名称</label>
+                        <input type="text" id="webdav-name" class="md-input" placeholder="例如：坚果云">
+                    </div>
+                    <div class="form-group">
+                        <label>服务器地址</label>
+                        <input type="text" id="webdav-url" class="md-input" placeholder="https://dav.example.com">
+                    </div>
+                    <div class="form-group">
+                        <label>用户名</label>
+                        <input type="text" id="webdav-username" class="md-input">
+                    </div>
+                    <div class="form-group">
+                        <label>密码</label>
+                        <input type="password" id="webdav-password" class="md-input">
+                    </div>
+                    <div class="form-group">
+                        <label>上传路径</label>
+                        <input type="text" id="webdav-path" class="md-input" placeholder="/po18/">
+                        <small class="form-hint">默认为 /po18/，书籍将保存在此目录</small>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn btn-primary" id="save-webdav">添加书库</button>
+                        <button class="btn btn-outline" id="test-webdav">测试连接</button>
+                    </div>
+                </div>
+                
+                <div class="settings-content" id="settings-share">
+                    <h4>共享设置</h4>
+                    <p class="settings-desc">启用共享功能后，可将书库中的书籍分享给其他用户，上传至少3本书籍后可访问共享书库</p>
+                    
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="enable-share-checkbox" class="md-checkbox">
+                            <span>启用共享功能</span>
+                        </label>
+                    </div>
+                    
+                    <div class="share-status" id="share-status" style="margin-top: 20px;">
+                        <div class="status-item">
+                            <span class="status-label">共享状态</span>
+                            <span class="status-value" id="share-status-text">未启用</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">已共享书籍</span>
+                            <span class="status-value" id="shared-count">0</span> 本
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">访问共享书库</span>
+                            <span class="status-value" id="can-access-shared">否</span>
+                        </div>
+                    </div>
+                    
+                    <div class="button-group" style="margin-top: 20px;">
+                        <button class="btn btn-primary" id="save-share-settings">保存设置</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 书籍详情弹窗 -->
+    <div class="modal-overlay" id="book-modal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h3 id="book-modal-title">书籍详情</h3>
+                <button class="modal-close" id="book-modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="book-modal-body">
+                <!-- 动态内容 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast消息 -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- 引入 JSZip 库用于生成 EPUB -->
+    <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="js/generator.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

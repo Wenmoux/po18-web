@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>书籍详情 - PO18书库</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/book-detail.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- 顶部导航 -->
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">📚</span>
+                <span class="logo-text">PO18书库</span>
+            </div>
+            <nav class="nav" id="main-nav">
+                <a href="index.html" class="nav-link">返回首页</a>
+            </nav>
+            <div class="user-area" id="user-area"></div>
+        </header>
+
+        <!-- 书籍详情主体 -->
+        <div class="book-detail-container">
+            <!-- 书籍信息卡片 -->
+            <div class="book-info-card">
+                <div class="book-cover-wrapper">
+                    <img id="book-cover" src="" alt="封面" class="book-cover">
+                </div>
+                
+                <div class="book-info-main">
+                    <h1 class="book-title" id="book-title">加载中...</h1>
+                    
+                    <div class="book-meta">
+                        <div class="meta-item">
+                            <span class="meta-label">作者</span>
+                            <span class="meta-value" id="book-author">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">状态</span>
+                            <span class="meta-value" id="book-status">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">总章节</span>
+                            <span class="meta-value" id="book-chapters">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">缓存章节</span>
+                            <span class="meta-value" id="book-cached-chapters">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">字数</span>
+                            <span class="meta-value" id="book-words">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">免费章节</span>
+                            <span class="meta-value" id="book-free-chapters">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">付费章节</span>
+                            <span class="meta-value" id="book-paid-chapters">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">最新章节</span>
+                            <span class="meta-value" id="book-latest-chapter">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">更新时间</span>
+                            <span class="meta-value" id="book-latest-date">-</span>
+                        </div>
+                    </div>
+
+                    <div class="book-stats">
+                        <div class="stat-item">
+                            <span class="stat-value" id="book-favorites">-</span>
+                            <span class="stat-label">收藏</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="book-comments">-</span>
+                            <span class="stat-label">留言</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="book-popularity">-</span>
+                            <span class="stat-label">月人气</span>
+                        </div>
+                    </div>
+
+                    <div class="book-tags" id="book-tags">
+                        <!-- 标签动态加载 -->
+                    </div>
+
+                    <div class="book-actions">
+                        <button class="btn btn-primary" id="btn-read">开始阅读</button>
+                        <button class="btn btn-outline" id="btn-chapters">章节列表</button>
+                        <button class="btn btn-outline" id="btn-preload">预加载章节</button>
+                        <button class="btn btn-outline" id="btn-download">下载书籍</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 书籍简介 -->
+            <div class="book-description-card">
+                <h3 class="section-title">内容简介</h3>
+                <div class="book-description" id="book-description">
+                    加载中...
+                </div>
+            </div>
+
+            <!-- 标签页：章节列表 / 评论区 -->
+            <div class="book-tabs">
+                <div class="tabs-header">
+                    <button class="tab-btn active" data-tab="chapters">章节列表</button>
+                    <button class="tab-btn" data-tab="comments">评论 (<span id="comment-count">0</span>)</button>
+                </div>
+
+                <!-- 章节列表 -->
+                <div class="tab-content active" id="tab-chapters">
+                    <div class="chapters-toolbar">
+                        <div class="chapters-info">
+                            共 <span id="total-chapters">0</span> 章
+                        </div>
+                        <div class="chapters-sort">
+                            <label>
+                                <input type="checkbox" id="reverse-chapters"> 倒序
+                            </label>
+                        </div>
+                    </div>
+                    <div class="chapters-list" id="chapters-list">
+                        <!-- 章节列表动态加载 -->
+                    </div>
+                </div>
+
+                <!-- 评论区 -->
+                <div class="tab-content" id="tab-comments">
+                    <div class="comments-list" id="comments-list">
+                        <!-- 评论动态加载 -->
+                    </div>
+                    <div class="pagination" id="comments-pagination">
+                        <!-- 分页动态加载 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 在线阅读弹窗 -->
+        <div class="modal-overlay" id="reader-modal">
+            <div class="modal reader-modal">
+                <div class="modal-header">
+                    <h3 id="reader-title">章节标题</h3>
+                    <button class="modal-close" id="reader-close">&times;</button>
+                </div>
+                <div class="modal-body reader-body">
+                    <div class="reader-toolbar">
+                        <button class="btn btn-sm" id="btn-prev-chapter">上一章</button>
+                        <span class="reader-title" id="reader-book-title">书名</span>
+                        <button class="btn btn-sm" id="btn-next-chapter">下一章</button>
+                    </div>
+                    <div class="reader-content" id="reader-content">
+                        <!-- 章节内容 -->
+                    </div>
+                    <div class="reader-footer">
+                        <span id="reader-progress">1/100</span>
+                        <button class="btn btn-sm btn-outline" id="reader-close-btn">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 下载弹窗 -->
+        <div class="modal-overlay" id="download-modal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3>下载书籍</h3>
+                    <button class="modal-close" id="download-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="download-options">
+                        <label class="download-option">
+                            <input type="radio" name="download-format" value="txt" checked>
+                            <span>TXT 格式</span>
+                        </label>
+                        <label class="download-option">
+                            <input type="radio" name="download-format" value="epub">
+                            <span>EPUB 格式</span>
+                        </label>
+                    </div>
+                    <div class="download-actions">
+                        <button class="btn btn-outline" id="cancel-download">取消</button>
+                        <button class="btn btn-primary" id="confirm-download">开始下载</button>
+                    </div>
+                    <div class="download-progress" id="download-progress" style="display: none;">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                        <div class="progress-text" id="progress-text">0%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast消息 -->
+        <div class="toast-container" id="toast-container"></div>
+        
+        <!-- 预加载进度 -->
+        <div class="preload-progress" id="preload-progress" style="display: none;">
+            <div class="preload-progress-title">预加载进度</div>
+            <div class="preload-progress-bar">
+                <div class="preload-progress-fill" id="preload-fill"></div>
+            </div>
+            <div class="preload-progress-text" id="preload-text">0/0</div>
+        </div>
+    </div>
+
+    <!-- 引入 JSZip 库 -->
+    <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="js/generator.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/book-detail.js"></script>
+</body>
+</html>
