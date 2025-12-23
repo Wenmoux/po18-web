@@ -1,0 +1,35 @@
+{
+    "name": "PO18书库",
+    "short_name": "PO18",
+    "description": "PO18小说在线阅读与下载",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#FFF5F8",
+    "theme_color": "#D81B60",
+    "orientation": "portrait-primary",
+    "scope": "/",
+    "lang": "zh-CN",
+    "icons": [
+        {
+            "src": "/icons/icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": ["books", "entertainment"],
+    "shortcuts": [
+        {
+            "name": "排行榜",
+            "short_name": "排行",
+            "url": "/#rankings",
+            "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
+        },
+        {
+            "name": "我的书架",
+            "short_name": "书架",
+            "url": "/#bookshelf",
+            "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
+        }
+    ]
+}

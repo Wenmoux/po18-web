@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <title>阅读 - PO18书库</title>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="css/reader.css" />
+        <link rel="stylesheet" href="css/components.css" />
+    </head>
+    <body>
+        <!-- 顶部导航栏 -->
+        <header class="reader-header" id="reader-header">
+            <div class="header-back-group">
+                <button class="header-btn" id="btn-back">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                    <span>返回</span>
+                </button>
+                <button class="header-btn-icon" id="btn-back-menu">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
+                <!-- 返回菜单 -->
+                <div class="back-menu" id="back-menu">
+                    <button class="back-menu-item" data-target="detail">
+                        <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                        </svg>
+                        <span>书籍详情</span>
+                    </button>
+                    <button class="back-menu-item" data-target="bookshelf">
+                        <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                        </svg>
+                        <span>我的书架</span>
+                    </button>
+                    <button class="back-menu-item" data-target="home">
+                        <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                        </svg>
+                        <span>主页</span>
+                    </button>
+                </div>
+            </div>
+            <div class="book-info">
+                <div class="book-title" id="book-title">书名加载中...</div>
+                <div class="chapter-progress" id="chapter-progress">1/1</div>
+            </div>
+            <button class="header-btn" id="btn-catalog">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+                <span>目录</span>
+            </button>
+        </header>
+
+        <!-- 阅读内容区 -->
+        <main class="reader-content" id="reader-content">
+            <!-- 阅读进度条 -->
+            <div class="reading-progress-bar" id="reading-progress-bar"></div>
+
+            <!-- 阅读进度指示器 -->
+            <div class="reading-progress-indicator" id="reading-progress-indicator">
+                <div class="progress-percentage">0%</div>
+                <div class="progress-text">第 1/1 章</div>
+            </div>
+
+            <article class="chapter-article">
+                <h1 class="chapter-title" id="chapter-title">章节加载中...</h1>
+                <div class="chapter-content" id="chapter-content">
+                    <div class="loading-spinner">
+                        <div class="spinner"></div>
+                        <p>加载中...</p>
+                    </div>
+                </div>
+            </article>
+        </main>
+
+        <!-- 章节导航 -->
+        <nav class="chapter-nav" id="chapter-nav">
+            <button class="nav-btn" id="btn-prev" disabled>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+                <span>上一章</span>
+            </button>
+            <button class="nav-btn nav-btn-center" id="btn-menu">
+                <span>菜单</span>
+            </button>
+            <button class="nav-btn" id="btn-next" disabled>
+                <span>下一章</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            </button>
+        </nav>
+
+        <!-- 底部工具栏 -->
+        <footer class="reader-toolbar" id="reader-toolbar">
+            <button class="tool-btn" id="btn-catalog-2">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+                <span>目录</span>
+            </button>
+            <button class="tool-btn" id="btn-settings">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path
+                        d="M12 1v6m0 6v6m0-18a5 5 0 0 1 0 10m0 6a5 5 0 0 1 0-10M6.3 6.3l4.2 4.2m5 5l4.2 4.2m0-14.1l-4.2 4.2m-5 5l-4.2 4.2"
+                    ></path>
+                </svg>
+                <span>设置</span>
+            </button>
+            <button class="tool-btn" id="btn-tts">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                </svg>
+                <span>朗读</span>
+            </button>
+            <button class="tool-btn" id="btn-bookmark">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <span>书签</span>
+            </button>
+            <button class="tool-btn" id="btn-daynight">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+                <span>夜间</span>
+            </button>
+        </footer>
+
+        <!-- 目录面板 -->
+        <aside class="catalog-panel" id="catalog-panel">
+            <div class="catalog-header">
+                <h3>目录</h3>
+                <button class="close-btn" id="btn-close-catalog">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="catalog-search">
+                <input type="text" class="search-input" id="catalog-search" placeholder="搜索章节..." />
+            </div>
+            <div class="catalog-list" id="catalog-list">
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                    <p>加载目录中...</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 设置面板 -->
+        <aside class="settings-panel" id="settings-panel">
+            <div class="settings-header">
+                <h3>阅读设置</h3>
+                <button class="close-btn" id="btn-close-settings">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="settings-content">
+                <!-- 字体大小滑块 -->
+                <div class="setting-group">
+                    <label class="setting-label">
+                        字体大小
+                        <span id="font-size-value" class="setting-value">18</span>
+                        px
+                    </label>
+                    <input
+                        type="range"
+                        id="font-size-slider"
+                        class="setting-slider"
+                        min="12"
+                        max="32"
+                        step="1"
+                        value="18"
+                    />
+                    <div class="slider-marks">
+                        <span>12</span>
+                        <span>22</span>
+                        <span>32</span>
+                    </div>
+                </div>
+
+                <!-- 行间距滑块 -->
+                <div class="setting-group">
+                    <label class="setting-label">
+                        行间距
+                        <span id="line-height-value" class="setting-value">1.8</span>
+                    </label>
+                    <input
+                        type="range"
+                        id="line-height-slider"
+                        class="setting-slider"
+                        min="1.2"
+                        max="2.5"
+                        step="0.1"
+                        value="1.8"
+                    />
+                    <div class="slider-marks">
+                        <span>1.2</span>
+                        <span>1.8</span>
+                        <span>2.5</span>
+                    </div>
+                </div>
+
+                <!-- 段落间距滑块 -->
+                <div class="setting-group">
+                    <label class="setting-label">
+                        段落间距
+                        <span id="paragraph-spacing-value" class="setting-value">1.5</span>
+                        em
+                    </label>
+                    <input
+                        type="range"
+                        id="paragraph-spacing-slider"
+                        class="setting-slider"
+                        min="0.5"
+                        max="3.0"
+                        step="0.1"
+                        value="1.5"
+                    />
+                    <div class="slider-marks">
+                        <span>0.5</span>
+                        <span>1.5</span>
+                        <span>3.0</span>
+                    </div>
+                </div>
+
+                <!-- 页面宽度 -->
+                <div class="setting-group">
+                    <label class="setting-label">页面宽度</label>
+                    <div class="setting-options">
+                        <button class="option-btn" data-width="600">窄</button>
+                        <button class="option-btn active" data-width="800">标准</button>
+                        <button class="option-btn" data-width="1000">宽</button>
+                        <button class="option-btn" data-width="100%">全屏</button>
+                    </div>
+                </div>
+
+                <!-- 背景主题 -->
+                <div class="setting-group">
+                    <label class="setting-label">背景主题</label>
+                    <div class="theme-options">
+                        <button class="theme-btn active" data-theme="default" style="background: #f5f5f5; color: #333">
+                            <span>默认</span>
+                        </button>
+                        <button
+                            class="theme-btn"
+                            data-theme="white"
+                            style="background: #fff; color: #333; border: 1px solid #ddd"
+                        >
+                            <span>纯白</span>
+                        </button>
+                        <button class="theme-btn" data-theme="sepia" style="background: #f4ecd8; color: #5c4a35">
+                            <span>护眼</span>
+                        </button>
+                        <button class="theme-btn" data-theme="green" style="background: #e8f5e9; color: #2e7d32">
+                            <span>绿色</span>
+                        </button>
+                        <button class="theme-btn" data-theme="blue" style="background: #e3f2fd; color: #1565c0">
+                            <span>蓝色</span>
+                        </button>
+                        <button class="theme-btn" data-theme="pink" style="background: #fce4ec; color: #c2185b">
+                            <span>粉色</span>
+                        </button>
+                        <button class="theme-btn" data-theme="dark" style="background: #2c2c2c; color: #d0d0d0">
+                            <span>夜间</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 字体切换 -->
+                <div class="setting-group">
+                    <label class="setting-label">字体</label>
+                    <div class="setting-options">
+                        <button class="option-btn active" data-font="system">系统</button>
+                        <button class="option-btn" data-font="serif">宋体</button>
+                        <button class="option-btn" data-font="kai">楷体</button>
+                        <button class="option-btn" data-font="hei">黑体</button>
+                        <button class="option-btn" data-font="siyuan">思源</button>
+                    </div>
+                </div>
+
+                <!-- 标题样式 -->
+                <div class="setting-group">
+                    <label class="setting-label">标题样式</label>
+                    <div class="setting-options">
+                        <button class="option-btn active" data-title-style="default">默认</button>
+                        <button class="option-btn" data-title-style="elegant">优雅</button>
+                        <button class="option-btn" data-title-style="classic">古典</button>
+                        <button class="option-btn" data-title-style="modern">现代</button>
+                        <button class="option-btn" data-title-style="minimal">简约</button>
+                    </div>
+                </div>
+
+                <!-- 正文样式 -->
+                <div class="setting-group">
+                    <label class="setting-label">正文样式</label>
+                    <div class="setting-options">
+                        <button class="option-btn active" data-content-style="default">默认</button>
+                        <button class="option-btn" data-content-style="letter">书信</button>
+                        <button class="option-btn" data-content-style="chat">聊天</button>
+                        <button class="option-btn" data-content-style="ancient">古籍</button>
+                        <button class="option-btn" data-content-style="poetry">诗歌</button>
+                    </div>
+                </div>
+
+                <!-- 繁简转换 -->
+                <div class="setting-group">
+                    <label class="setting-label">繁简转换</label>
+                    <div class="setting-options">
+                        <button class="option-btn active" data-text-convert="none">不转换</button>
+                        <button class="option-btn" data-text-convert="s2t">简转繁</button>
+                        <button class="option-btn" data-text-convert="t2s">繁转简</button>
+                    </div>
+                </div>
+
+                <!-- 翻页方式 -->
+                <div class="setting-group">
+                    <label class="setting-label">翻页方式</label>
+                    <div class="setting-options">
+                        <button class="option-btn active" data-page="scroll">上下滚动</button>
+                        <button class="option-btn" data-page="slide">左右滑动</button>
+                        <button class="option-btn" data-page="click">点击翻页</button>
+                    </div>
+                </div>
+
+                <!-- 自动滚动 -->
+                <div class="setting-group">
+                    <label class="setting-label">自动滚动</label>
+                    <div class="setting-row">
+                        <button class="toggle-btn" id="auto-scroll-toggle">
+                            <span class="toggle-slider"></span>
+                        </button>
+                        <input
+                            type="range"
+                            id="auto-scroll-speed"
+                            class="setting-slider"
+                            min="10"
+                            max="100"
+                            step="5"
+                            value="50"
+                            style="flex: 1; margin-left: 12px"
+                        />
+                        <span id="auto-scroll-speed-value" class="setting-value" style="margin-left: 8px">50</span>
+                    </div>
+                </div>
+
+                <!-- TTS API设置 -->
+                <div class="setting-group">
+                    <label class="setting-label">自定义TTS API</label>
+                    <input
+                        type="text"
+                        id="tts-api-url"
+                        class="setting-input"
+                        placeholder="输入TTS API地址（可选）"
+                        value=""
+                    />
+                    <small style="color: #999; font-size: 12px; display: block; margin-top: 4px">
+                        支持 {text} 占位符，例：https://api.example.com/tts?text={text}
+                    </small>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 遮罩层 -->
+        <div class="overlay" id="overlay"></div>
+
+        <!-- TTS控制面板 -->
+        <aside class="tts-panel" id="tts-panel">
+            <div class="tts-header">
+                <h3>🔊 语音朗读</h3>
+                <button class="close-btn" id="btn-close-tts">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="tts-content">
+                <!-- 播放控制 -->
+                <div class="tts-controls">
+                    <button class="tts-btn tts-btn-main" id="tts-play">
+                        <svg class="icon-play" width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        <svg
+                            class="icon-pause"
+                            width="32"
+                            height="32"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            style="display: none"
+                        >
+                            <rect x="6" y="4" width="4" height="16"></rect>
+                            <rect x="14" y="4" width="4" height="16"></rect>
+                        </svg>
+                    </button>
+                    <button class="tts-btn" id="tts-stop">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <rect x="5" y="5" width="14" height="14"></rect>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- 语音选择 -->
+                <div class="tts-setting">
+                    <label>语音</label>
+                    <select id="tts-voice" class="tts-select"></select>
+                </div>
+
+                <!-- 语速调节 -->
+                <div class="tts-setting">
+                    <label>
+                        语速:
+                        <span id="tts-rate-value">1.0</span>
+                        x
+                    </label>
+                    <input type="range" id="tts-rate" min="0.5" max="2" step="0.1" value="1" class="tts-slider" />
+                </div>
+
+                <!-- 音调调节 -->
+                <div class="tts-setting">
+                    <label>
+                        音调:
+                        <span id="tts-pitch-value">1.0</span>
+                    </label>
+                    <input type="range" id="tts-pitch" min="0.5" max="2" step="0.1" value="1" class="tts-slider" />
+                </div>
+
+                <!-- 进度显示 -->
+                <div class="tts-progress">
+                    <div class="tts-progress-bar" id="tts-progress-bar" style="width: 0%"></div>
+                </div>
+                <div class="tts-status" id="tts-status">点击播放开始朗读</div>
+            </div>
+        </aside>
+
+        <!-- Toast 提示 -->
+        <div class="toast" id="toast"></div>
+
+        <script src="js/utils.js"></script>
+        <script src="js/reader.js"></script>
+    </body>
+</html>

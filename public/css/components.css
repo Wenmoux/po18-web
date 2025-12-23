@@ -1,0 +1,442 @@
+/**
+ * 通用组件样式 - Material Design 3
+ * 减少重复代码,提高可维护性
+ */
+
+/* ===== 卡片组件 ===== */
+.card-base {
+    background: var(--md-surface-container-lowest);
+    border-radius: var(--md-radius-lg);
+    box-shadow: var(--md-elevation-1);
+    transition: var(--md-transition);
+    overflow: hidden;
+}
+
+.card-base:hover {
+    box-shadow: var(--md-elevation-3);
+    transform: translateY(-2px);
+}
+
+.card-interactive {
+    cursor: pointer;
+    position: relative;
+}
+
+.card-interactive::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--md-primary);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.card-interactive:hover::before {
+    opacity: 0.04;
+}
+
+.card-interactive:active::before {
+    opacity: 0.08;
+}
+
+/* ===== 按钮组件 ===== */
+.btn-ripple {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-ripple::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    transform: translate(-50%, -50%);
+    transition:
+        width 0.6s,
+        height 0.6s;
+}
+
+.btn-ripple:active::after {
+    width: 300px;
+    height: 300px;
+}
+
+/* ===== 输入框组件 ===== */
+.input-group {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.input-group .md-input {
+    padding-top: 20px;
+}
+
+.input-group label {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--md-on-surface-variant);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    font-size: 14px;
+}
+
+.input-group .md-input:focus + label,
+.input-group .md-input:not(:placeholder-shown) + label {
+    top: 8px;
+    font-size: 12px;
+    color: var(--md-primary);
+}
+
+.input-error {
+    border-color: var(--md-error) !important;
+    animation: shake 0.3s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+@keyframes shake {
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+    25% {
+        transform: translateX(-8px);
+    }
+    50% {
+        transform: translateX(8px);
+    }
+    75% {
+        transform: translateX(-4px);
+    }
+}
+
+.input-error-message {
+    color: var(--md-error);
+    font-size: 12px;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* ===== 骨架屏加载 ===== */
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--md-surface-container) 25%,
+        var(--md-surface-container-high) 50%,
+        var(--md-surface-container) 75%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s ease-in-out infinite;
+    border-radius: var(--md-radius-sm);
+}
+
+@keyframes skeleton-loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeleton-text {
+    height: 16px;
+    margin-bottom: 8px;
+}
+
+.skeleton-text:last-child {
+    width: 60%;
+}
+
+.skeleton-title {
+    height: 24px;
+    width: 80%;
+    margin-bottom: 12px;
+}
+
+.skeleton-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+}
+
+.skeleton-card {
+    height: 200px;
+}
+
+.skeleton-button {
+    height: 40px;
+    width: 120px;
+    border-radius: var(--md-radius-full);
+}
+
+/* ===== 空状态组件 ===== */
+.empty-state-enhanced {
+    text-align: center;
+    padding: 60px 20px;
+    animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.empty-state-enhanced .empty-icon {
+    font-size: 80px;
+    margin-bottom: 20px;
+    opacity: 0.6;
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.empty-state-enhanced h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--md-on-surface);
+    margin-bottom: 8px;
+}
+
+.empty-state-enhanced p {
+    color: var(--md-on-surface-variant);
+    margin-bottom: 24px;
+    font-size: 14px;
+}
+
+/* ===== Toast提示增强 ===== */
+.toast-success {
+    background: linear-gradient(135deg, #4caf50, #66bb6a);
+}
+
+.toast-error {
+    background: linear-gradient(135deg, #f44336, #e57373);
+}
+
+.toast-warning {
+    background: linear-gradient(135deg, #ff9800, #ffb74d);
+}
+
+.toast-info {
+    background: linear-gradient(135deg, #2196f3, #64b5f6);
+}
+
+/* ===== 加载指示器 ===== */
+.loading-dots {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    align-items: center;
+}
+
+.loading-dots span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--md-primary);
+    animation: loading-bounce 1.4s infinite ease-in-out;
+}
+
+.loading-dots span:nth-child(1) {
+    animation-delay: -0.32s;
+}
+
+.loading-dots span:nth-child(2) {
+    animation-delay: -0.16s;
+}
+
+@keyframes loading-bounce {
+    0%,
+    80%,
+    100% {
+        transform: scale(0);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* ===== 进度条组件 ===== */
+.progress-bar-wrapper {
+    width: 100%;
+    height: 6px;
+    background: var(--md-surface-container-high);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--md-primary), #ff6b9d);
+    border-radius: 3px;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-bar-fill::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: progress-shimmer 2s infinite;
+}
+
+@keyframes progress-shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+/* ===== 徽章组件 ===== */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 8px;
+    border-radius: var(--md-radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+}
+
+.badge-primary {
+    background: var(--md-primary-container);
+    color: var(--md-on-primary-container);
+}
+
+.badge-success {
+    background: #c8e6c9;
+    color: #1b5e20;
+}
+
+.badge-error {
+    background: #ffcdd2;
+    color: #c62828;
+}
+
+.badge-warning {
+    background: #ffe0b2;
+    color: #e65100;
+}
+
+/* ===== 分割线组件 ===== */
+.divider {
+    height: 1px;
+    background: var(--md-outline-variant);
+    margin: 16px 0;
+}
+
+.divider-vertical {
+    width: 1px;
+    height: 100%;
+    background: var(--md-outline-variant);
+    margin: 0 16px;
+}
+
+/* ===== Chip组件 ===== */
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--md-surface-container-high);
+    color: var(--md-on-surface-variant);
+    border-radius: var(--md-radius-sm);
+    font-size: 13px;
+    transition: var(--md-transition);
+    cursor: pointer;
+}
+
+.chip:hover {
+    background: var(--md-surface-container-highest);
+}
+
+.chip-selected {
+    background: var(--md-secondary-container);
+    color: var(--md-on-secondary-container);
+}
+
+/* ===== 模态框增强 ===== */
+.modal-overlay {
+    backdrop-filter: blur(4px);
+    animation: fadeIn 0.2s ease-out;
+}
+
+.modal {
+    animation: scaleIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* ===== 响应式工具类 ===== */
+.hide-mobile {
+    display: block;
+}
+
+.show-mobile {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .hide-mobile {
+        display: none;
+    }
+
+    .show-mobile {
+        display: block;
+    }
+}
+
+/* ===== 触摸反馈增强 ===== */
+@media (hover: none) {
+    .card-interactive:active {
+        transform: scale(0.98);
+    }
+
+    .btn:active {
+        transform: scale(0.96);
+    }
+}

@@ -1,0 +1,622 @@
+/**
+ * 移动端体验增强样式
+ * 安全区域适配、触摸反馈、手势优化
+ */
+
+/* ===== 安全区域适配 ===== */
+body {
+    /* iOS安全区域支持 */
+    padding-top: env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* 固定定位元素的安全区域适配 */
+.header {
+    padding-top: max(8px, env(safe-area-inset-top));
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    /* 在小屏幕上减小padding */
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+}
+
+.bottom-tab-bar {
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+    /* 增加底部tab高度以适配刘海屏 */
+    height: calc(60px + env(safe-area-inset-bottom));
+}
+
+.reader-toolbar {
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+}
+
+/* ===== 触摸反馈增强 ===== */
+/* Material Design涟漪效果 */
+.ripple-container {
+    position: relative;
+    overflow: hidden;
+}
+
+.ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.6);
+    transform: scale(0);
+    animation: ripple-animation 0.6s ease-out;
+    pointer-events: none;
+}
+
+@keyframes ripple-animation {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+/* 按钮触摸态 */
+@media (hover: none) {
+    .btn:active {
+        transform: scale(0.96);
+        transition: transform 0.1s ease-out;
+    }
+
+    .card-interactive:active {
+        transform: scale(0.98);
+        transition: transform 0.1s ease-out;
+    }
+
+    .nav-link:active {
+        background: var(--md-surface-container-highest);
+    }
+
+    .tool-btn:active {
+        transform: scale(0.9);
+    }
+}
+
+/* ===== 滑动手势优化 ===== */
+.swipeable {
+    touch-action: pan-y;
+    user-select: none;
+}
+
+.swipe-action-left,
+.swipe-action-right {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.swipe-action-left {
+    left: 0;
+    background: linear-gradient(90deg, #4caf50, transparent);
+}
+
+.swipe-action-right {
+    right: 0;
+    background: linear-gradient(270deg, #f44336, transparent);
+}
+
+.swipeable.swiping .swipe-action-left,
+.swipeable.swiping .swipe-action-right {
+    opacity: 1;
+}
+
+/* ===== 长按菜单 ===== */
+.long-press-menu {
+    position: fixed;
+    background: var(--md-surface-container-highest);
+    border-radius: var(--md-radius-md);
+    box-shadow: var(--md-elevation-3);
+    padding: 8px 0;
+    min-width: 160px;
+    z-index: 1000;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+}
+
+.long-press-menu.show {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+}
+
+.long-press-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    color: var(--md-on-surface);
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.long-press-menu-item:active {
+    background: var(--md-surface-container);
+}
+
+/* ===== 下拉刷新 ===== */
+.pull-to-refresh {
+    position: relative;
+    overflow: hidden;
+}
+
+.pull-to-refresh-indicator {
+    position: absolute;
+    top: -60px;
+    left: 0;
+    right: 0;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s ease;
+    z-index: 10;
+}
+
+.pull-to-refresh.pulling .pull-to-refresh-indicator {
+    transform: translateY(60px);
+}
+
+.pull-to-refresh-spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid var(--md-outline-variant);
+    border-top-color: var(--md-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+/* ===== 底部抽屉 ===== */
+.bottom-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--md-surface-container-lowest);
+    border-radius: 28px 28px 0 0;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 200;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+.bottom-sheet.active {
+    transform: translateY(0);
+}
+
+/* 背景遮罩 */
+.bottom-sheet-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 199;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+
+.bottom-sheet-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.bottom-sheet-handle {
+    width: 40px;
+    height: 4px;
+    background: var(--md-outline-variant);
+    border-radius: 2px;
+    margin: 12px auto 8px;
+    flex-shrink: 0; /* 不被压缩 */
+}
+
+.bottom-sheet-content {
+    padding: 0 24px 24px;
+    overflow-y: auto;
+    flex: 1;
+    /* iOS滚动优化 */
+    -webkit-overflow-scrolling: touch;
+}
+
+
+
+/* ===== 虚拟键盘优化 ===== */
+/* 键盘弹出时调整布局 */
+@media (max-height: 500px) {
+    .modal {
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .main-content {
+        padding-bottom: 60px;
+    }
+}
+
+/* ===== 横屏优化 ===== */
+@media (orientation: landscape) and (max-height: 600px) {
+    .header {
+        padding: 4px 16px;
+    }
+
+    .bottom-tab-bar {
+        height: 50px;
+    }
+
+    .page-header h2 {
+        font-size: 20px;
+    }
+}
+
+/* ===== 滚动优化 ===== */
+/* 平滑滚动 */
+html {
+    scroll-behavior: smooth;
+}
+
+/* iOS橡皮筋效果优化 */
+.scroll-container {
+    -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
+}
+
+/* 自定义滚动条 - 移动端 */
+@media (max-width: 768px) {
+    ::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.15);
+        border-radius: 2px;
+    }
+}
+
+/* ===== 触摸目标尺寸优化 ===== */
+@media (max-width: 768px) {
+    /* 确保触摸目标至少44x44px */
+    .btn,
+    .nav-link,
+    .tool-btn,
+    a {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* 增加表单元素的触摸区域 */
+    input[type="checkbox"],
+    input[type="radio"] {
+        width: 24px;
+        height: 24px;
+    }
+}
+
+/* ===== 防止误触 ===== */
+/* 禁用双击缩放 */
+body {
+    touch-action: manipulation;
+}
+
+/* 禁用长按选择 */
+.no-select {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+/* ===== 加载状态优化 ===== */
+.mobile-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.mobile-loading-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.mobile-loading-spinner {
+    width: 60px;
+    height: 60px;
+    background: var(--md-surface-container-lowest);
+    border-radius: var(--md-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--md-elevation-3);
+}
+
+/* ===== 通知权限提示 ===== */
+.notification-prompt {
+    position: fixed;
+    bottom: calc(60px + env(safe-area-inset-bottom));
+    left: 16px;
+    right: 16px;
+    background: var(--md-surface-container-highest);
+    border-radius: var(--md-radius-lg);
+    padding: 16px;
+    box-shadow: var(--md-elevation-2);
+    transform: translateY(calc(100% + 60px));
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 100;
+}
+
+.notification-prompt.show {
+    transform: translateY(0);
+}
+
+/* ===== PWA安装提示 ===== */
+.install-prompt {
+    position: fixed;
+    bottom: calc(60px + env(safe-area-inset-bottom));
+    left: 16px;
+    right: 16px;
+    background: linear-gradient(135deg, var(--md-primary), #ff6b9d);
+    color: white;
+    border-radius: var(--md-radius-lg);
+    padding: 16px;
+    box-shadow: 0 8px 24px rgba(216, 27, 96, 0.4);
+    transform: translateY(calc(100% + 60px));
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.install-prompt.show {
+    transform: translateY(0);
+}
+
+.install-prompt-icon {
+    font-size: 32px;
+    flex-shrink: 0;
+}
+
+.install-prompt-content {
+    flex: 1;
+}
+
+.install-prompt-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.install-prompt-desc {
+    font-size: 13px;
+    opacity: 0.9;
+}
+
+.install-prompt-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.install-prompt-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--md-radius-full);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    transition: background 0.2s ease;
+}
+
+.install-prompt-btn:active {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.install-prompt-btn-primary {
+    background: white;
+    color: var(--md-primary);
+}
+
+.install-prompt-btn-primary:active {
+    background: rgba(255, 255, 255, 0.9);
+}
+
+/* ==================== 滚动按钮 ==================== */
+.scroll-top-btn {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.scroll-top-btn:active {
+    transform: scale(0.9);
+}
+
+/* ==================== 漂浪导航按钮（MD3毛玻璃风格） ==================== */
+.floating-nav-btn {
+    position: fixed;
+    right: 20px;
+    bottom: 100px;
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.12),
+        0 2px 8px rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 999;
+    color: var(--md-on-surface);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    touch-action: none;
+}
+
+.floating-nav-btn:active {
+    transform: scale(0.95);
+}
+
+.floating-nav-btn.active {
+    background: var(--md-primary);
+    color: var(--md-on-primary);
+    box-shadow: 
+        0 12px 40px rgba(233, 30, 99, 0.3),
+        0 4px 12px rgba(233, 30, 99, 0.2);
+}
+
+/* 漂浪导航菜单 */
+.floating-nav-menu {
+    position: fixed;
+    right: 20px;
+    bottom: 170px;
+    width: 160px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    border-radius: 20px;
+    box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.15),
+        0 8px 24px rgba(0, 0, 0, 0.1);
+    opacity: 0;
+    transform: translateY(20px) scale(0.9);
+    pointer-events: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 998;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.floating-nav-menu.active {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+.nav-menu-item {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.nav-menu-item:last-child {
+    border-bottom: none;
+}
+
+.nav-menu-item:hover,
+.nav-menu-item:active {
+    background: rgba(233, 30, 99, 0.08);
+}
+
+.nav-menu-icon {
+    font-size: 20px;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+.nav-menu-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--md-on-surface);
+}
+
+/* 暗色主题 */
+body[data-theme="dark"] .floating-nav-btn {
+    background: rgba(40, 40, 40, 0.9);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+body[data-theme="dark"] .floating-nav-menu {
+    background: rgba(40, 40, 40, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+body[data-theme="dark"] .nav-menu-item {
+    border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+/* ==================== 筛选触发按钮 - 已禁用 ==================== */
+.filter-trigger-btn {
+    display: none !important; /* 已禁用，改用漂浮导航 */
+    /* position: fixed !important;
+    bottom: 80px;
+    right: 20px;
+    z-index: 199;
+    cursor: pointer;
+    border-radius: 50%;
+    width: 56px;
+    height: 56px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 2px; */
+}
+
+.filter-trigger-btn:active {
+    transform: scale(0.9);
+}
+
+/* ==================== 模态框动画 ==================== */
+.modal.active .modal-dialog {
+    animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* ==================== 虚拟滚动列表 ==================== */
+.virtual-scroll-container {
+    overflow-y: auto;
+    position: relative;
+}

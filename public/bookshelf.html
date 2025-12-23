@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <title>我的书架 - PO18书库</title>
+        <link rel="stylesheet" href="css/style.css" />
+        <link rel="stylesheet" href="css/bookshelf.css" />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&display=swap"
+            rel="stylesheet"
+        />
+    </head>
+    <body>
+        <div id="app">
+            <!-- 顶部导航栏 -->
+            <header class="header">
+                <div class="header-left">
+                    <button class="btn-back" onclick="window.location.href = '/'">
+                        <svg
+                            width="24"
+                            height="24"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                        <span>返回</span>
+                    </button>
+                </div>
+                <div class="logo">
+                    <span class="logo-icon">📚</span>
+                    <span class="logo-text">我的书架</span>
+                </div>
+                <div class="header-right">
+                    <div class="user-info" id="user-info" style="display: none">
+                        <span id="username-display"></span>
+                        <button class="btn btn-sm btn-outline" id="btn-logout">登出</button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- 主内容区 -->
+            <main class="main-content">
+                <div class="bookshelf-container">
+                    <!-- 书架头部 -->
+                    <div class="bookshelf-header">
+                        <h2>我的书架</h2>
+                        <p class="bookshelf-subtitle">记录你的阅读历程</p>
+                    </div>
+
+                    <!-- 筛选和排序 -->
+                    <div class="bookshelf-filters">
+                        <select id="sort-select" class="md-select">
+                            <option value="recent">最近阅读</option>
+                            <option value="progress">阅读进度</option>
+                            <option value="time">阅读时长</option>
+                            <option value="added">添加时间</option>
+                        </select>
+                    </div>
+
+                    <!-- 书架列表 -->
+                    <div class="bookshelf-grid" id="bookshelf-grid">
+                        <div class="loading-state">
+                            <div class="spinner"></div>
+                            <p>加载中...</p>
+                        </div>
+                    </div>
+
+                    <!-- 空状态 -->
+                    <div class="empty-state" id="empty-state" style="display: none">
+                        <div class="empty-icon">📚</div>
+                        <h3>书架空空如也</h3>
+                        <p>快去添加你喜欢的书籍吧</p>
+                        <button class="btn btn-primary" onclick="window.location.href = '/'">去浏览书籍</button>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <script src="js/bookshelf.js"></script>
+    </body>
+</html>

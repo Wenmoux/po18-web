@@ -1,0 +1,101 @@
+/* ==================== 响应式优化 ==================== */
+@media (max-width: 768px) {
+    .header {
+        padding: 8px 12px;
+        gap: 8px;
+    }
+    
+    .logo-text {
+        font-size: 16px;
+    }
+    
+    .logo-icon {
+        font-size: 20px;
+    }
+    
+    .nav {
+        gap: 2px;
+        justify-content: flex-start;
+        overflow-x: auto;
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE 10+ */
+    }
+    
+    .nav::-webkit-scrollbar {
+        display: none; /* Chrome Safari */
+    }
+    
+    .nav-link {
+        padding: 6px 10px;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+    
+    #username-display {
+        font-size: 12px;
+        padding: 4px 8px;
+        max-width: 100px;
+    }
+    
+    .user-info .btn-sm {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+    
+    .theme-toggle {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .header {
+        padding: 6px 10px;
+        gap: 6px;
+    }
+    
+    .logo-text {
+        font-size: 14px;
+    }
+    
+    .logo-icon {
+        font-size: 18px;
+    }
+    
+    .nav-link {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+    
+    #username-display {
+        font-size: 11px;
+        padding: 3px 6px;
+        max-width: 80px;
+    }
+    
+    .user-info .btn-sm {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+    
+    .theme-toggle {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+    }
+}
+
+/* ==================== 暗色主题适配 ==================== */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --md-surface-container-lowest: #1e1b1b;
+        --md-surface-container: #2a2727;
+        --md-surface-container-high: #363333;
+        --md-surface-container-highest: #423f3f;
+        --md-on-surface: #ece0e0;
+        --md-on-surface-variant: #d5c2c6;
+        --md-outline: #9f8c91;
+        --md-outline-variant: #514347;
+    }
+}

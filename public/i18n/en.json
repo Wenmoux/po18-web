@@ -1,0 +1,109 @@
+{
+    "app": {
+        "name": "PO18 Library",
+        "title": "PO18 Novel Download & Reading"
+    },
+    "nav": {
+        "home": "Home",
+        "library": "My Library",
+        "globalLibrary": "Global Library",
+        "purchased": "Purchased",
+        "download": "Downloads",
+        "cloudLibrary": "Cloud Library",
+        "subscriptions": "Subscriptions",
+        "profile": "Profile",
+        "admin": "Admin",
+        "settings": "Settings",
+        "logout": "Logout"
+    },
+    "auth": {
+        "login": "Login",
+        "register": "Register",
+        "username": "Username",
+        "password": "Password",
+        "loginButton": "Sign In",
+        "registerButton": "Sign Up",
+        "forgotPassword": "Forgot password?",
+        "noAccount": "Don't have an account?",
+        "hasAccount": "Already have an account?",
+        "loginNow": "Sign in now"
+    },
+    "common": {
+        "search": "Search",
+        "loading": "Loading...",
+        "noData": "No data",
+        "confirm": "Confirm",
+        "cancel": "Cancel",
+        "save": "Save",
+        "delete": "Delete",
+        "edit": "Edit",
+        "view": "View",
+        "refresh": "Refresh",
+        "more": "More",
+        "back": "Back",
+        "submit": "Submit",
+        "reset": "Reset",
+        "close": "Close",
+        "success": "Success",
+        "error": "Error",
+        "warning": "Warning",
+        "info": "Info"
+    },
+    "book": {
+        "title": "Title",
+        "author": "Author",
+        "cover": "Cover",
+        "description": "Description",
+        "tags": "Tags",
+        "category": "Category",
+        "status": "Status",
+        "chapters": "Chapters",
+        "wordCount": "Word Count",
+        "lastUpdate": "Last Update",
+        "addToShelf": "Add to Shelf",
+        "removeFromShelf": "Remove from Shelf",
+        "startReading": "Start Reading",
+        "continueReading": "Continue Reading",
+        "download": "Download",
+        "share": "Share"
+    },
+    "reader": {
+        "prevChapter": "Previous",
+        "nextChapter": "Next",
+        "chapterList": "Contents",
+        "fontSize": "Font Size",
+        "lineHeight": "Line Height",
+        "pageWidth": "Page Width",
+        "theme": "Theme",
+        "autoScroll": "Auto Scroll",
+        "tts": "Text to Speech",
+        "bookmark": "Bookmark",
+        "note": "Note"
+    },
+    "theme": {
+        "light": "Light Mode",
+        "dark": "Dark Mode",
+        "eyeCare": "Eye Care"
+    },
+    "admin": {
+        "dashboard": "Dashboard",
+        "monitor": "Monitor",
+        "users": "Users",
+        "books": "Books",
+        "shared": "Shared",
+        "export": "Export",
+        "crawler": "Crawler",
+        "systemStatus": "System Status",
+        "databaseStats": "Database Stats",
+        "userActivity": "User Activity"
+    },
+    "settings": {
+        "general": "General",
+        "language": "Language",
+        "theme": "Theme",
+        "reading": "Reading",
+        "notifications": "Notifications",
+        "privacy": "Privacy",
+        "about": "About"
+    }
+}

@@ -1,0 +1,47 @@
+{
+    "env": {
+        "browser": true,
+        "es2021": true,
+        "node": true
+    },
+    "extends": "eslint:recommended",
+    "parserOptions": {
+        "ecmaVersion": "latest",
+        "sourceType": "module"
+    },
+    "rules": {
+        "indent": "off",
+        "linebreak-style": "off",
+        "quotes": "off",
+        "semi": "off",
+        "no-unused-vars": "warn",
+        "no-console": "off",
+        "prefer-const": "off",
+        "no-var": "warn",
+        "eqeqeq": "off",
+        "curly": "off",
+        "brace-style": "off",
+        "comma-dangle": "off",
+        "arrow-spacing": "off",
+        "object-curly-spacing": "off",
+        "array-bracket-spacing": "off",
+        "no-multiple-empty-lines": "off",
+        "no-trailing-spaces": "off",
+        "no-undef": "warn",
+        "no-redeclare": "warn",
+        "no-constant-condition": "warn"
+    },
+    "globals": {
+        "Utils": "readonly",
+        "toast": "readonly",
+        "storage": "readonly",
+        "lazyLoader": "readonly",
+        "mobileEnhancements": "readonly",
+        "bottomSheet": "readonly",
+        "API": "readonly",
+        "App": "readonly",
+        "FileGenerator": "readonly",
+        "EpubGenerator": "readonly",
+        "JSZip": "readonly"
+    }
+}

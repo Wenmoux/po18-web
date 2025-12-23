@@ -1,222 +1,361 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>书籍详情 - PO18书库</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/book-detail.css">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet">
-</head>
-<body>
-    <div id="app">
-        <!-- 顶部导航 -->
-        <header class="header">
-            <div class="logo">
-                <span class="logo-icon">📚</span>
-                <span class="logo-text">PO18书库</span>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>书籍详情 - PO18书库</title>
+        <link rel="stylesheet" href="css/style.css" />
+        <link rel="stylesheet" href="css/book-detail.css" />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&display=swap"
+            rel="stylesheet"
+        />
+    </head>
+    <body>
+        <div id="app">
+            <!-- 顶部导航栏 -->
+            <header class="header">
+                <div class="header-left">
+                    <button class="btn-back" onclick="window.history.back()">
+                        <svg
+                            width="24"
+                            height="24"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                        <span>返回</span>
+                    </button>
+                </div>
+                <div class="logo">
+                    <span class="logo-icon">📚</span>
+                    <span class="logo-text">PO18书库</span>
+                </div>
+                <div class="header-right"></div>
+            </header>
+
+            <!-- 主内容区 -->
+            <main class="detail-container">
+                <!-- 书籍信息卡片 -->
+                <div class="book-info-card">
+                    <div class="book-header">
+                        <img id="book-cover" class="book-cover-large" src="" alt="封面" />
+                        <div class="book-header-info">
+                            <h1 id="book-title" class="book-title-large">加载中...</h1>
+                            <p id="book-author" class="book-author-large">作者：加载中...</p>
+                            <div id="book-tags" class="book-tags-container"></div>
+                            <div class="book-stats-row">
+                                <div class="stat-item">
+                                    <span class="stat-label">状态</span>
+                                    <span id="book-status" class="stat-value">-</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">章节</span>
+                                    <span id="book-chapters" class="stat-value">-</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">字数</span>
+                                    <span id="book-words" class="stat-value">-</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">收藏</span>
+                                    <span id="book-favorites" class="stat-value">-</span>
+                                </div>
+                            </div>
+                            <div class="book-actions">
+                                <button class="btn btn-primary" id="btn-read">
+                                    <svg
+                                        width="20"
+                                        height="20"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                                    </svg>
+                                    开始阅读
+                                </button>
+                                <button class="btn btn-tonal" id="btn-add-bookshelf">
+                                    <svg
+                                        width="20"
+                                        height="20"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                                    </svg>
+                                    加入书架
+                                </button>
+                                <button class="btn btn-outline" id="btn-download">
+                                    <svg
+                                        width="20"
+                                        height="20"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7 10 12 15 17 10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                    下载书籍
+                                </button>
+                                <button
+                                    class="btn btn-outline"
+                                    id="btn-po18-link"
+                                    style="
+                                        background: linear-gradient(135deg, #ff8ba7 0%, #ffc3d5 100%);
+                                        color: white;
+                                        border: none;
+                                    "
+                                >
+                                    <svg
+                                        width="20"
+                                        height="20"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path
+                                            d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+                                        ></path>
+                                    </svg>
+                                    脸红心跳
+                                </button>
+                                <button
+                                    class="btn btn-outline"
+                                    id="btn-subscribe"
+                                    style="border-color: #9c27b0; color: #9c27b0"
+                                >
+                                    <svg
+                                        width="20"
+                                        height="20"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                                    </svg>
+                                    <span id="subscribe-text">订阅更新</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                <!-- 标签页导航 -->
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="intro">简介</button>
+                    <button class="tab-btn" data-tab="chapters">
+                        章节 (
+                        <span id="total-chapters">0</span>
+                        )
+                    </button>
+                    <button class="tab-btn" data-tab="comments">评论</button>
+                </div>
+
+                <!-- 标签页内容 -->
+                <div class="tab-contents">
+                    <!-- 简介页 -->
+                    <div class="tab-content active" id="tab-intro">
+                        <div class="intro-card">
+                            <h3>内容简介</h3>
+                            <div id="book-description" class="book-description">加载中...</div>
+
+                            <h3 style="margin-top: 30px">详细信息</h3>
+                            <div class="book-detail-info">
+                                <div class="info-row">
+                                    <span class="info-label">免费章节：</span>
+                                    <span id="book-free-chapters" class="info-value">-</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">付费章节：</span>
+                                    <span id="book-paid-chapters" class="info-value">-</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">已缓存章节：</span>
+                                    <span id="book-cached-chapters" class="info-value">0</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">最新章节：</span>
+                                    <span id="book-latest-chapter" class="info-value">-</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">更新时间：</span>
+                                    <span id="book-latest-date" class="info-value">-</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">评论数：</span>
+                                    <span id="book-comments" class="info-value">-</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">月度人气：</span>
+                                    <span id="book-popularity" class="info-value">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 章节列表页 -->
+                    <div class="tab-content" id="tab-chapters">
+                        <div class="chapters-header">
+                            <div class="chapters-controls">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="reverse-chapters" />
+                                    <span>倒序</span>
+                                </label>
+                                <button class="btn btn-sm btn-outline" id="btn-preload">预加载所有章节</button>
+                            </div>
+                            <div id="preload-progress" class="progress-bar" style="display: none; margin-top: 10px">
+                                <div id="preload-fill" class="progress-fill"></div>
+                                <span id="preload-text" class="progress-text">0/0</span>
+                            </div>
+                        </div>
+                        <div id="chapters-list" class="chapters-list">
+                            <p style="text-align: center; color: #999; padding: 40px 0">加载中...</p>
+                        </div>
+                    </div>
+
+                    <!-- 评论页 -->
+                    <div class="tab-content" id="tab-comments">
+                        <div id="comments-list" class="comments-list">
+                            <p style="text-align: center; color: #999; padding: 40px 0">加载中...</p>
+                        </div>
+                        <div id="comments-pagination" class="pagination"></div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- 阅读器弹窗（隐藏，改用跳转到reader.html） -->
+            <div id="reader-modal" class="modal-overlay">
+                <div class="reader-container">
+                    <div class="reader-header">
+                        <button id="reader-close-btn" class="btn-close">×</button>
+                        <h2 id="reader-book-title">书名</h2>
+                    </div>
+                    <div class="reader-content" id="reader-content"></div>
+                </div>
             </div>
-            <nav class="nav" id="main-nav">
-                <a href="index.html" class="nav-link">返回首页</a>
-            </nav>
-            <div class="user-area" id="user-area"></div>
-        </header>
 
-        <!-- 书籍详情主体 -->
-        <div class="book-detail-container">
-            <!-- 书籍信息卡片 -->
-            <div class="book-info-card">
-                <div class="book-cover-wrapper">
-                    <img id="book-cover" src="" alt="封面" class="book-cover">
-                </div>
-                
-                <div class="book-info-main">
-                    <h1 class="book-title" id="book-title">加载中...</h1>
-                    
-                    <div class="book-meta">
-                        <div class="meta-item">
-                            <span class="meta-label">作者</span>
-                            <span class="meta-value" id="book-author">-</span>
+            <!-- 下载弹窗 -->
+            <div id="download-modal" class="modal-overlay">
+                <div class="modal">
+                    <div class="modal-header">
+                        <h3>下载书籍</h3>
+                        <button id="download-close" class="btn-close">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>选择格式</label>
+                            <div class="format-radio-group">
+                                <label class="format-radio-card" data-format="txt">
+                                    <input type="radio" name="download-format" value="txt" checked />
+                                    <div class="radio-card-content">
+                                        <div class="radio-card-icon">
+                                            <svg
+                                                width="24"
+                                                height="24"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="2"
+                                            >
+                                                <path
+                                                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                                                ></path>
+                                                <polyline points="14 2 14 8 20 8"></polyline>
+                                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                                <polyline points="10 9 9 9 8 9"></polyline>
+                                            </svg>
+                                        </div>
+                                        <div class="radio-card-text">
+                                            <div class="radio-card-title">TXT格式</div>
+                                            <div class="radio-card-desc">纯文本格式，通用性强</div>
+                                        </div>
+                                        <div class="radio-card-check">
+                                            <svg
+                                                width="20"
+                                                height="20"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="3"
+                                            >
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </label>
+                                <label class="format-radio-card" data-format="epub">
+                                    <input type="radio" name="download-format" value="epub" />
+                                    <div class="radio-card-content">
+                                        <div class="radio-card-icon">
+                                            <svg
+                                                width="24"
+                                                height="24"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="2"
+                                            >
+                                                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                                                <path
+                                                    d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"
+                                                ></path>
+                                                <circle cx="12" cy="12" r="2"></circle>
+                                            </svg>
+                                        </div>
+                                        <div class="radio-card-text">
+                                            <div class="radio-card-title">EPUB格式</div>
+                                            <div class="radio-card-desc">电子书标准格式</div>
+                                        </div>
+                                        <div class="radio-card-check">
+                                            <svg
+                                                width="20"
+                                                height="20"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="3"
+                                            >
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
                         </div>
-                        <div class="meta-item">
-                            <span class="meta-label">状态</span>
-                            <span class="meta-value" id="book-status">-</span>
-                        </div>
-                        <div class="meta-item">
-                            <span class="meta-label">总章节</span>
-                            <span class="meta-value" id="book-chapters">-</span>
-                        </div>
-                        <div class="meta-item">
-                            <span class="meta-label">缓存章节</span>
-                            <span class="meta-value" id="book-cached-chapters">-</span>
-                        </div>
-                        <div class="meta-item">
-                            <span class="meta-label">字数</span>
-                            <span class="meta-value" id="book-words">-</span>
-                        </div>
-                        <div class="meta-item">
-                            <span class="meta-label">免费章节</span>
-                            <span class="meta-value" id="book-free-chapters">-</span>
-                        </div>
-                        <div class="meta-item">
-                            <span class="meta-label">付费章节</span>
-                            <span class="meta-value" id="book-paid-chapters">-</span>
-                        </div>
-                        <div class="meta-item">
-                            <span class="meta-label">最新章节</span>
-                            <span class="meta-value" id="book-latest-chapter">-</span>
-                        </div>
-                        <div class="meta-item">
-                            <span class="meta-label">更新时间</span>
-                            <span class="meta-value" id="book-latest-date">-</span>
+                        <div id="download-progress" class="progress-bar" style="display: none; margin-top: 20px">
+                            <div id="progress-fill" class="progress-fill"></div>
+                            <span id="progress-text" class="progress-text">0%</span>
                         </div>
                     </div>
-
-                    <div class="book-stats">
-                        <div class="stat-item">
-                            <span class="stat-value" id="book-favorites">-</span>
-                            <span class="stat-label">收藏</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-value" id="book-comments">-</span>
-                            <span class="stat-label">留言</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-value" id="book-popularity">-</span>
-                            <span class="stat-label">月人气</span>
-                        </div>
-                    </div>
-
-                    <div class="book-tags" id="book-tags">
-                        <!-- 标签动态加载 -->
-                    </div>
-
-                    <div class="book-actions">
-                        <button class="btn btn-primary" id="btn-read">开始阅读</button>
-                        <button class="btn btn-outline" id="btn-chapters">章节列表</button>
-                        <button class="btn btn-outline" id="btn-preload">预加载章节</button>
-                        <button class="btn btn-outline" id="btn-download">下载书籍</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 书籍简介 -->
-            <div class="book-description-card">
-                <h3 class="section-title">内容简介</h3>
-                <div class="book-description" id="book-description">
-                    加载中...
-                </div>
-            </div>
-
-            <!-- 标签页：章节列表 / 评论区 -->
-            <div class="book-tabs">
-                <div class="tabs-header">
-                    <button class="tab-btn active" data-tab="chapters">章节列表</button>
-                    <button class="tab-btn" data-tab="comments">评论 (<span id="comment-count">0</span>)</button>
-                </div>
-
-                <!-- 章节列表 -->
-                <div class="tab-content active" id="tab-chapters">
-                    <div class="chapters-toolbar">
-                        <div class="chapters-info">
-                            共 <span id="total-chapters">0</span> 章
-                        </div>
-                        <div class="chapters-sort">
-                            <label>
-                                <input type="checkbox" id="reverse-chapters"> 倒序
-                            </label>
-                        </div>
-                    </div>
-                    <div class="chapters-list" id="chapters-list">
-                        <!-- 章节列表动态加载 -->
-                    </div>
-                </div>
-
-                <!-- 评论区 -->
-                <div class="tab-content" id="tab-comments">
-                    <div class="comments-list" id="comments-list">
-                        <!-- 评论动态加载 -->
-                    </div>
-                    <div class="pagination" id="comments-pagination">
-                        <!-- 分页动态加载 -->
+                    <div class="modal-footer">
+                        <button id="cancel-download" class="btn btn-outline">取消</button>
+                        <button id="confirm-download" class="btn btn-primary">确认下载</button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 在线阅读弹窗 -->
-        <div class="modal-overlay" id="reader-modal">
-            <div class="modal reader-modal">
-                <div class="modal-header">
-                    <h3 id="reader-title">章节标题</h3>
-                    <button class="modal-close" id="reader-close">&times;</button>
-                </div>
-                <div class="modal-body reader-body">
-                    <div class="reader-toolbar">
-                        <button class="btn btn-sm" id="btn-prev-chapter">上一章</button>
-                        <span class="reader-title" id="reader-book-title">书名</span>
-                        <button class="btn btn-sm" id="btn-next-chapter">下一章</button>
-                    </div>
-                    <div class="reader-content" id="reader-content">
-                        <!-- 章节内容 -->
-                    </div>
-                    <div class="reader-footer">
-                        <span id="reader-progress">1/100</span>
-                        <button class="btn btn-sm btn-outline" id="reader-close-btn">关闭</button>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <!-- Toast提示 -->
+        <div id="toast-container" class="toast-container"></div>
 
-        <!-- 下载弹窗 -->
-        <div class="modal-overlay" id="download-modal">
-            <div class="modal">
-                <div class="modal-header">
-                    <h3>下载书籍</h3>
-                    <button class="modal-close" id="download-close">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="download-options">
-                        <label class="download-option">
-                            <input type="radio" name="download-format" value="txt" checked>
-                            <span>TXT 格式</span>
-                        </label>
-                        <label class="download-option">
-                            <input type="radio" name="download-format" value="epub">
-                            <span>EPUB 格式</span>
-                        </label>
-                    </div>
-                    <div class="download-actions">
-                        <button class="btn btn-outline" id="cancel-download">取消</button>
-                        <button class="btn btn-primary" id="confirm-download">开始下载</button>
-                    </div>
-                    <div class="download-progress" id="download-progress" style="display: none;">
-                        <div class="progress-bar">
-                            <div class="progress-fill" id="progress-fill"></div>
-                        </div>
-                        <div class="progress-text" id="progress-text">0%</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Toast消息 -->
-        <div class="toast-container" id="toast-container"></div>
-        
-        <!-- 预加载进度 -->
-        <div class="preload-progress" id="preload-progress" style="display: none;">
-            <div class="preload-progress-title">预加载进度</div>
-            <div class="preload-progress-bar">
-                <div class="preload-progress-fill" id="preload-fill"></div>
-            </div>
-            <div class="preload-progress-text" id="preload-text">0/0</div>
-        </div>
-    </div>
-
-    <!-- 引入 JSZip 库 -->
-    <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
-    <script src="js/generator.js"></script>
-    <script src="js/api.js"></script>
-    <script src="js/book-detail.js"></script>
-</body>
+        <!-- 引入脚本 -->
+        <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+        <script src="js/generator.js"></script>
+        <script src="js/api.js"></script>
+        <script src="js/book-detail.js"></script>
+    </body>
 </html>

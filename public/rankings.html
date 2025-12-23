@@ -1,217 +1,373 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>排行榜 - PO18小说下载</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        
-        h1 {
-            text-align: center;
-            color: white;
-            margin-bottom: 30px;
-            font-size: 2.5rem;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-        }
-        
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 30px;
-            background: rgba(255,255,255,0.1);
-            padding: 10px;
-            border-radius: 12px;
-            backdrop-filter: blur(10px);
-        }
-        
-        .tab {
-            flex: 1;
-            padding: 12px 20px;
-            background: rgba(255,255,255,0.2);
-            border: none;
-            border-radius: 8px;
-            color: white;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .tab:hover {
-            background: rgba(255,255,255,0.3);
-            transform: translateY(-2px);
-        }
-        
-        .tab.active {
-            background: white;
-            color: #667eea;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        
-        .ranking-list {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-        }
-        
-        .book-item {
-            display: flex;
-            gap: 15px;
-            padding: 15px;
-            border-bottom: 1px solid #f0f0f0;
-            transition: background 0.2s;
-            cursor: pointer;
-        }
-        
-        .book-item:last-child {
-            border-bottom: none;
-        }
-        
-        .book-item:hover {
-            background: #f8f9fa;
-        }
-        
-        .rank {
-            flex-shrink: 0;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            font-weight: bold;
-            color: #999;
-        }
-        
-        .rank.top1 { color: #ff6b6b; background: #ffe0e0; border-radius: 8px; }
-        .rank.top2 { color: #4ecdc4; background: #e0f7f5; border-radius: 8px; }
-        .rank.top3 { color: #ffa502; background: #fff3e0; border-radius: 8px; }
-        
-        .book-cover {
-            flex-shrink: 0;
-            width: 60px;
-            height: 84px;
-            border-radius: 6px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .book-cover img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        
-        .book-info {
-            flex: 1;
-            min-width: 0;
-        }
-        
-        .book-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 6px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        
-        .book-author {
-            font-size: 13px;
-            color: #666;
-            margin-bottom: 8px;
-        }
-        
-        .book-meta {
-            display: flex;
-            gap: 15px;
-            font-size: 12px;
-            color: #999;
-        }
-        
-        .book-stats {
-            flex-shrink: 0;
-            text-align: right;
-        }
-        
-        .stat-value {
-            font-size: 20px;
-            font-weight: bold;
-            color: #667eea;
-            margin-bottom: 4px;
-        }
-        
-        .stat-label {
-            font-size: 12px;
-            color: #999;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 60px 20px;
-            color: #999;
-        }
-        
-        .empty {
-            text-align: center;
-            padding: 60px 20px;
-            color: #999;
-        }
-        
-        .back-btn {
-            display: inline-block;
-            padding: 10px 20px;
-            background: rgba(255,255,255,0.2);
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            transition: all 0.3s;
-        }
-        
-        .back-btn:hover {
-            background: rgba(255,255,255,0.3);
-            transform: translateX(-5px);
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <a href="/" class="back-btn">← 返回首页</a>
-        <h1>📊 排行榜</h1>
-        
-        <div class="tabs">
-            <button class="tab active" data-type="favorites">收藏榜</button>
-            <button class="tab" data-type="comments">留言榜</button>
-            <button class="tab" data-type="monthly">月人气榜</button>
-            <button class="tab" data-type="total">总人气榜</button>
-            <button class="tab" data-type="latest">最近更新</button>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <title>排行榜 - PO18书库</title>
+        <link rel="stylesheet" href="css/style.css" />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            /* 排行榜页面专属样式 */
+            .rankings-page {
+                min-height: 100vh;
+                background: var(--md-background);
+                padding-bottom: 20px;
+            }
+
+            .rankings-header {
+                background: var(--md-surface-container-lowest);
+                padding: 12px 16px;
+                box-shadow: var(--md-elevation-1);
+                position: sticky;
+                top: 0;
+                z-index: 100;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .header-back {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 8px 12px;
+                background: transparent;
+                border: none;
+                color: var(--md-on-surface);
+                cursor: pointer;
+                border-radius: var(--md-radius-full);
+                transition: var(--md-transition);
+                font-size: 14px;
+                text-decoration: none;
+            }
+
+            .header-back:hover {
+                background: var(--md-surface-container);
+            }
+
+            .header-title {
+                flex: 1;
+                font-size: 18px;
+                font-weight: 600;
+                color: var(--md-on-surface);
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .rankings-container {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 20px 16px;
+            }
+
+            .rankings-tabs {
+                display: flex;
+                gap: 8px;
+                margin-bottom: 20px;
+                flex-wrap: wrap;
+                background: var(--md-surface-container-lowest);
+                padding: 12px;
+                border-radius: var(--md-radius-lg);
+                box-shadow: var(--md-elevation-1);
+            }
+
+            .ranking-tab {
+                flex: 1;
+                min-width: 80px;
+                padding: 10px 16px;
+                border: 1px solid var(--md-outline-variant);
+                background: transparent;
+                border-radius: var(--md-radius-full);
+                color: var(--md-on-surface-variant);
+                font-size: 14px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: var(--md-transition);
+                white-space: nowrap;
+                text-align: center;
+            }
+
+            .ranking-tab:hover {
+                background: var(--md-surface-container);
+            }
+
+            .ranking-tab.active {
+                background: var(--md-primary);
+                color: var(--md-on-primary);
+                border-color: var(--md-primary);
+                box-shadow: var(--md-elevation-2);
+            }
+
+            .ranking-list {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .book-item {
+                background: var(--md-surface-container-lowest);
+                border-radius: var(--md-radius-lg);
+                padding: 16px;
+                display: flex;
+                gap: 16px;
+                align-items: center;
+                transition: var(--md-transition);
+                cursor: pointer;
+                box-shadow: var(--md-elevation-1);
+            }
+
+            .book-item:hover {
+                box-shadow: var(--md-elevation-3);
+                transform: translateY(-2px);
+            }
+
+            .rank {
+                flex-shrink: 0;
+                width: 40px;
+                height: 40px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 18px;
+                font-weight: 700;
+                color: var(--md-on-surface-variant);
+                border-radius: var(--md-radius-sm);
+            }
+
+            .rank.top1 {
+                background: linear-gradient(135deg, #ffd700, #ffa500);
+                color: white;
+            }
+
+            .rank.top2 {
+                background: linear-gradient(135deg, #c0c0c0, #a0a0a0);
+                color: white;
+            }
+
+            .rank.top3 {
+                background: linear-gradient(135deg, #cd7f32, #a0522d);
+                color: white;
+            }
+
+            .book-cover {
+                flex-shrink: 0;
+                width: 60px;
+                height: 84px;
+                border-radius: var(--md-radius-sm);
+                overflow: hidden;
+                box-shadow: var(--md-elevation-2);
+            }
+
+            .book-cover img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                background: var(--md-surface-container);
+            }
+
+            .book-info {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .book-title {
+                font-size: 15px;
+                font-weight: 600;
+                color: var(--md-on-surface);
+                margin-bottom: 4px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .book-author {
+                font-size: 13px;
+                color: var(--md-on-surface-variant);
+                margin-bottom: 6px;
+            }
+
+            .book-meta {
+                display: flex;
+                gap: 12px;
+                flex-wrap: wrap;
+                font-size: 12px;
+                color: var(--md-outline);
+            }
+
+            .book-stats {
+                flex-shrink: 0;
+                text-align: right;
+                min-width: 80px;
+            }
+
+            .stat-value {
+                font-size: 22px;
+                font-weight: 700;
+                color: var(--md-primary);
+                margin-bottom: 2px;
+                word-break: break-word;
+            }
+
+            .stat-label {
+                font-size: 11px;
+                color: var(--md-on-surface-variant);
+            }
+
+            .loading,
+            .empty {
+                text-align: center;
+                padding: 60px 20px;
+                color: var(--md-outline);
+                background: var(--md-surface-container-lowest);
+                border-radius: var(--md-radius-lg);
+            }
+
+            /* 移动端适配 */
+            @media (max-width: 768px) {
+                .rankings-container {
+                    padding: 16px 12px;
+                }
+
+                .rankings-tabs {
+                    padding: 8px;
+                    gap: 6px;
+                }
+
+                .ranking-tab {
+                    min-width: 70px;
+                    padding: 8px 12px;
+                    font-size: 13px;
+                }
+
+                .book-item {
+                    padding: 12px;
+                    gap: 12px;
+                }
+
+                .rank {
+                    width: 36px;
+                    height: 36px;
+                    font-size: 16px;
+                }
+
+                .book-cover {
+                    width: 50px;
+                    height: 70px;
+                }
+
+                .book-title {
+                    font-size: 14px;
+                }
+
+                .book-author {
+                    font-size: 12px;
+                }
+
+                .book-meta {
+                    font-size: 11px;
+                    gap: 8px;
+                }
+
+                .book-stats {
+                    min-width: 70px;
+                }
+
+                .stat-value {
+                    font-size: 16px;
+                }
+
+                .stat-label {
+                    font-size: 10px;
+                }
+            }
+
+            @media (max-width: 480px) {
+                .rankings-tabs {
+                    gap: 4px;
+                }
+
+                .ranking-tab {
+                    flex: 1 1 calc(50% - 4px);
+                    font-size: 12px;
+                    padding: 6px 8px;
+                }
+
+                .book-item {
+                    padding: 10px;
+                    gap: 10px;
+                }
+
+                .rank {
+                    width: 32px;
+                    height: 32px;
+                    font-size: 14px;
+                }
+
+                .book-cover {
+                    width: 45px;
+                    height: 63px;
+                }
+
+                .book-title {
+                    font-size: 13px;
+                }
+
+                .book-author {
+                    font-size: 11px;
+                }
+
+                .book-meta {
+                    font-size: 10px;
+                }
+
+                .book-stats {
+                    min-width: 60px;
+                }
+
+                .stat-value {
+                    font-size: 14px;
+                }
+
+                .stat-label {
+                    font-size: 9px;
+                }
+            }
+        </style>
+    </head>
+    <body class="rankings-page">
+        <!-- 顶部导航栏 -->
+        <header class="rankings-header">
+            <a href="/" class="header-back">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+                <span>返回</span>
+            </a>
+            <div class="header-title">
+                <span>📊</span>
+                <span>排行榜</span>
+            </div>
+        </header>
+
+        <!-- 主内容区 -->
+        <div class="rankings-container">
+            <div class="rankings-tabs">
+                <button class="ranking-tab active" data-type="favorites">收藏榜</button>
+                <button class="ranking-tab" data-type="comments">留言榜</button>
+                <button class="ranking-tab" data-type="monthly">月人气</button>
+                <button class="ranking-tab" data-type="total">总人气</button>
+                <button class="ranking-tab" data-type="latest">最近更新</button>
+            </div>
+
+            <div class="ranking-list" id="ranking-list">
+                <div class="loading">加载中...</div>
+            </div>
         </div>
-        
-        <div class="ranking-list" id="ranking-list">
-            <div class="loading">加载中...</div>
-        </div>
-    </div>
-    
-    <script src="js/rankings.js"></script>
-</body>
+
+        <script src="js/rankings.js?v=20251218b"></script>
+    </body>
 </html>
