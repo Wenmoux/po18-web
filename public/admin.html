@@ -3,8 +3,8 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-        <title>后台管理 - PO18书库</title>
-        <link rel="stylesheet" href="css/style.css" />
+        <title>锦字司 - 荼蘼辞</title>
+        <link rel="stylesheet" href="css/style.css?v=20251224d" />
         <link
             href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&display=swap"
             rel="stylesheet"
@@ -708,22 +708,24 @@
             <!-- 无权限 -->
             <div class="no-access" id="no-access" style="display: none">
                 <h2>⚠️ 无权限访问</h2>
-                <p>您没有管理员权限，无法访问后台管理页面</p>
-                <a href="/" class="btn btn-primary" style="margin-top: 20px; display: inline-block">返回首页</a>
+                <p>您没有管理员权限，无法访问锦字司</p>
+                <a href="/" class="btn btn-primary" style="margin-top: 20px; display: inline-block">返回春尽阁</a>
             </div>
 
             <!-- 管理界面 -->
             <div id="admin-main" style="display: none">
                 <div class="admin-header">
-                    <h1>📊 后台管理中心</h1>
+                    <h1>📊 锦字司</h1>
                     <nav class="admin-nav">
+                        <a href="/" class="admin-nav-btn" style="text-decoration: none;">🌸 返回春尽阁</a>
                         <button class="admin-nav-btn active" data-panel="dashboard">📊 概览</button>
                         <button class="admin-nav-btn" data-panel="users">👥 用户管理</button>
                         <button class="admin-nav-btn" data-panel="books">📚 书籍管理</button>
-                        <button class="admin-nav-btn" data-panel="shared">🔗 共享书库</button>
+                        <button class="admin-nav-btn" data-panel="shared">🔗 绿肥红瘦</button>
                         <button class="admin-nav-btn" data-panel="export">📤 导出管理</button>
                         <button class="admin-nav-btn" data-panel="crawler">🕷️ 爬虫管理</button>
                         <button class="admin-nav-btn" data-panel="backup">💾 备份管理</button>
+                        <button class="admin-nav-btn" data-panel="corrections">✅ 纠错审核</button>
                         <button class="admin-nav-btn" data-panel="monitoring">📈 性能监控</button>
                         <button class="admin-nav-btn" data-panel="analytics">👥 用户分析</button>
                         <button class="admin-nav-btn" data-panel="settings">⚙️ 系统设置</button>
@@ -1426,6 +1428,61 @@
                     </div>
                 </div>
                 
+                <!-- 纠错审核面板 -->
+                <div class="admin-panel" id="panel-corrections">
+                    <h2>✅ 纠错审核</h2>
+                    
+                    <!-- 筛选工具栏 -->
+                    <div class="toolbar">
+                        <select id="correction-status-filter" onchange="Admin.loadCorrections()">
+                            <option value="pending">待审核</option>
+                            <option value="approved">已通过</option>
+                            <option value="rejected">已拒绝</option>
+                        </select>
+                        <button class="btn btn-outline" onclick="Admin.loadCorrections()">🔄 刷新</button>
+                    </div>
+                    
+                    <!-- 统计卡片 -->
+                    <div class="stats-grid" style="margin-bottom: 20px;">
+                        <div class="stat-card">
+                            <h3>待审核</h3>
+                            <div class="stat-value" id="correction-pending-count">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>已通过</h3>
+                            <div class="stat-value" id="correction-approved-count">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>已拒绝</h3>
+                            <div class="stat-value" id="correction-rejected-count">0</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 纠错列表 -->
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>提交用户</th>
+                                    <th>书名</th>
+                                    <th>原文</th>
+                                    <th>修正</th>
+                                    <th>提交时间</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="corrections-table-body">
+                                <tr>
+                                    <td colspan="8" style="text-align: center; color: #999;">加载中...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pagination" id="corrections-pagination"></div>
+                </div>
+                
                 <!-- 性能监控面板 -->
                 <div class="admin-panel" id="panel-monitoring" style="display: none;">
                     <h2>📈 性能监控与告警</h2>
@@ -1716,6 +1773,6 @@
         <!-- Toast -->
         <div class="toast" id="toast"></div>
 
-        <script src="js/admin.js"></script>
+        <script src="js/admin.js?v=20251224d"></script>
     </body>
 </html>

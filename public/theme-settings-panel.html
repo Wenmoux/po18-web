@@ -1,0 +1,219 @@
+<!-- 主题配色设置面板片段 - 插入到设置面板的settings-content中 -->
+
+<!-- 预设主题方案 -->
+<div class="setting-group">
+    <label class="setting-label">主题方案</label>
+    <div class="theme-options">
+        <button class="theme-btn active" data-preset-theme="default" style="background: #FFFFFF; color: #333333; border: 1px solid #ddd">
+            <span>默认白</span>
+        </button>
+        <button class="theme-btn" data-preset-theme="sepia" style="background: #F5E6D3; color: #333333">
+            <span>护眼黄</span>
+        </button>
+        <button class="theme-btn" data-preset-theme="night" style="background: #1E1E1E; color: #B8B8B8">
+            <span>夜间黑</span>
+        </button>
+        <button class="theme-btn" data-preset-theme="green" style="background: #C7EDCC; color: #2D4A2B">
+            <span>护眼绿</span>
+        </button>
+        <button class="theme-btn" data-preset-theme="pink" style="background: #FFE4E1; color: #4A3333">
+            <span>少女粉</span>
+        </button>
+        <button class="theme-btn" data-preset-theme="blue" style="background: #E6F3FF; color: #2C4A5E">
+            <span>清新蓝</span>
+        </button>
+    </div>
+</div>
+
+<!-- 自定义颜色 -->
+<div class="setting-group">
+    <label class="setting-label">自定义颜色</label>
+    <div class="color-pickers">
+        <div class="color-picker-item">
+            <label for="bg-color-picker">背景色</label>
+            <input type="color" id="bg-color-picker" value="#FFFFFF" />
+        </div>
+        <div class="color-picker-item">
+            <label for="text-color-picker">正文色</label>
+            <input type="color" id="text-color-picker" value="#333333" />
+        </div>
+        <div class="color-picker-item">
+            <label for="title-color-picker">标题色</label>
+            <input type="color" id="title-color-picker" value="#1a1a1a" />
+        </div>
+        <div class="color-picker-item">
+            <label for="highlight-color-picker">高亮色</label>
+            <input type="color" id="highlight-color-picker" value="#D81B60" />
+        </div>
+    </div>
+</div>
+
+<!-- 背景图片设置 -->
+<div class="setting-group">
+    <label class="setting-label">背景图片</label>
+    <div class="background-settings">
+        <div class="bg-input-group">
+            <label for="bg-image-url">图片URL</label>
+            <input type="text" id="bg-image-url" class="setting-input" placeholder="输入图片URL或上传本地图片" />
+        </div>
+        <div class="bg-input-group">
+            <label for="bg-image-input">上传图片</label>
+            <input type="file" id="bg-image-input" accept="image/*" class="setting-file-input" />
+        </div>
+        <div class="bg-style-group">
+            <div class="bg-style-item">
+                <label for="bg-repeat">重复方式</label>
+                <select id="bg-repeat" class="setting-select">
+                    <option value="no-repeat">不重复</option>
+                    <option value="repeat">平铺</option>
+                    <option value="repeat-x">水平平铺</option>
+                    <option value="repeat-y">垂直平铺</option>
+                </select>
+            </div>
+            <div class="bg-style-item">
+                <label for="bg-size">大小</label>
+                <select id="bg-size" class="setting-select">
+                    <option value="cover">覆盖</option>
+                    <option value="contain">包含</option>
+                    <option value="auto">自动</option>
+                </select>
+            </div>
+            <div class="bg-style-item">
+                <label for="bg-position">位置</label>
+                <select id="bg-position" class="setting-select">
+                    <option value="center">居中</option>
+                    <option value="top">顶部</option>
+                    <option value="bottom">底部</option>
+                    <option value="left">左侧</option>
+                    <option value="right">右侧</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 字体选择 -->
+<div class="setting-group">
+    <label class="setting-label">字体选择</label>
+    <div class="setting-options">
+        <button class="option-btn active" data-preset-font="system">系统默认</button>
+        <button class="option-btn" data-preset-font="serif">宋体</button>
+        <button class="option-btn" data-preset-font="song">思源宋体</button>
+        <button class="option-btn" data-preset-font="kai">楷体</button>
+        <button class="option-btn" data-preset-font="hei">黑体</button>
+        <button class="option-btn" data-preset-font="fangsong">仿宋</button>
+        <button class="option-btn" data-preset-font="ming">明体</button>
+    </div>
+</div>
+
+<!-- 样式预览 -->
+<style>
+/* 颜色选择器样式 */
+.color-pickers {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.color-picker-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.color-picker-item label {
+    font-size: 13px;
+    color: var(--md-on-surface-variant);
+}
+
+.color-picker-item input[type="color"] {
+    width: 100%;
+    height: 40px;
+    border: 2px solid var(--md-outline-variant);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--md-transition);
+}
+
+.color-picker-item input[type="color"]:hover {
+    border-color: var(--md-primary);
+}
+
+/* 背景设置样式 */
+.background-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.bg-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.bg-input-group label {
+    font-size: 13px;
+    color: var(--md-on-surface-variant);
+}
+
+.setting-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid var(--md-outline-variant);
+    border-radius: 8px;
+    font-size: 14px;
+    transition: var(--md-transition);
+}
+
+.setting-input:focus {
+    outline: none;
+    border-color: var(--md-primary);
+}
+
+.setting-file-input {
+    padding: 8px;
+    border: 2px dashed var(--md-outline-variant);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--md-transition);
+}
+
+.setting-file-input:hover {
+    border-color: var(--md-primary);
+    background: rgba(233, 30, 99, 0.03);
+}
+
+.bg-style-group {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.bg-style-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.bg-style-item label {
+    font-size: 12px;
+    color: var(--md-on-surface-variant);
+}
+
+.setting-select {
+    width: 100%;
+    padding: 8px;
+    border: 2px solid var(--md-outline-variant);
+    border-radius: 6px;
+    font-size: 13px;
+    background: var(--md-surface);
+    cursor: pointer;
+    transition: var(--md-transition);
+}
+
+.setting-select:focus {
+    outline: none;
+    border-color: var(--md-primary);
+}
+</style>

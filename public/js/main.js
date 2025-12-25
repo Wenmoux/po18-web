@@ -1,4 +1,12 @@
 
+/*
+ * File: main.js
+ * Input: app.js, api.js
+ * Output: 应用启动逻辑，初始化各个模块和加载初始数据
+ * Pos: 应用启动入口，负责初始化应用并启动各个模块
+ * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和public/js/文件夹的README.md
+ */
+
 // 页面初始化
 async function initApp() {
     showLoading();

@@ -1,3 +1,11 @@
+/*
+ * File: app.js
+ * Input: api.js, utils.js, 所有HTML页面元素
+ * Output: App对象，管理应用状态、路由导航、用户认证、页面交互等核心功能
+ * Pos: 前端应用入口和状态管理中心，协调所有功能模块
+ * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和public/js/文件夹的README.md
+ */
+
 /**
  * PO18小说下载站 - 主应用模块
  */
@@ -44,6 +52,18 @@ const App = {
                 this.checkSubscriptionUpdates();
             }
         }, 5 * 60 * 1000); // 5分钟
+
+        // 监听来自书籍详情页的订阅更新通知
+        window.addEventListener('message', (event) => {
+            // 验证消息来源
+            if (event.origin !== window.location.origin) return;
+            
+            // 处理订阅更新消息
+            if (event.data && event.data.type === 'subscription-updated') {
+                console.log('[App] 收到订阅更新通知，刷新徽章');
+                this.checkSubscriptionUpdates();
+            }
+        });
 
         // 检查URL hash导航
         const hash = window.location.hash.substring(1); // 去掉#
@@ -336,6 +356,92 @@ const App = {
         document.getElementById("theme-toggle")?.addEventListener("click", () => {
             this.toggleTheme();
         });
+
+        // 书单相关事件
+        // 创建书单按钮
+        document.getElementById("btn-create-list")?.addEventListener("click", () => {
+            this.showCreateListModal();
+        });
+
+        // 书单表单提交
+        document.getElementById("book-list-form")?.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            await this.saveBookList();
+        });
+
+        // 书单标签页切换
+        document.querySelectorAll(".list-tab").forEach(tab => {
+            tab.addEventListener("click", () => {
+                const tabName = tab.dataset.tab;
+                this.switchBookListTab(tabName);
+            });
+        });
+
+        // 书单广场排序
+        document.querySelectorAll(".sort-tab").forEach(tab => {
+            tab.addEventListener("click", () => {
+                const sortBy = tab.dataset.sort;
+                this.loadSquareLists(sortBy);
+                // 更新active状态
+                document.querySelectorAll(".sort-tab").forEach(t => t.classList.remove("active"));
+                tab.classList.add("active");
+            });
+        });
+
+        // 书单搜索
+        document.getElementById("btn-search-lists")?.addEventListener("click", () => {
+            this.searchBookLists();
+        });
+
+        // 回车搜索书单
+        document.getElementById("list-search-input")?.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+                this.searchBookLists();
+            }
+        });
+
+        // 书评相关事件
+        // 写书评按钮
+        document.getElementById("btn-write-review")?.addEventListener("click", () => {
+            this.showWriteReviewModal();
+        });
+
+        // 书评排序
+        document.querySelectorAll(".reviews-sort-tabs .sort-tab").forEach(tab => {
+            tab.addEventListener("click", () => {
+                const sortBy = tab.dataset.sort;
+                this.loadReviews(sortBy);
+            });
+        });
+
+        // 书评表单提交
+        document.getElementById("review-form")?.addEventListener("submit", (e) => {
+            this.submitReview(e);
+        });
+
+        // 书籍选择下拉框变化
+        document.getElementById("review-book-select")?.addEventListener("change", () => {
+            this.onBookSelectChange();
+        });
+
+        // 书评评分
+        document.querySelectorAll("#review-rating .star").forEach(star => {
+            star.addEventListener("click", () => {
+                this.setReviewRating(parseInt(star.dataset.rating));
+            });
+            star.addEventListener("mouseenter", () => {
+                const rating = parseInt(star.dataset.rating);
+                document.querySelectorAll("#review-rating .star").forEach((s, i) => {
+                    s.textContent = i < rating ? '★' : '☆';
+                });
+            });
+        });
+        document.getElementById("review-rating")?.addEventListener("mouseleave", () => {
+            const currentRating = parseInt(document.getElementById("review-rating-value").value) || 0;
+            document.querySelectorAll("#review-rating .star").forEach((s, i) => {
+                s.textContent = i < currentRating ? '★' : '☆';
+            });
+        });
     },
 
     // 处理快速下载
@@ -349,7 +455,7 @@ const App = {
         }
 
         if (!this.currentUser) {
-            this.showAuthModal("login");
+            this.showToast("请先登录后使用下载功能", "warning");
             return;
         }
 
@@ -696,6 +802,9 @@ const App = {
             case "subscriptions":
                 this.loadSubscriptions();
                 break;
+            case "book-lists":
+                this.loadBookLists();
+                break;
             default:
                 console.warn(`[App] 未知页面: ${page}`);
         }
@@ -720,17 +829,19 @@ const App = {
             }, 5 * 60 * 1000); // 5分钟
 
             // 如果当前在下载页面且未登录，跳转到排行榜
-            if (!this.currentUser && this.currentPage === "download") {
-                this.navigateTo("rankings");
-            }
+            // 注释掉自动跳转，允许未登录用户访问首页
+            // if (!this.currentUser && this.currentPage === "download") {
+            //     this.navigateTo("rankings");
+            // }
         } catch (error) {
             this.currentUser = null;
             this.updateUserUI();
 
             // 未登录时，如果当前在下载页面，跳转到排行榜
-            if (this.currentPage === "download") {
-                this.navigateTo("rankings");
-            }
+            // 注释掉自动跳转，允许未登录用户访问首页
+            // if (this.currentPage === "download") {
+            //     this.navigateTo("rankings");
+            // }
         }
     },
 
@@ -981,7 +1092,7 @@ const App = {
         document.querySelectorAll(".search-result-card .add-queue-btn").forEach((btn) => {
             btn.addEventListener("click", async () => {
                 if (!this.currentUser) {
-                    this.showAuthModal("login");
+                    this.showToast("请先登录后使用队列功能", "warning");
                     return;
                 }
                 const bookId = btn.dataset.bookId;
@@ -993,7 +1104,7 @@ const App = {
         document.querySelectorAll(".search-result-card .download-shared-btn").forEach((btn) => {
             btn.addEventListener("click", async () => {
                 if (!this.currentUser) {
-                    this.showAuthModal("login");
+                    this.showToast("请先登录后下载共享书籍", "warning");
                     return;
                 }
                 const id = btn.dataset.id;
@@ -1120,7 +1231,7 @@ const App = {
         document.querySelectorAll(".add-queue-btn").forEach((btn) => {
             btn.addEventListener("click", async () => {
                 if (!this.currentUser) {
-                    this.showAuthModal("login");
+                    this.showToast("请先登录后使用队列功能", "warning");
                     return;
                 }
 
@@ -1507,7 +1618,7 @@ const App = {
 
         if (!this.currentUser) {
             container.innerHTML =
-                '<p class="empty-message">请先<a href="#" onclick="window.app.showAuthModal(\'login\'); return false;" style="color: var(--md-primary); text-decoration: underline;">登录</a>查看书库</p>';
+                '<p class="empty-message">请先登录后查看书库</p>';
             return;
         }
 
@@ -2491,17 +2602,63 @@ const App = {
         });
     },
 
-    // 显示Toast
-    showToast(message, type = "info") {
+    // 显示Toast - MD3 Snackbar风格
+    showToast(message, type = "info", options = {}) {
         const container = document.getElementById("toast-container");
         const toast = document.createElement("div");
-        toast.className = `toast ${type}`;
-        toast.textContent = message;
+        toast.className = `toast toast-${type}`;
+        
+        // Toast图标映射
+        const icons = {
+            success: '✓',
+            error: '✕',
+            warning: '⚠',
+            info: 'ℹ'
+        };
+        
+        // 构建Toast内容
+        const icon = options.icon !== undefined ? options.icon : icons[type];
+        const duration = options.duration || 3000;
+        const action = options.action;
+        
+        toast.innerHTML = `
+            ${icon ? `<span class="toast-icon">${icon}</span>` : ''}
+            <span class="toast-message">${message}</span>
+            ${action ? `<button class="toast-action" onclick="${action.onClick}">${action.text}</button>` : ''}
+        `;
+        
         container.appendChild(toast);
-
-        setTimeout(() => {
-            toast.remove();
-        }, 3000);
+        
+        // 触发入场动画
+        requestAnimationFrame(() => {
+            toast.classList.add('toast-show');
+        });
+        
+        // 自动移除
+        const removeToast = () => {
+            toast.classList.remove('toast-show');
+            toast.classList.add('toast-hide');
+            setTimeout(() => {
+                toast.remove();
+            }, 300);
+        };
+        
+        const timer = setTimeout(removeToast, duration);
+        
+        // 点击关闭
+        if (!action) {
+            toast.addEventListener('click', () => {
+                clearTimeout(timer);
+                removeToast();
+            });
+        }
+        
+        // 返回toast元素，允许外部控制
+        return {
+            element: toast,
+            close: removeToast,
+            timer
+        };
     },
 
     // ==================== 排行榜 ====================
@@ -2613,22 +2770,16 @@ const App = {
                          onclick="window.location.href='/book-detail.html?id=${book.book_id}'">
                     <div class="ranking-info" style="cursor: pointer;" onclick="window.location.href='/book-detail.html?id=${book.book_id}'">
                         <div class="ranking-title">
-                            <span style="margin-right: 4px;">${platformIcon}</span>
+                            <span style="margin-right: 0px;">${platformIcon}</span>
                             ${this.escapeHtml(book.title)}
                         </div>
                         <div class="ranking-author">作者：${this.escapeHtml(book.author || "未知")}</div>
-                        <div class="ranking-meta">
-                            <span>${this.formatNumber(book.total_chapters || 0)} 章</span>
-                            <span>${this.formatNumber(book.word_count || 0)} 字</span>
-                            <span>${statusText}</span>
-                            ${book.latest_chapter_name ? `<span>最新：${this.escapeHtml(book.latest_chapter_name)}</span>` : ""}
-                        </div>
+
                     </div>
                     <div class="ranking-stats">
                         <div class="ranking-value">${statValue}</div>
                         <div class="ranking-label">${label}</div>
                         <a href="${detailUrl}" target="_blank" class="btn-external" style="margin-top: 8px; font-size: 12px; color: var(--primary-color);" title="跳转到${book.platform === 'popo' ? 'POPO' : 'PO18'}原站">
-                            💋 脸红心跳
                         </a>
                     </div>
                 </div>
@@ -3163,35 +3314,24 @@ const App = {
         }
     },
 
-    // 渲染单本全站书库书籍
+    // 渲染单本全站书库书籍（宫格卡片样式）
     renderGlobalLibraryBook(book) {
         const cover = book.cover || this.defaultCover;
         const platformIcon = book.platform === 'popo' ? '📚' : '💖';  // POPO用📚, PO18用💖
-        const detailUrl = book.detail_url || (book.platform === 'popo' ? `https://www.popo.tw/books/${book.book_id}` : `https://www.po18.tw/books/${book.book_id}`);
-        const tags = book.tags
-            ? book.tags
-                  .split("·")
-                  .map((t) => `<span class="book-tag">${t.trim()}</span>`)
-                  .join("")
-            : "";
+        const cachedChapters = book.cached_chapters || 0;
+        const totalChapters = book.total_chapters || cachedChapters;
+        const chapterBadge = `${cachedChapters}/${totalChapters}`;
 
         return `
-            <div class="book-card">
-                <div class="book-card-body">
-                    <img class="book-cover" src="${cover}" alt="${book.title}" loading="lazy" onerror="this.src=App.defaultCover">
-                    <div class="book-info">
-                        <a href="/book-detail.html?id=${book.book_id}" class="book-title" style="text-decoration: none; color: inherit; cursor: pointer;">
-                            <span style="margin-right: 4px;">${platformIcon}</span>
-                            ${book.title}
-                        </a>
-                        <div class="book-author">作者：${book.author || "未知"}</div>
-                        <div class="book-tags">${tags}</div>
-                        <div class="book-stats">
-                            <span>📝 ${book.word_count ? (book.word_count / 10000).toFixed(1) + "万字" : "-"}</span>
-                            <span>📚 已缓存: ${book.cached_chapters}章</span>
-                        </div>
+            <div class="global-book-grid-card">
+                <a href="/book-detail.html?id=${book.book_id}" class="global-book-link">
+                    <div class="global-book-cover-wrap">
+                        <img class="global-book-cover" src="${cover}" alt="${book.title}" loading="lazy" onerror="this.src=App.defaultCover">
+                        <span class="global-book-badge">${chapterBadge}</span>
+                        <span class="global-book-platform">${platformIcon}</span>
                     </div>
-                </div>
+                    <div class="global-book-title">${book.title}</div>
+                </a>
             </div>
         `;
     },
@@ -3247,17 +3387,38 @@ const App = {
             const stats = await API.userStats.refresh();
             console.log("用户统计数据:", stats); // 调试信息
 
-            // 更新统计显示
-            document.getElementById("stat-shared-books").textContent = stats.sharedBooks || 0;
-            document.getElementById("stat-shared-chapters").textContent = stats.sharedChapters || 0;
+            // 更新统计显示 - 添加空值检查
+            const sharedBooksEl = document.getElementById("stat-shared-books");
+            if (sharedBooksEl) {
+                sharedBooksEl.textContent = stats.sharedBooks || 0;
+            }
+            
+            const sharedChaptersEl = document.getElementById("stat-shared-chapters");
+            if (sharedChaptersEl) {
+                sharedChaptersEl.textContent = stats.sharedChapters || 0;
+            }
 
-            const hours = Math.floor(stats.readingMinutes / 60);
-            const mins = stats.readingMinutes % 60;
-            document.getElementById("stat-reading-time").textContent = hours > 0 ? `${hours}h${mins}m` : `${mins}m`;
+            const readingTimeEl = document.getElementById("stat-reading-time");
+            if (readingTimeEl) {
+                const hours = Math.floor((stats.readingMinutes || 0) / 60);
+                const mins = (stats.readingMinutes || 0) % 60;
+                readingTimeEl.textContent = hours > 0 ? `${hours}h${mins}m` : `${mins}m`;
+            }
 
-            document.getElementById("stat-bookshelf").textContent = stats.bookshelfBooks || 0;
-            document.getElementById("stat-downloads").textContent = stats.downloads || 0;
-            document.getElementById("stat-total-books").textContent = stats.totalBooks || 0;
+            const bookshelfEl = document.getElementById("stat-bookshelf");
+            if (bookshelfEl) {
+                bookshelfEl.textContent = stats.bookshelfBooks || 0;
+            }
+            
+            const downloadsEl = document.getElementById("stat-downloads");
+            if (downloadsEl) {
+                downloadsEl.textContent = stats.downloads || 0;
+            }
+            
+            const totalBooksEl = document.getElementById("stat-total-books");
+            if (totalBooksEl) {
+                totalBooksEl.textContent = stats.totalBooks || 0;
+            }
 
             // 加载分享排名
             this.loadShareRanking();
@@ -3284,14 +3445,30 @@ const App = {
             // 更新设置状态
             const user = this.currentUser;
             if (user) {
-                document.getElementById("po18-status").textContent = user.hasPo18Cookie ? "已设置" : "未设置";
-                document.getElementById("po18-status").style.background = user.hasPo18Cookie ? "#c8e6c9" : "";
+                const po18Status = document.getElementById("po18-status");
+                if (po18Status) {
+                    po18Status.textContent = user.hasPo18Cookie ? "已设置" : "未设置";
+                    po18Status.style.background = user.hasPo18Cookie ? "#c8e6c9" : "";
+                }
 
-                document.getElementById("webdav-status").textContent = user.hasWebDAV ? "已配置" : "未配置";
-                document.getElementById("webdav-status").style.background = user.hasWebDAV ? "#c8e6c9" : "";
+                const webdavStatus = document.getElementById("webdav-status");
+                if (webdavStatus) {
+                    webdavStatus.textContent = user.hasWebDAV ? "已配置" : "未配置";
+                    webdavStatus.style.background = user.hasWebDAV ? "#c8e6c9" : "";
+                }
 
-                document.getElementById("share-status-badge").textContent = user.shareEnabled ? "已启用" : "未启用";
-                document.getElementById("share-status-badge").style.background = user.shareEnabled ? "#c8e6c9" : "";
+                // 共享设置状态 - 检查元素是否存在
+                const shareStatusBadge = document.getElementById("share-status-badge");
+                if (shareStatusBadge) {
+                    shareStatusBadge.textContent = user.shareEnabled ? "已启用" : "未启用";
+                    shareStatusBadge.style.background = user.shareEnabled ? "#c8e6c9" : "";
+                }
+                
+                // 更新共享开关状态
+                const shareToggle = document.getElementById("share-toggle");
+                if (shareToggle) {
+                    shareToggle.checked = user.shareEnabled || false;
+                }
             }
 
             // 加载阅读统计热力图
@@ -3361,13 +3538,17 @@ const App = {
         try {
             const container = document.getElementById("reading-heatmap");
             if (!container) {
-                console.warn('热力图容器不存在');
+                console.warn('[热力图] 容器不存在，ID: reading-heatmap');
                 return;
             }
 
-            console.log('开始加载热力图...');
+            console.log('[热力图] 开始加载...');
+            
+            // 显示加载中状态
+            container.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">加载中...</div>';
+            
             const data = await API.userStats.getReadingStats(180);
-            console.log('热力图数据:', data);
+            console.log('[热力图] 获取数据成功:', data);
 
             // 更新摘要统计
             const totalDaysEl = document.getElementById("total-reading-days");
@@ -3375,19 +3556,47 @@ const App = {
             const currentStreakEl = document.getElementById("current-streak");
             const longestStreakEl = document.getElementById("longest-streak");
             
-            if (totalDaysEl) totalDaysEl.textContent = data.summary.totalDays || 0;
-            if (totalMinutesEl) totalMinutesEl.textContent = data.summary.totalMinutes || 0;
-            if (currentStreakEl) currentStreakEl.textContent = data.streak.current || 0;
-            if (longestStreakEl) longestStreakEl.textContent = data.streak.longest || 0;
+            if (totalDaysEl) {
+                totalDaysEl.textContent = data.summary?.totalDays || 0;
+                console.log('[热力图] 更新总天数:', totalDaysEl.textContent);
+            } else {
+                console.warn('[热力图] 找不到元素: total-reading-days');
+            }
+            
+            if (totalMinutesEl) {
+                totalMinutesEl.textContent = data.summary?.totalMinutes || 0;
+                console.log('[热力图] 更新总分钟数:', totalMinutesEl.textContent);
+            } else {
+                console.warn('[热力图] 找不到元素: total-reading-minutes');
+            }
+            
+            if (currentStreakEl) {
+                currentStreakEl.textContent = data.streak?.current || 0;
+                console.log('[热力图] 更新当前连续:', currentStreakEl.textContent);
+            } else {
+                console.warn('[热力图] 找不到元素: current-streak');
+            }
+            
+            if (longestStreakEl) {
+                longestStreakEl.textContent = data.streak?.longest || 0;
+                console.log('[热力图] 更新最长连续:', longestStreakEl.textContent);
+            } else {
+                console.warn('[热力图] 找不到元素: longest-streak');
+            }
 
             // 渲染热力图
-            this.renderHeatmap(container, data.dailyStats, data.summary.maxMinutes || 60);
-            console.log('热力图渲染完成');
+            if (data.dailyStats && data.dailyStats.length > 0) {
+                this.renderHeatmap(container, data.dailyStats, data.summary?.maxMinutes || 60);
+                console.log('[热力图] 渲染完成');
+            } else {
+                container.innerHTML = '<div style="text-align: center; padding: 30px; color: #999;">暂无阅读数据</div>';
+                console.log('[热力图] 无数据');
+            }
         } catch (error) {
-            console.error("加载阅读统计失败:", error);
+            console.error("[热力图] 加载失败:", error);
             const container = document.getElementById("reading-heatmap");
             if (container) {
-                container.innerHTML = '<div style="text-align: center; padding: 30px; color: #999;">暂无阅读数据</div>';
+                container.innerHTML = '<div style="text-align: center; padding: 30px; color: #f44336;">加载失败，请刷新页面重试</div>';
             }
         }
     },
@@ -3562,7 +3771,7 @@ const App = {
 
         if (!this.currentUser) {
             listEl.innerHTML =
-                '<p class="empty-message">请先<a href="#" onclick="window.app.showAuthModal(\'login\'); return false;" style="color: var(--md-primary); text-decoration: underline;">登录</a>查看订阅</p>';
+                '<p class="empty-message">请先登录后查看订阅</p>';
             return;
         }
 
@@ -3582,6 +3791,9 @@ const App = {
 
             // 绑定通知按钮事件
             this.bindNotificationButton();
+
+            // 绑定检查更新按钮
+            this.bindCheckUpdatesButton();
 
             // 更新通知按钮状态
             this.updateNotificationButton();
@@ -3639,7 +3851,7 @@ const App = {
                         ${hasUpdate ? '<span class="update-badge">🔔 有更新</span>' : ""}
                     </div>
                     <div class="sub-actions">
-                        <button class="btn-view" onclick="window.location.href='/book-detail.html?id=${sub.book_id}'">查看</button>
+                        <button class="btn-view" onclick="App.viewSubscribedBook('${sub.book_id}')">查看</button>
                         <button class="btn-unsubscribe" onclick="App.unsubscribeBook('${sub.book_id}')">取消订阅</button>
                     </div>
                 </div>
@@ -3661,6 +3873,58 @@ const App = {
         } catch (error) {
             this.showToast("取消失败", "error");
         }
+    },
+
+    // 查看订阅的书籍（打开详情页）
+    viewSubscribedBook(bookId) {
+        // 打开书籍详情页
+        window.location.href = `/book-detail.html?id=${bookId}`;
+    },
+
+    // 手动检查订阅更新
+    async manualCheckUpdates() {
+        const btn = document.getElementById('btn-check-updates');
+        if (!btn) return;
+
+        try {
+            // 禁用按钮
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳</span><span>检查中...</span>';
+
+            const result = await API.subscriptions.checkUpdates();
+            
+            if (result.success) {
+                this.showToast('已开始检查订阅更新，请稍后刷新页面', 'success');
+                
+                // 3秒后重新加载订阅列表
+                setTimeout(async () => {
+                    await this.loadSubscriptions();
+                    await this.checkSubscriptionUpdates();
+                }, 3000);
+            } else {
+                this.showToast(result.message || '检查失败', 'warning');
+            }
+        } catch (error) {
+            console.error('检查订阅更新失败:', error);
+            this.showToast('检查失败，请稍后重试', 'error');
+        } finally {
+            // 恢复按钮状态
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<span>🔄</span><span>检查更新</span>';
+            }, 1000);
+        }
+    },
+
+    // 绑定检查更新按钮
+    bindCheckUpdatesButton() {
+        const btn = document.getElementById('btn-check-updates');
+        if (!btn || btn._bound) return;
+
+        btn._bound = true;
+        btn.addEventListener('click', () => {
+            this.manualCheckUpdates();
+        });
     },
 
     // ==================== 浏览器通知功能 ====================
@@ -4483,6 +4747,731 @@ const App = {
             }
         }
     },
+
+    // ==================== 书单管理功能 ====================
+
+    // 加载书单页面
+    async loadBookLists() {
+        if (!this.currentUser) {
+            this.showToast("请先登录", "warning");
+            return;
+        }
+
+        // 默认加载我的书单
+        this.switchBookListTab("my-lists");
+    },
+
+    // 切换书单标签页
+    switchBookListTab(tabName) {
+        // 更新标签页按钮状态
+        document.querySelectorAll(".list-tab").forEach(tab => {
+            tab.classList.toggle("active", tab.dataset.tab === tabName);
+        });
+
+        // 更新内容显示
+        document.querySelectorAll(".list-tab-content").forEach(content => {
+            content.classList.toggle("active", content.id === `tab-${tabName}`);
+        });
+
+        // 加载对应数据
+        switch (tabName) {
+            case "my-lists":
+                this.loadMyLists();
+                break;
+            case "square":
+                this.loadSquareLists();
+                break;
+            case "collected":
+                this.loadCollectedLists();
+                break;
+            case "reviews":
+                this.loadReviews();
+                break;
+        }
+    },
+
+    // 加载我的书单
+    async loadMyLists() {
+        const container = document.getElementById("my-lists-grid");
+        container.innerHTML = '<p class="empty-message">加载中...</p>';
+
+        try {
+            const lists = await API.bookLists.getMyLists();
+
+            if (lists.length === 0) {
+                container.innerHTML = '<p class="empty-message">还没有创建书单，点击上方按钮创建一个吧</p>';
+                return;
+            }
+
+            container.innerHTML = lists.map(list => this.renderBookListCard(list, true)).join('');
+        } catch (error) {
+            console.error("加载书单失败:", error);
+            container.innerHTML = '<p class="empty-message error-message">加载失败，请刷新页面重试</p>';
+        }
+    },
+
+    // 加载书单广场
+    async loadSquareLists(sortBy = 'hot') {
+        const container = document.getElementById("square-lists-grid");
+        container.innerHTML = '<p class="empty-message">加载中...</p>';
+
+        try {
+            const lists = await API.bookLists.getSquare(1, 20, sortBy);
+
+            if (lists.length === 0) {
+                container.innerHTML = '<p class="empty-message">暂无公开书单</p>';
+                return;
+            }
+
+            container.innerHTML = lists.map(list => this.renderBookListCard(list, false)).join('');
+        } catch (error) {
+            console.error("加载书单广场失败:", error);
+            container.innerHTML = '<p class="empty-message error-message">加载失败</p>';
+        }
+    },
+
+    // 加载收藏的书单
+    async loadCollectedLists() {
+        const container = document.getElementById("collected-lists-grid");
+        container.innerHTML = '<p class="empty-message">加载中...</p>';
+
+        try {
+            const lists = await API.bookLists.getCollected();
+
+            if (lists.length === 0) {
+                container.innerHTML = '<p class="empty-message">还没有收藏书单，去书单广场看看吧</p>';
+                return;
+            }
+
+            container.innerHTML = lists.map(list => this.renderBookListCard(list, false)).join('');
+        } catch (error) {
+            console.error("加载收藏书单失败:", error);
+            container.innerHTML = '<p class="empty-message error-message">加载失败</p>';
+        }
+    },
+
+    // ==================== 书评功能 ====================
+
+    reviewsSort: 'latest',
+
+    // 加载书评列表
+    async loadReviews(sort = this.reviewsSort) {
+        this.reviewsSort = sort;
+        const container = document.getElementById("reviews-list");
+        container.innerHTML = '<p class="empty-message">加载中...</p>';
+
+        // 更新排序按钮状态
+        document.querySelectorAll('.reviews-sort-tabs .sort-tab').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.sort === sort);
+        });
+
+        try {
+            const response = await fetch(`/api/reviews?sort=${sort}`);
+            const data = await response.json();
+
+            if (!data.reviews || data.reviews.length === 0) {
+                container.innerHTML = '<p class="empty-message">还没有书评，来写第一篇吧！</p>';
+                return;
+            }
+
+            container.innerHTML = data.reviews.map(review => this.renderReviewCard(review)).join('');
+        } catch (error) {
+            console.error("加载书评失败:", error);
+            container.innerHTML = '<p class="empty-message error-message">加载失败，请重试</p>';
+        }
+    },
+
+    // 渲染书评卡片
+    renderReviewCard(review) {
+        const cover = review.book_cover || this.defaultCover;
+        const stars = '★'.repeat(review.rating) + '☆'.repeat(5 - review.rating);
+        const avatar = review.avatar || review.username?.charAt(0) || '📖';
+        const avatarStyle = review.avatar ? `background-image: url('${review.avatar}')` : '';
+        const likeClass = review.hasLiked ? 'liked' : '';
+        const timeAgo = this.formatTimeAgo(review.created_at);
+        
+        return `
+            <div class="review-card">
+                <div class="review-book-info">
+                    <img class="review-book-cover" src="${cover}" alt="${this.escapeHtml(review.book_title)}" onerror="this.src='${this.defaultCover}'">
+                    <div class="review-book-meta">
+                        <h4 class="review-book-title">${this.escapeHtml(review.book_title || '未知书名')}</h4>
+                        <p class="review-book-author">作者：${this.escapeHtml(review.book_author || '未知')}</p>
+                        <div class="review-rating">
+                            <span class="stars">${stars}</span>
+                            <span class="rating-text">${review.rating}分</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="review-content">
+                    <p>${this.escapeHtml(review.content)}</p>
+                </div>
+                <div class="review-footer">
+                    <div class="review-user">
+                        <span class="review-avatar" style="${avatarStyle}">${!review.avatar ? avatar : ''}</span>
+                        <span class="review-username">${this.escapeHtml(review.username || '匿名用户')}</span>
+                        <span class="review-time">${timeAgo}</span>
+                    </div>
+                    <div class="review-actions">
+                        <button class="btn-like ${likeClass}" onclick="App.toggleReviewLike(${review.id}, this)">
+                            <span class="like-icon">❤️</span>
+                            <span class="like-count">${review.likes || 0}</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    // 点赞/取消点赞书评
+    async toggleReviewLike(reviewId, btn) {
+        if (!this.currentUser) {
+            this.showToast("请先登录", "warning");
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/reviews/${reviewId}/like`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                const countEl = btn.querySelector('.like-count');
+                const currentCount = parseInt(countEl.textContent) || 0;
+                countEl.textContent = data.liked ? currentCount + 1 : currentCount - 1;
+                btn.classList.toggle('liked', data.liked);
+            } else {
+                this.showToast(data.error || '操作失败', 'error');
+            }
+        } catch (error) {
+            this.showToast('操作失败', 'error');
+        }
+    },
+
+    // 显示写书评弹窗
+    async showWriteReviewModal() {
+        if (!this.currentUser) {
+            this.showToast("请先登录", "warning");
+            return;
+        }
+        
+        // 重置表单
+        document.getElementById('review-book-id').value = '';
+        document.getElementById('selected-book-info').style.display = 'none';
+        document.getElementById('review-rating-value').value = '0';
+        document.getElementById('review-content').value = '';
+        document.getElementById('review-error').textContent = '';
+        
+        // 重置星级
+        document.querySelectorAll('#review-rating .star').forEach(s => {
+            s.textContent = '☆';
+            s.classList.remove('active');
+        });
+        
+        // 加载书架书籍到下拉框
+        const select = document.getElementById('review-book-select');
+        select.innerHTML = '<option value="">加载中...</option>';
+        
+        try {
+            const response = await fetch('/api/bookshelf', { credentials: 'include' });
+            if (response.ok) {
+                const books = await response.json();
+                if (books.length === 0) {
+                    select.innerHTML = '<option value="">书架为空，请先添加书籍到书架</option>';
+                } else {
+                    select.innerHTML = '<option value="">请选择书籍...</option>' + 
+                        books.map(book => `<option value="${book.book_id}" data-title="${this.escapeHtml(book.title)}" data-cover="${book.cover || ''}" data-author="${this.escapeHtml(book.author || '')}">${this.escapeHtml(book.title)} - ${this.escapeHtml(book.author || '未知作者')}</option>`).join('');
+                }
+            } else {
+                select.innerHTML = '<option value="">加载失败，请重试</option>';
+            }
+        } catch (error) {
+            select.innerHTML = '<option value="">加载失败，请重试</option>';
+        }
+        
+        this.showModal('review-modal');
+    },
+
+    // 选择书架书籍
+    onBookSelectChange() {
+        const select = document.getElementById('review-book-select');
+        const selectedOption = select.options[select.selectedIndex];
+        
+        if (selectedOption && selectedOption.value) {
+            const bookId = selectedOption.value;
+            const title = selectedOption.dataset.title || '';
+            const cover = selectedOption.dataset.cover || '';
+            const author = selectedOption.dataset.author || '';
+            
+            document.getElementById('review-book-id').value = bookId;
+            
+            const selectedInfo = document.getElementById('selected-book-info');
+            selectedInfo.innerHTML = `
+                <div class="selected-book-card">
+                    <img src="${cover || this.defaultCover}" alt="">
+                    <div>
+                        <strong>${this.escapeHtml(title)}</strong>
+                        <span>${this.escapeHtml(author || '未知作者')}</span>
+                    </div>
+                </div>
+            `;
+            selectedInfo.style.display = 'block';
+            selectedInfo.dataset.cover = cover;
+            selectedInfo.dataset.author = author;
+            selectedInfo.dataset.title = title;
+        } else {
+            document.getElementById('review-book-id').value = '';
+            document.getElementById('selected-book-info').style.display = 'none';
+        }
+    },
+
+    // 设置评分
+    setReviewRating(rating) {
+        document.getElementById('review-rating-value').value = rating;
+        document.querySelectorAll('#review-rating .star').forEach((star, index) => {
+            if (index < rating) {
+                star.textContent = '★';
+                star.classList.add('active');
+            } else {
+                star.textContent = '☆';
+                star.classList.remove('active');
+            }
+        });
+    },
+
+    // 提交书评
+    async submitReview(e) {
+        e.preventDefault();
+        
+        const bookId = document.getElementById('review-book-id').value;
+        const rating = parseInt(document.getElementById('review-rating-value').value);
+        const content = document.getElementById('review-content').value.trim();
+        const errorEl = document.getElementById('review-error');
+        const selectedInfo = document.getElementById('selected-book-info');
+        
+        if (!bookId) {
+            errorEl.textContent = '请选择要评论的书籍';
+            return;
+        }
+        
+        if (rating < 1) {
+            errorEl.textContent = '请给书籍评分';
+            return;
+        }
+        
+        if (!content || content.length < 10) {
+            errorEl.textContent = '评语至少10个字';
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/reviews', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    bookId,
+                    bookTitle: selectedInfo.dataset.title || '',
+                    bookCover: selectedInfo.dataset.cover || '',
+                    bookAuthor: selectedInfo.dataset.author || '',
+                    rating,
+                    content
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                this.showToast('书评发表成功', 'success');
+                this.hideModal('review-modal');
+                this.loadReviews();
+            } else {
+                errorEl.textContent = data.error || '发表失败';
+            }
+        } catch (error) {
+            errorEl.textContent = '发表失败，请重试';
+        }
+    },
+
+    // 格式化时间
+    formatTimeAgo(dateStr) {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diff = Math.floor((now - date) / 1000);
+        
+        if (diff < 60) return '刚刚';
+        if (diff < 3600) return Math.floor(diff / 60) + '分钟前';
+        if (diff < 86400) return Math.floor(diff / 3600) + '小时前';
+        if (diff < 2592000) return Math.floor(diff / 86400) + '天前';
+        if (diff < 31536000) return Math.floor(diff / 2592000) + '个月前';
+        return Math.floor(diff / 31536000) + '年前';
+    },
+
+    // 搜索书单
+    async searchBookLists() {
+        const keyword = document.getElementById("list-search-input").value.trim();
+        if (!keyword) {
+            this.loadSquareLists();
+            return;
+        }
+
+        const container = document.getElementById("square-lists-grid");
+        container.innerHTML = '<p class="empty-message">搜索中...</p>';
+
+        try {
+            const lists = await API.bookLists.search(keyword);
+
+            if (lists.length === 0) {
+                container.innerHTML = `<p class="empty-message">没有找到匹配的书单："${keyword}"</p>`;
+                return;
+            }
+
+            container.innerHTML = lists.map(list => this.renderBookListCard(list, false)).join('');
+        } catch (error) {
+            console.error("搜索书单失败:", error);
+            container.innerHTML = '<p class="empty-message error-message">搜索失败</p>';
+        }
+    },
+
+    // 渲染书单卡片
+    renderBookListCard(list, isOwner) {
+        const cover = list.cover || this.defaultCover;
+        const creatorName = list.creator_name || '匿名';
+        
+        return `
+            <div class="book-list-card" onclick="App.viewBookList(${list.id})">
+                <div class="list-cover" style="background-image: url('${cover}')">
+                    <div class="list-count">📚 ${list.book_count || 0}本</div>
+                </div>
+                <div class="list-info">
+                    <h4 class="list-name">${this.escapeHtml(list.name)}</h4>
+                    <p class="list-desc">${this.escapeHtml(list.description || '暂无简介')}</p>
+                    <div class="list-meta">
+                        <span class="list-creator">👤 ${this.escapeHtml(creatorName)}</span>
+                        <span class="list-stats">
+                            👁 ${list.view_count || 0}
+                            ⭐ ${list.collect_count || 0}
+                        </span>
+                    </div>
+                    ${isOwner ? `
+                        <div class="list-actions" onclick="event.stopPropagation()">
+                            <button class="btn btn-sm btn-outline" onclick="App.editBookList(${list.id})">✏️ 编辑</button>
+                            <button class="btn btn-sm btn-outline" onclick="App.deleteBookList(${list.id})">🗑️ 删除</button>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    },
+
+    // 显示创建书单弹窗
+    showCreateListModal() {
+        document.getElementById("list-modal-title").textContent = "📝 创建书单";
+        document.getElementById("edit-list-id").value = "";
+        document.getElementById("list-name").value = "";
+        document.getElementById("list-description").value = "";
+        document.getElementById("list-cover").value = "";
+        document.getElementById("list-is-public").checked = true;
+        document.getElementById("list-form-error").textContent = "";
+        
+        this.showModal("book-list-modal");
+    },
+
+    // 编辑书单
+    async editBookList(listId) {
+        try {
+            const list = await API.bookLists.getById(listId);
+            
+            document.getElementById("list-modal-title").textContent = "✏️ 编辑书单";
+            document.getElementById("edit-list-id").value = listId;
+            document.getElementById("list-name").value = list.name;
+            document.getElementById("list-description").value = list.description || "";
+            document.getElementById("list-cover").value = list.cover || "";
+            document.getElementById("list-is-public").checked = list.is_public === 1;
+            document.getElementById("list-form-error").textContent = "";
+            
+            this.showModal("book-list-modal");
+        } catch (error) {
+            this.showToast("加载书单信息失败", "error");
+        }
+    },
+
+    // 保存书单
+    async saveBookList() {
+        const listId = document.getElementById("edit-list-id").value;
+        const name = document.getElementById("list-name").value.trim();
+        const description = document.getElementById("list-description").value.trim();
+        const cover = document.getElementById("list-cover").value.trim();
+        const isPublic = document.getElementById("list-is-public").checked;
+        const errorEl = document.getElementById("list-form-error");
+
+        if (!name) {
+            errorEl.textContent = "书单名称不能为空";
+            return;
+        }
+
+        try {
+            if (listId) {
+                // 更新书单
+                await API.bookLists.update(listId, name, description, cover, isPublic);
+                this.showToast("书单更新成功", "success");
+            } else {
+                // 创建书单
+                await API.bookLists.create(name, description, cover, isPublic);
+                this.showToast("书单创建成功", "success");
+            }
+
+            this.hideModal("book-list-modal");
+            this.loadMyLists(); // 刷新列表
+        } catch (error) {
+            errorEl.textContent = error.message;
+        }
+    },
+
+    // 删除书单
+    async deleteBookList(listId) {
+        if (!confirm("确定要删除这个书单吗？")) {
+            return;
+        }
+
+        try {
+            await API.bookLists.delete(listId);
+            this.showToast("书单已删除", "success");
+            this.loadMyLists(); // 刷新列表
+        } catch (error) {
+            this.showToast("删除失败：" + error.message, "error");
+        }
+    },
+
+    // 查看书单详情
+    async viewBookList(listId) {
+        try {
+            const list = await API.bookLists.getById(listId);
+            const books = list.books || [];
+            
+            // 获取评分统计
+            let ratingStats = {};
+            try {
+                ratingStats = await API.bookLists.getRatingStats(listId);
+            } catch (error) {
+                console.log("获取评分统计失败:", error.message);
+            }
+            
+            const detailHtml = `
+                <div class="list-detail-header">
+                    <h3>${this.escapeHtml(list.name)}</h3>
+                    <p>${this.escapeHtml(list.description || '暂无简介')}</p>
+                    <div class="list-meta">
+                        <span>👤 ${this.escapeHtml(list.creator_name || '匿名')}</span>
+                        <span>📚 ${list.book_count || 0}本</span>
+                        <span>👁 ${list.view_count || 0}</span>
+                        <span>⭐ ${list.collect_count || 0}</span>
+                        ${ratingStats.averageRating ? `
+                            <span>⭐ ${ratingStats.averageRating}分 (${ratingStats.commentCount || 0}评)</span>
+                        ` : ''}
+                    </div>
+                    ${list.user_id !== this.currentUser?.id ? `
+                        <button class="btn btn-primary" onclick="App.toggleCollectList(${listId}, ${list.isCollected})">
+                            ${list.isCollected ? '⭐ 已收藏' : '☆ 收藏书单'}
+                        </button>
+                    ` : ''}
+                </div>
+                <div class="list-detail-books">
+                    <h4 style="margin: 16px 0 12px">书籍列表</h4>
+                    ${books.length > 0 ? books.map(book => `
+                        <div class="book-item" onclick="window.location.href='/book-detail.html?id=${book.book_id}'">
+                            <img src="${book.cover || this.defaultCover}" alt="${book.title}" class="book-cover-sm" />
+                            <div class="book-info-sm">
+                                <div class="book-title-sm">${this.escapeHtml(book.title)}</div>
+                                <div class="book-author-sm">${this.escapeHtml(book.author || '未知')}</div>
+                                ${book.note ? `<div class="book-note">📝 ${this.escapeHtml(book.note)}</div>` : ''}
+                            </div>
+                        </div>
+                    `).join('') : '<p class="empty-message">书单还没有书籍</p>'}
+                </div>
+                
+                <!-- 评论区域 -->
+                <div class="list-comments-section">
+                    <h4 style="margin: 24px 0 16px">评论与评分</h4>
+                    ${this.currentUser ? `
+                        <div class="comment-form">
+                            <div class="rating-input">
+                                <label>评分：</label>
+                                <div class="stars">
+                                    <span class="star" data-rating="1">⭐</span>
+                                    <span class="star" data-rating="2">⭐</span>
+                                    <span class="star" data-rating="3">⭐</span>
+                                    <span class="star" data-rating="4">⭐</span>
+                                    <span class="star" data-rating="5">⭐</span>
+                                </div>
+                                <span class="rating-value">未评分</span>
+                            </div>
+                            <textarea id="comment-content" class="md-textarea" rows="3" placeholder="分享你的想法..." style="width: 100%; margin: 12px 0;"></textarea>
+                            <button class="btn btn-primary" onclick="App.submitBookListComment(${listId})">发布评论</button>
+                        </div>
+                    ` : '<p class="empty-message">请登录后发表评论</p>'}
+                    
+                    <div id="comments-list" class="comments-list">
+                        <p class="empty-message">加载评论中...</p>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById("list-detail-body").innerHTML = detailHtml;
+            
+            // 加载评论
+            await this.loadBookListComments(listId);
+            
+            // 绑定评分事件
+            if (this.currentUser) {
+                this.bindRatingEvents();
+            }
+            
+            this.showModal("book-list-detail-modal");
+        } catch (error) {
+            this.showToast("加载书单详情失败", "error");
+        }
+    },
+
+    // 绑定评分事件
+    bindRatingEvents() {
+        const stars = document.querySelectorAll('.star');
+        const ratingValue = document.querySelector('.rating-value');
+        let selectedRating = null;
+        
+        stars.forEach(star => {
+            star.addEventListener('click', () => {
+                selectedRating = parseInt(star.dataset.rating);
+                
+                // 更新星星显示
+                stars.forEach((s, index) => {
+                    s.style.color = index < selectedRating ? '#FFD700' : '#ccc';
+                });
+                
+                ratingValue.textContent = `${selectedRating}分`;
+            });
+            
+            star.addEventListener('mouseover', () => {
+                const rating = parseInt(star.dataset.rating);
+                stars.forEach((s, index) => {
+                    s.style.color = index < rating ? '#FFD700' : '#ccc';
+                });
+            });
+            
+            star.addEventListener('mouseout', () => {
+                // 恢复到选中的评分
+                stars.forEach((s, index) => {
+                    s.style.color = selectedRating && index < selectedRating ? '#FFD700' : '#ccc';
+                });
+            });
+        });
+    },
+
+    // 提交书单评论
+    async submitBookListComment(listId) {
+        const content = document.getElementById('comment-content').value.trim();
+        const ratingValue = document.querySelector('.rating-value').textContent;
+        let rating = null;
+        
+        if (ratingValue !== '未评分') {
+            rating = parseInt(ratingValue);
+        }
+        
+        if (!content) {
+            this.showToast('请输入评论内容', 'error');
+            return;
+        }
+        
+        try {
+            await API.bookLists.addComment(listId, content, rating);
+            this.showToast('评论发布成功', 'success');
+            
+            // 清空表单
+            document.getElementById('comment-content').value = '';
+            document.querySelector('.rating-value').textContent = '未评分';
+            document.querySelectorAll('.star').forEach(s => s.style.color = '#ccc');
+            
+            // 重新加载评论
+            await this.loadBookListComments(listId);
+            
+            // 重新加载评分统计
+            this.updateListRatingStats(listId);
+        } catch (error) {
+            this.showToast(error.message, 'error');
+        }
+    },
+
+    // 加载书单评论
+    async loadBookListComments(listId) {
+        try {
+            const comments = await API.bookLists.getComments(listId);
+            const commentsList = document.getElementById('comments-list');
+            
+            if (comments.length === 0) {
+                commentsList.innerHTML = '<p class="empty-message">暂无评论，快来发表第一条评论吧</p>';
+                return;
+            }
+            
+            const commentsHtml = comments.map(comment => `
+                <div class="comment-item">
+                    <div class="comment-header">
+                        <div class="comment-user">👤 ${this.escapeHtml(comment.user_name)}</div>
+                        <div class="comment-time">${this.formatTime(comment.created_at)}</div>
+                        ${comment.rating ? `
+                            <div class="comment-rating">
+                                ${'⭐'.repeat(comment.rating)}${'☆'.repeat(5 - comment.rating)} (${comment.rating}分)
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="comment-content">${this.escapeHtml(comment.content)}</div>
+                </div>
+            `).join('');
+            
+            commentsList.innerHTML = commentsHtml;
+        } catch (error) {
+            console.error('加载评论失败:', error);
+            document.getElementById('comments-list').innerHTML = '<p class="empty-message error-message">加载评论失败</p>';
+        }
+    },
+
+    // 更新书单评分统计
+    async updateListRatingStats(listId) {
+        try {
+            const ratingStats = await API.bookLists.getRatingStats(listId);
+            const metaDivs = document.querySelectorAll('.list-meta span');
+            
+            // 查找评分相关的span并更新
+            for (let div of metaDivs) {
+                if (div.textContent.includes('⭐') && div.textContent.includes('分')) {
+                    div.textContent = `⭐ ${ratingStats.averageRating || 0}分 (${ratingStats.commentCount || 0}评)`;
+                    break;
+                }
+            }
+        } catch (error) {
+            console.error('更新评分统计失败:', error);
+        }
+    },
+
+    // 收藏/取消收藏书单
+    async toggleCollectList(listId, isCollected) {
+        try {
+            if (isCollected) {
+                await API.bookLists.uncollect(listId);
+                this.showToast("已取消收藏", "success");
+            } else {
+                await API.bookLists.collect(listId);
+                this.showToast("收藏成功", "success");
+            }
+            // 重新加载详情
+            this.hideModal("book-list-detail-modal");
+            setTimeout(() => this.viewBookList(listId), 300);
+        } catch (error) {
+            this.showToast(error.message, "error");
+        }
+    }
 
 };
 

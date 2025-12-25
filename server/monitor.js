@@ -1,3 +1,11 @@
+/*
+ * File: monitor.js
+ * Input: os模块， database.js, crawler.js, logger.js, config.js
+ * Output: PerformanceMonitor和SubscriptionChecker类，提供性能监控和订阅更新检查功能
+ * Pos: 监控模块，定期收集系统性能指标、检查订阅更新、触发告警
+ * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和所属server/文件夹的README.md
+ */
+
 /**
  * PO18小说下载网站 - 性能监控与告警模块
  */
@@ -7,7 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const { logger } = require('./logger');
 const config = require('./config');
-const { db, SubscriptionDB } = require('./database');
+const { db, SubscriptionDB, BookMetadataDB } = require('./database');
 const { Crawler } = require('./crawler');
 
 class PerformanceMonitor {
@@ -454,18 +462,19 @@ class SubscriptionChecker {
 
     /**
      * 检查单个书籍的更新
+     * 修改为检查用户订阅数据和服务器元数据之间的差异，不访问网站
      */
     async checkBookUpdate(bookId, lastChapterCount) {
         try {
-            // 使用爬虫获取书籍信息
-            const bookInfo = await Crawler.parseBookDetail(bookId);
+            // 从本地元数据库获取书籍信息
+            const bookMetadata = BookMetadataDB.get(bookId);
             
-            if (!bookInfo || !bookInfo.detail) {
-                logger.debug(`无法获取书籍信息: ${bookId}`);
+            if (!bookMetadata) {
+                logger.debug(`本地无书籍元数据: ${bookId}`);
                 return false;
             }
 
-            const currentChapterCount = bookInfo.detail.chapterCount || 0;
+            const currentChapterCount = bookMetadata.total_chapters || 0;
 
             // 如果章节数增加，标记为有更新
             if (currentChapterCount > lastChapterCount) {
@@ -474,7 +483,7 @@ class SubscriptionChecker {
                 const newChapters = currentChapterCount - lastChapterCount;
                 logger.info(`发现更新`, {
                     bookId,
-                    title: bookInfo.detail.title,
+                    title: bookMetadata.title,
                     oldCount: lastChapterCount,
                     newCount: currentChapterCount,
                     newChapters

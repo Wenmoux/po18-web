@@ -101,6 +101,14 @@ const Admin = {
             });
         });
 
+        // 注册开关事件
+        const registrationToggle = document.getElementById('registration-toggle');
+        if (registrationToggle) {
+            registrationToggle.addEventListener('change', () => {
+                this.toggleRegistration();
+            });
+        }
+
         // 面板切换
         document.querySelectorAll('.admin-panel').forEach(panel => {
             panel.style.display = 'none';
@@ -158,6 +166,9 @@ const Admin = {
                 break;
             case 'settings':
                 // 系统设置面板不需要特殊加载操作
+                break;
+            case 'corrections':
+                this.loadCorrections();
                 break;
         }
     },
@@ -1782,6 +1793,110 @@ const Admin = {
     hideLoading() {
         // 这里可以实现加载状态的隐藏
         console.log("Loading hidden");
+    },
+
+    // ==================== 纠错审核 ====================
+
+    // 加载纠错列表
+    async loadCorrections() {
+        try {
+            const status = document.getElementById('correction-status-filter')?.value || 'pending';
+            const response = await fetch(`/api/admin/corrections?status=${status}`);
+            
+            if (!response.ok) {
+                throw new Error('获取纠错列表失败');
+            }
+            
+            const data = await response.json();
+            
+            // 更新统计数据
+            document.getElementById('correction-pending-count').textContent = data.stats?.pending || 0;
+            document.getElementById('correction-approved-count').textContent = data.stats?.approved || 0;
+            document.getElementById('correction-rejected-count').textContent = data.stats?.rejected || 0;
+            
+            // 渲染表格
+            this.renderCorrectionsTable(data.corrections || []);
+        } catch (error) {
+            console.error('加载纠错列表失败:', error);
+            this.showToast('加载纠错列表失败: ' + error.message, 'error');
+        }
+    },
+
+    // 渲染纠错表格
+    renderCorrectionsTable(corrections) {
+        const tbody = document.getElementById('corrections-table-body');
+        
+        if (!corrections || corrections.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#666;">暂无纠错记录</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = corrections.map(item => {
+            const statusText = {
+                'pending': '<span style="color:#ff9800;">待审核</span>',
+                'approved': '<span style="color:#4CAF50;">已通过</span>',
+                'rejected': '<span style="color:#f44336;">已拒绝</span>'
+            }[item.status] || item.status;
+            
+            const actions = item.status === 'pending' ? `
+                <button class="btn-sm btn-edit" onclick="Admin.reviewCorrection(${item.id}, 'approve')">✅ 通过</button>
+                <button class="btn-sm btn-delete" onclick="Admin.reviewCorrection(${item.id}, 'reject')">❌ 拒绝</button>
+            ` : '-';
+            
+            return `
+                <tr>
+                    <td>${item.id}</td>
+                    <td>${this.escapeHtml(item.username || '未知用户')}</td>
+                    <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;" title="${this.escapeHtml(item.book_title || '')}">
+                        ${this.escapeHtml(item.book_title || item.book_id)}
+                    </td>
+                    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;" title="${this.escapeHtml(item.original_text || '')}">
+                        ${this.escapeHtml((item.original_text || '').substring(0, 50))}${(item.original_text || '').length > 50 ? '...' : ''}
+                    </td>
+                    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;" title="${this.escapeHtml(item.corrected_text || '')}">
+                        ${this.escapeHtml((item.corrected_text || '').substring(0, 50))}${(item.corrected_text || '').length > 50 ? '...' : ''}
+                    </td>
+                    <td>${this.formatDate(item.created_at)}</td>
+                    <td>${statusText}</td>
+                    <td class="actions">${actions}</td>
+                </tr>
+            `;
+        }).join('');
+    },
+
+    // 审核纠错
+    async reviewCorrection(id, action) {
+        const actionText = action === 'approve' ? '通过' : '拒绝';
+        if (!confirm(`确定要${actionText}这条纠错吗？`)) return;
+        
+        try {
+            const response = await fetch(`/api/admin/corrections/${id}/review`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ action })
+            });
+            
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || '审核失败');
+            }
+            
+            const result = await response.json();
+            this.showToast(result.message || `纠错已${actionText}`, 'success');
+            
+            // 重新加载列表
+            this.loadCorrections();
+        } catch (error) {
+            console.error('审核纠错失败:', error);
+            this.showToast('审核失败: ' + error.message, 'error');
+        }
+    },
+
+    // 筛选纠错状态
+    filterCorrections() {
+        this.loadCorrections();
     }
 };
 // 页面加载完成后初始化

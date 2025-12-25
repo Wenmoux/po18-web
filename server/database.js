@@ -1,3 +1,11 @@
+/*
+ * File: database.js
+ * Input: better-sqlite3, config.js, logger.js
+ * Output: 数据库实例和所有数据表的CRUD操作类（UserDB, LibraryDB, QueueDB等）
+ * Pos: 数据持久化层，封装所有SQLite数据库操作，管理用户、书库、队列、订阅等数据
+ * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和所属server/文件夹的README.md
+ */
+
 /**
  * PO18小说下载网站 - 数据库模块
  */
@@ -30,6 +38,15 @@ function initDatabase() {
             shared_books_count INTEGER DEFAULT 0,
             cache_auth INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    // 系统配置表
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS system_config (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     `);
@@ -290,6 +307,61 @@ function initDatabase() {
         CREATE INDEX IF NOT EXISTS idx_reading_daily_user_date ON reading_daily_stats(user_id, date);
     `);
 
+    // 书单表
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS book_lists (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            description TEXT,
+            cover TEXT,
+            is_public INTEGER DEFAULT 1,
+            book_count INTEGER DEFAULT 0,
+            collect_count INTEGER DEFAULT 0,
+            view_count INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    `);
+
+    // 书单书籍关联表
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS book_list_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            list_id INTEGER NOT NULL,
+            book_id TEXT NOT NULL,
+            title TEXT NOT NULL,
+            author TEXT,
+            cover TEXT,
+            note TEXT,
+            added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (list_id) REFERENCES book_lists(id) ON DELETE CASCADE,
+            UNIQUE(list_id, book_id)
+        )
+    `);
+
+    // 书单收藏表
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS book_list_collects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            list_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            collected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (list_id) REFERENCES book_lists(id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            UNIQUE(list_id, user_id)
+        )
+    `);
+
+    db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_book_lists_user ON book_lists(user_id);
+        CREATE INDEX IF NOT EXISTS idx_book_lists_public ON book_lists(is_public);
+        CREATE INDEX IF NOT EXISTS idx_book_list_items_list ON book_list_items(list_id);
+        CREATE INDEX IF NOT EXISTS idx_book_list_collects_user ON book_list_collects(user_id);
+        CREATE INDEX IF NOT EXISTS idx_book_list_collects_list ON book_list_collects(list_id);
+    `);
+
     // 书籍订阅表（更新通知）
     db.exec(`
         CREATE TABLE IF NOT EXISTS book_subscriptions (
@@ -380,6 +452,69 @@ function initDatabase() {
         )
     `);
 
+    // 纠错记录表
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS corrections (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            book_id TEXT NOT NULL,
+            chapter_id TEXT NOT NULL,
+            original_text TEXT NOT NULL,
+            corrected_text TEXT NOT NULL,
+            status TEXT DEFAULT 'pending', -- pending/approved/rejected
+            reviewer_id INTEGER,
+            review_time DATETIME,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    `);
+
+    db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_corrections_user ON corrections(user_id);
+        CREATE INDEX IF NOT EXISTS idx_corrections_status ON corrections(status);
+        CREATE INDEX IF NOT EXISTS idx_corrections_book ON corrections(book_id);
+    `);
+
+    // 书评表
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS book_reviews (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            book_id TEXT NOT NULL,
+            book_title TEXT,
+            book_cover TEXT,
+            book_author TEXT,
+            rating INTEGER DEFAULT 5,
+            content TEXT NOT NULL,
+            likes INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    `);
+
+    // 书评点赞记录表
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS review_likes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            review_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(review_id, user_id),
+            FOREIGN KEY (review_id) REFERENCES book_reviews(id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    `);
+
+    db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_reviews_user ON book_reviews(user_id);
+        CREATE INDEX IF NOT EXISTS idx_reviews_book ON book_reviews(book_id);
+        CREATE INDEX IF NOT EXISTS idx_reviews_rating ON book_reviews(rating);
+        CREATE INDEX IF NOT EXISTS idx_reviews_created ON book_reviews(created_at);
+        CREATE INDEX IF NOT EXISTS idx_review_likes_review ON review_likes(review_id);
+        CREATE INDEX IF NOT EXISTS idx_review_likes_user ON review_likes(user_id);
+    `);
+
     db.exec(`
         CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON book_subscriptions(user_id);
         CREATE INDEX IF NOT EXISTS idx_subscriptions_update ON book_subscriptions(has_update);
@@ -405,6 +540,12 @@ function initDatabase() {
         if (!usersColumns.includes("session_token")) {
             db.exec("ALTER TABLE users ADD COLUMN session_token TEXT");
             console.log("迁移: 添加 users.session_token 列（单点登录）");
+        }
+
+        // 用户积分字段
+        if (!usersColumns.includes("points")) {
+            db.exec("ALTER TABLE users ADD COLUMN points INTEGER DEFAULT 0");
+            console.log("迁移: 添加 users.points 列");
         }
 
         // 检查并添加 download_queue 表的新列
@@ -499,6 +640,30 @@ function initDatabase() {
         if (!columns.includes("uploaderId")) {
             db.exec("ALTER TABLE book_metadata ADD COLUMN uploaderId TEXT DEFAULT 'unknown'");
             console.log("迁移: 添加 uploaderId 列");
+        }
+        
+        // 添加 weekly_popularity 列（周人气）
+        if (!columns.includes("weekly_popularity")) {
+            db.exec("ALTER TABLE book_metadata ADD COLUMN weekly_popularity INTEGER DEFAULT 0");
+            console.log("迁移: 添加 weekly_popularity 列");
+        }
+        
+        // 添加 readers_count 列（阅读人数）
+        if (!columns.includes("readers_count")) {
+            db.exec("ALTER TABLE book_metadata ADD COLUMN readers_count INTEGER DEFAULT 0");
+            console.log("迁移: 添加 readers_count 列");
+        }
+        
+        // 添加 daily_popularity 列（日人气）
+        if (!columns.includes("daily_popularity")) {
+            db.exec("ALTER TABLE book_metadata ADD COLUMN daily_popularity INTEGER DEFAULT 0");
+            console.log("迁移: 添加 daily_popularity 列");
+        }
+        
+        // 添加 purchase_count 列（POPO订购数）
+        if (!columns.includes("purchase_count")) {
+            db.exec("ALTER TABLE book_metadata ADD COLUMN purchase_count INTEGER DEFAULT 0");
+            console.log("迁移: 添加 purchase_count 列");
         }
 
         // 检查并添加 chapter_cache 表的 chapter_order 列
@@ -1340,7 +1505,7 @@ const BookMetadataDB = {
                         title = ?, author = ?, cover = ?, description = ?, tags = ?,
                         category = ?, word_count = ?, free_chapters = ?, paid_chapters = ?, total_chapters = ?, status = ?,
                         latest_chapter_name = ?, latest_chapter_date = ?, platform = ?,
-                        favorites_count = ?, comments_count = ?, monthly_popularity = ?, total_popularity = ?,
+                        favorites_count = ?, comments_count = ?, monthly_popularity = ?, weekly_popularity = ?, daily_popularity = ?, total_popularity = ?, purchase_count = ?, readers_count = ?,
                         detail_url = ?, uploader = ?, uploaderId = ?, updated_at = CURRENT_TIMESTAMP
                     WHERE id = ?
                 `);
@@ -1362,7 +1527,11 @@ const BookMetadataDB = {
                     book.favoritesCount || 0,
                     book.commentsCount || 0,
                     book.monthlyPopularity || 0,
+                    book.weeklyPopularity || 0,
+                    book.dailyPopularity || 0,
                     book.totalPopularity || 0,
+                    book.purchaseCount || 0,
+                    book.readersCount || 0,
                     book.detailUrl || "",
                     book.uploader || "unknown_user",
                     book.uploaderId || "unknown",
@@ -1381,7 +1550,7 @@ const BookMetadataDB = {
                             title = ?, author = ?, cover = ?, description = ?, tags = ?,
                             category = ?, word_count = ?, free_chapters = ?, paid_chapters = ?, total_chapters = ?, status = ?,
                             latest_chapter_name = ?, latest_chapter_date = ?, platform = ?,
-                            favorites_count = ?, comments_count = ?, monthly_popularity = ?, total_popularity = ?,
+                            favorites_count = ?, comments_count = ?, monthly_popularity = ?, weekly_popularity = ?, daily_popularity = ?, total_popularity = ?, purchase_count = ?, readers_count = ?,
                             detail_url = ?, uploader = ?, uploaderId = ?, updated_at = CURRENT_TIMESTAMP
                         WHERE id = ?
                     `);
@@ -1389,7 +1558,7 @@ const BookMetadataDB = {
                         book.title,
                         book.author || "",
                         book.cover || "",
-                        book.description || "",
+                        book.descriptionHTML || book.description || "",
                         book.tags || "",
                         book.category || "",
                         book.wordCount || 0,
@@ -1403,7 +1572,11 @@ const BookMetadataDB = {
                         book.favoritesCount || 0,
                         book.commentsCount || 0,
                         book.monthlyPopularity || 0,
+                        book.weeklyPopularity || 0,
+                        book.dailyPopularity || 0,
                         book.totalPopularity || 0,
+                        book.purchaseCount || 0,
+                        book.readersCount || 0,
                         book.detailUrl || "",
                         book.uploader || "unknown_user",
                         book.uploaderId || "unknown",
@@ -1414,15 +1587,15 @@ const BookMetadataDB = {
                 // 插入新记录
                 const insertStmt = db.prepare(`
                     INSERT INTO book_metadata 
-                    (book_id, title, author, cover, description, tags, category, word_count, free_chapters, paid_chapters, total_chapters, subscribed_chapters, status, latest_chapter_name, latest_chapter_date, platform, favorites_count, comments_count, monthly_popularity, total_popularity, detail_url, uploader, uploaderId)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (book_id, title, author, cover, description, tags, category, word_count, free_chapters, paid_chapters, total_chapters, subscribed_chapters, status, latest_chapter_name, latest_chapter_date, platform, favorites_count, comments_count, monthly_popularity, weekly_popularity, daily_popularity, total_popularity, purchase_count, readers_count, detail_url, uploader, uploaderId)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `);
                 return insertStmt.run(
                     book.bookId,
                     book.title,
                     book.author || "",
                     book.cover || "",
-                    book.description || "",
+                    book.descriptionHTML || book.description || "",
                     book.tags || "",
                     book.category || "",
                     book.wordCount || 0,
@@ -1437,7 +1610,11 @@ const BookMetadataDB = {
                     book.favoritesCount || 0,
                     book.commentsCount || 0,
                     book.monthlyPopularity || 0,
+                    book.weeklyPopularity || 0,
+                    book.dailyPopularity || 0,
                     book.totalPopularity || 0,
+                    book.purchaseCount || 0,
+                    book.readersCount || 0,
                     book.detailUrl || "",
                     book.uploader || "unknown_user",
                     book.uploaderId || "unknown"
@@ -2005,6 +2182,245 @@ const SubscriptionDB = {
     }
 };
 
+// 书单数据库操作
+const BookListDB = {
+    // 创建书单
+    create(userId, name, description = '', cover = '', isPublic = 1) {
+        const stmt = db.prepare(`
+            INSERT INTO book_lists (user_id, name, description, cover, is_public)
+            VALUES (?, ?, ?, ?, ?)
+        `);
+        const result = stmt.run(userId, name, description, cover, isPublic);
+        return result.lastInsertRowid;
+    },
+
+    // 获取用户的书单列表
+    getByUser(userId) {
+        const stmt = db.prepare(`
+            SELECT * FROM book_lists 
+            WHERE user_id = ? 
+            ORDER BY updated_at DESC
+        `);
+        return stmt.all(userId);
+    },
+
+    // 获取单个书单详情
+    getById(listId) {
+        const stmt = db.prepare('SELECT * FROM book_lists WHERE id = ?');
+        return stmt.get(listId);
+    },
+
+    // 更新书单
+    update(listId, userId, name, description, cover, isPublic) {
+        const stmt = db.prepare(`
+            UPDATE book_lists 
+            SET name = ?, description = ?, cover = ?, is_public = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND user_id = ?
+        `);
+        return stmt.run(name, description, cover, isPublic, listId, userId);
+    },
+
+    // 删除书单
+    delete(listId, userId) {
+        const stmt = db.prepare('DELETE FROM book_lists WHERE id = ? AND user_id = ?');
+        return stmt.run(listId, userId);
+    },
+
+    // 添加书籍到书单
+    addBook(listId, bookId, title, author, cover, note = '') {
+        const stmt = db.prepare(`
+            INSERT OR IGNORE INTO book_list_items (list_id, book_id, title, author, cover, note)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `);
+        const result = stmt.run(listId, bookId, title, author, cover, note);
+        
+        if (result.changes > 0) {
+            // 更新书单的书籍数量
+            db.prepare('UPDATE book_lists SET book_count = book_count + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(listId);
+        }
+        
+        return result.changes > 0;
+    },
+
+    // 从书单移除书籍
+    removeBook(listId, bookId) {
+        const stmt = db.prepare('DELETE FROM book_list_items WHERE list_id = ? AND book_id = ?');
+        const result = stmt.run(listId, bookId);
+        
+        if (result.changes > 0) {
+            db.prepare('UPDATE book_lists SET book_count = book_count - 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(listId);
+        }
+        
+        return result.changes > 0;
+    },
+
+    // 获取书单中的书籍
+    getBooks(listId) {
+        const stmt = db.prepare(`
+            SELECT * FROM book_list_items 
+            WHERE list_id = ? 
+            ORDER BY added_at DESC
+        `);
+        return stmt.all(listId);
+    },
+
+    // 获取公开的书单广场（按热度排序）
+    getPublicLists(page = 1, pageSize = 20, sortBy = 'hot') {
+        const offset = (page - 1) * pageSize;
+        let orderBy = 'view_count DESC'; // 默认按热度
+        
+        if (sortBy === 'new') {
+            orderBy = 'created_at DESC';
+        } else if (sortBy === 'collect') {
+            orderBy = 'collect_count DESC';
+        }
+        
+        const stmt = db.prepare(`
+            SELECT bl.*, u.username as creator_name
+            FROM book_lists bl
+            LEFT JOIN users u ON bl.user_id = u.id
+            WHERE bl.is_public = 1
+            ORDER BY ${orderBy}
+            LIMIT ? OFFSET ?
+        `);
+        return stmt.all(pageSize, offset);
+    },
+
+    // 搜索书单
+    search(keyword, page = 1, pageSize = 20) {
+        const offset = (page - 1) * pageSize;
+        const stmt = db.prepare(`
+            SELECT bl.*, u.username as creator_name
+            FROM book_lists bl
+            LEFT JOIN users u ON bl.user_id = u.id
+            WHERE bl.is_public = 1 AND (bl.name LIKE ? OR bl.description LIKE ?)
+            ORDER BY bl.view_count DESC
+            LIMIT ? OFFSET ?
+        `);
+        return stmt.all(`%${keyword}%`, `%${keyword}%`, pageSize, offset);
+    },
+
+    // 增加浏览量
+    incrementViewCount(listId) {
+        const stmt = db.prepare('UPDATE book_lists SET view_count = view_count + 1 WHERE id = ?');
+        return stmt.run(listId);
+    },
+
+    // 收藏书单
+    collect(listId, userId) {
+        try {
+            const stmt = db.prepare('INSERT INTO book_list_collects (list_id, user_id) VALUES (?, ?)');
+            const result = stmt.run(listId, userId);
+            
+            if (result.changes > 0) {
+                db.prepare('UPDATE book_lists SET collect_count = collect_count + 1 WHERE id = ?').run(listId);
+            }
+            
+            return result.changes > 0;
+        } catch (error) {
+            if (error.code === 'SQLITE_CONSTRAINT') {
+                return false; // 已经收藏过
+            }
+            throw error;
+        }
+    },
+
+    // 取消收藏
+    uncollect(listId, userId) {
+        const stmt = db.prepare('DELETE FROM book_list_collects WHERE list_id = ? AND user_id = ?');
+        const result = stmt.run(listId, userId);
+        
+        if (result.changes > 0) {
+            db.prepare('UPDATE book_lists SET collect_count = collect_count - 1 WHERE id = ?').run(listId);
+        }
+        
+        return result.changes > 0;
+    },
+
+    // 检查是否已收藏
+    isCollected(listId, userId) {
+        const stmt = db.prepare('SELECT COUNT(*) as count FROM book_list_collects WHERE list_id = ? AND user_id = ?');
+        return stmt.get(listId, userId).count > 0;
+    },
+
+    // 获取用户收藏的书单
+    getCollectedLists(userId) {
+        const stmt = db.prepare(`
+            SELECT bl.*, u.username as creator_name
+            FROM book_lists bl
+            INNER JOIN book_list_collects blc ON bl.id = blc.list_id
+            LEFT JOIN users u ON bl.user_id = u.id
+            WHERE blc.user_id = ?
+            ORDER BY blc.collected_at DESC
+        `);
+        return stmt.all(userId);
+    }
+};
+
+// 书单评论数据库操作
+const BookListCommentDB = {
+    // 创建评论表
+    init() {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS book_list_comments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                list_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                rating INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (list_id) REFERENCES book_lists(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        `);
+    },
+
+    // 添加评论
+    addComment(listId, userId, content, rating = null) {
+        const stmt = db.prepare(`
+            INSERT INTO book_list_comments (list_id, user_id, content, rating)
+            VALUES (?, ?, ?, ?)
+        `);
+        return stmt.run(listId, userId, content, rating);
+    },
+
+    // 获取书单的评论
+    getComments(listId, page = 1, pageSize = 20) {
+        const offset = (page - 1) * pageSize;
+        const stmt = db.prepare(`
+            SELECT blc.*, u.username as user_name
+            FROM book_list_comments blc
+            LEFT JOIN users u ON blc.user_id = u.id
+            WHERE blc.list_id = ?
+            ORDER BY blc.created_at DESC
+            LIMIT ? OFFSET ?
+        `);
+        return stmt.all(listId, pageSize, offset);
+    },
+
+    // 获取书单的平均评分
+    getAverageRating(listId) {
+        const stmt = db.prepare('SELECT AVG(rating) as avg_rating FROM book_list_comments WHERE list_id = ? AND rating IS NOT NULL');
+        const result = stmt.get(listId);
+        return result.avg_rating ? parseFloat(result.avg_rating.toFixed(1)) : null;
+    },
+
+    // 获取书单的评论数量
+    getCommentCount(listId) {
+        const stmt = db.prepare('SELECT COUNT(*) as count FROM book_list_comments WHERE list_id = ?');
+        return stmt.get(listId).count;
+    },
+
+    // 删除评论
+    deleteComment(commentId, userId) {
+        const stmt = db.prepare('DELETE FROM book_list_comments WHERE id = ? AND user_id = ?');
+        return stmt.run(commentId, userId);
+    }
+};
+
+// 初始化书单评论表
+BookListCommentDB.init();
+
 module.exports = {
     db,
     UserDB,
@@ -2018,5 +2434,7 @@ module.exports = {
     ChapterCacheDB,
     BookshelfDB,
     ReadingStatsDB,
-    SubscriptionDB
+    SubscriptionDB,
+    BookListDB,
+    BookListCommentDB
 };

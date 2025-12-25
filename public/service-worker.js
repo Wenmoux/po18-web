@@ -101,6 +101,11 @@ self.addEventListener("fetch", (event) => {
         return;
     }
 
+    // 跳过非 http/https 请求（如 chrome-extension://）
+    if (!url.protocol.startsWith('http')) {
+        return;
+    }
+
     // API 请求 - 使用短期缓存
     if (url.pathname.startsWith("/api/")) {
         event.respondWith(apiCacheStrategy(request));
@@ -262,6 +267,12 @@ async function apiCacheStrategy(request) {
 
 // 图片缓存策略 - 长期缓存
 async function imageCacheStrategy(request) {
+    // 跳过非 http/https 请求
+    const url = new URL(request.url);
+    if (!url.protocol.startsWith('http')) {
+        return fetch(request);
+    }
+
     const cached = await caches.match(request);
     if (cached) {
         return cached;

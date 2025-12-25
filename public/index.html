@@ -6,11 +6,11 @@
             name="viewport"
             content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
         />
-        <title>PO18书库</title>
+        <title>荼蘼辞</title>
 
         <!-- 性能优化：预加载CSS -->
-        <link rel="preload" href="css/style.css?v=20251223a" as="style" />
-        <link rel="preload" href="css/components.css?v=20251223a" as="style" />
+        <link rel="preload" href="css/style.css?v=20251224e" as="style" />
+        <link rel="preload" href="css/components.css?v=20251224e" as="style" />
 
         <!-- DNS预解析 -->
         <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
@@ -25,7 +25,7 @@
         <meta name="mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="default">
-        <meta name="apple-mobile-web-app-title" content="PO18书库">
+        <meta name="apple-mobile-web-app-title" content="荼蘼辞">
         <link rel="apple-touch-icon" href="/icons/icon.svg" />
 
         <!-- 关键CSSS内联 -->
@@ -54,10 +54,10 @@
             #app { min-height: 100vh; }
         </style>
 
-        <link rel="stylesheet" href="css/style.css?v=20251223a" />
-        <link rel="stylesheet" href="css/bookshelf.css?v=20251223a" />
-        <link rel="stylesheet" href="css/components.css?v=20251223a" />
-        <link rel="stylesheet" href="css/mobile-enhancements.css?v=20251223a" />
+        <link rel="stylesheet" href="css/style.css?v=20251224e" />
+        <link rel="stylesheet" href="css/bookshelf.css?v=20251224e" />
+        <link rel="stylesheet" href="css/components.css?v=20251224e" />
+        <link rel="stylesheet" href="css/mobile-enhancements.css?v=20251224e" />
 
         <!-- 字体异步加载 -->
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -80,21 +80,20 @@
             <!-- 顶部导航 - MD3风格 -->
             <header class="header">
                 <div class="logo">
-                    <span class="logo-icon">📚</span>
-                    <span class="logo-text">PO18书库</span>
+                    <span class="logo-icon">🌸</span>
+                    <span class="logo-text">荼蘼辞</span>
                 </div>
                 <nav class="nav" id="main-nav">
-                    <a href="#" class="nav-link active" data-page="download">🏠 首页</a>
-                    <a href="#" class="nav-link" data-page="rankings">🏆 排行榜</a>
-                    <a href="#" class="nav-link" data-page="purchased">📚 已购</a>
-                    <a href="#" class="nav-link" data-page="bookshelf">📖 书架</a>
-                    <a href="#" class="nav-link" data-page="downloads">📥 下载</a>
-                    <a href="#" class="nav-link" data-page="library">📚 书库</a>
+                    <a href="#" class="nav-link active" data-page="download">🌸 春尽阁</a>
+                    <a href="#" class="nav-link" data-page="rankings">🏆 花事了</a>
+                    <a href="#" class="nav-link" data-page="bookshelf">📖 芸香屉</a>
+                    <a href="#" class="nav-link" data-page="book-lists">📑 花间集</a>
+                    <a href="#" class="nav-link" data-page="global-library" id="nav-global-library" style="display: none">🌎 琅嬛录</a>
                     <a href="#" class="nav-link" data-page="subscriptions" id="nav-subscriptions">
-                        🔔 订阅
+                        🔔 青鸟约
                         <span class="nav-badge" id="subscription-badge" style="display: none">0</span>
                     </a>
-                    <a href="#" class="nav-link" data-page="settings">👤 我的</a>
+                    <a href="#" class="nav-link" data-page="settings">👤 镜里妆</a>
                 </nav>
                 <div class="user-area" id="user-area">
                     <button class="btn btn-primary" id="btn-login">登录</button>
@@ -117,7 +116,7 @@
                     <div class="hero-search-card">
                         <div class="search-header">
                             <h2 style="font-size: 20px; font-weight: 600; margin: 0; color: var(--md-primary);">
-                                🔍 搜索书籍
+                                🔍 觅檀痕
                             </h2>
                             <p style="font-size: 13px; color: var(--md-on-surface-variant); margin: 4px 0 0 0;">
                                 支持书名、ID、链接搜索
@@ -170,22 +169,32 @@
                         <div class="quick-access-grid">
                             <div class="quick-access-card" onclick="App.navigateTo('rankings')">
                                 <div class="access-icon">🏆</div>
-                                <div class="access-title">排行榜</div>
+                                <div class="access-title">花事了</div>
                                 <div class="access-desc">热门书籍推荐</div>
                             </div>
                             <div class="quick-access-card" onclick="App.navigateTo('bookshelf')">
                                 <div class="access-icon">📚</div>
-                                <div class="access-title">我的书架</div>
+                                <div class="access-title">芸香屉</div>
                                 <div class="access-desc">继续阅读</div>
+                            </div>
+                            <div class="quick-access-card" onclick="App.navigateTo('book-lists')">
+                                <div class="access-icon">📑</div>
+                                <div class="access-title">花间集</div>
+                                <div class="access-desc">发现好书</div>
+                            </div>
+                            <div class="quick-access-card" onclick="App.navigateTo('library')">
+                                <div class="access-icon">📖</div>
+                                <div class="access-title">琅嬛录</div>
+                                <div class="access-desc">管理我的书籍</div>
                             </div>
                             <div class="quick-access-card" onclick="App.navigateTo('downloads')">
                                 <div class="access-icon">📥</div>
-                                <div class="access-title">下载管理</div>
+                                <div class="access-title">云篆集</div>
                                 <div class="access-desc">查看下载记录</div>
                             </div>
                             <div class="quick-access-card" onclick="App.navigateTo('subscriptions')">
                                 <div class="access-icon">🔔</div>
-                                <div class="access-title">我的订阅</div>
+                                <div class="access-title">青鸟约</div>
                                 <div class="access-desc">书籍更新提醒</div>
                             </div>
                         </div>
@@ -266,7 +275,7 @@
                     <div id="shared-section" style="margin-top: 24px">
                         <div class="section-header" style="margin-bottom: 16px;">
                             <h3 style="font-size: 18px; font-weight: 600; margin: 0; color: var(--md-on-surface);">
-                                📚 共享书库
+                                📚 绿肥红瘦
                             </h3>
                             <p style="font-size: 13px; color: var(--md-on-surface-variant); margin: 4px 0 0 0;">
                                 浏览和下载其他用户分享的书籍
@@ -344,6 +353,10 @@
                 <!-- 已购书籍页 -->
                 <section class="page" id="page-purchased">
                     <div class="page-header">
+                        <h2>📚 知否知否</h2>
+                        <p class="page-subtitle">查看您已购买的书籍</p>
+                    </div>
+                    <div class="page-header">
                         <button class="btn btn-outline" id="refresh-purchased">刷新</button>
                     </div>
                     <div class="login-required" id="purchased-login-required">
@@ -355,6 +368,10 @@
 
                 <!-- 下载管理页（单列表显示） -->
                 <section class="page" id="page-downloads">
+                    <div class="page-header">
+                        <h2>📥 云篆集</h2>
+                        <p class="page-subtitle">管理您的下载任务</p>
+                    </div>
                     <div class="page-header">
                         <button class="btn btn-outline" id="clear-completed">清除已完成</button>
                     </div>
@@ -368,6 +385,7 @@
                 <!-- 我的书架页 -->
                 <section class="page" id="page-bookshelf">
                     <div class="page-header">
+                        <h2>📖 芸香屉</h2>
                         <p class="page-subtitle">记录你的阅读历程</p>
                     </div>
 
@@ -444,7 +462,7 @@
                 <!-- 全站书库页（仅授权用户） -->
                 <section class="page" id="page-global-library">
                     <div class="page-header">
-                        <h2>🌐 全站书库</h2>
+                        <h2>🌐 琅嬛录</h2>
                         <p class="page-subtitle">浏览所有包含正文内容的书籍</p>
                     </div>
 
@@ -500,7 +518,7 @@
                             <select id="global-sort" class="md-select">
                                 <option value="latest">最新更新</option>
                                 <option value="favorites">收藏排行</option>
-                                <option value="comments">评论排行</option>
+                                <option value="comments">留言排行</option>
                                 <option value="wordcount">字数排行</option>
                                 <option value="cached">缓存章节</option>
                             </select>
@@ -511,19 +529,19 @@
                                 <input type="number" id="global-max-words" class="md-input" placeholder="最多字数" />
                             </div>
                             <button class="btn btn-primary" id="global-filter-btn">筛选</button>
-                            <button class="btn btn-outline" id="global-reset-btn">重置</button>
+                  
                         </div>
                     </div>
 
                     <div class="book-list" id="global-library-list">
-                        <p class="empty-message">加载中...</p>
+         
                     </div>
                 </section>
 
                 <!-- 订阅管理页面 -->
                 <section class="page" id="page-subscriptions">
                     <div class="page-header">
-                        <h2>🔔 订阅管理</h2>
+                        <h2>🔔 青鸟约</h2>
                         <p class="page-subtitle">关注的书籍有更新时会及时通知你</p>
                     </div>
 
@@ -805,7 +823,7 @@
                                     <div class="stat-label">分享排名</div>
                                 </div>
                             </div>
-                        </div>
+                            </div>
                         </div>
                     </div>
 
@@ -1007,11 +1025,96 @@
                         </div>
                     </div>
                 </section>
+
+                <!-- 书单页 -->
+                <section class="page" id="page-book-lists">
+                    <div class="page-header">
+                        <h2>📑 花间集</h2>
+                        <p class="page-subtitle">创建和管理你的书单，分享给其他书友</p>
+                    </div>
+
+                    <!-- 书单标签页 -->
+                    <div class="book-list-tabs" style="margin-bottom: 20px">
+                        <button class="list-tab active" data-tab="my-lists">
+                            📁 我的花笺
+                        </button>
+                        <button class="list-tab" data-tab="square">
+                            🌐 花间广场
+                        </button>
+                        <button class="list-tab" data-tab="collected">
+                            ⭐ 我的集藏
+                        </button>
+                        <button class="list-tab" data-tab="reviews">
+                            📝 玉台语
+                        </button>
+                    </div>
+
+                    <!-- 我的书单 -->
+                    <div class="list-tab-content active" id="tab-my-lists">
+                        <div class="list-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px">
+                            <h3 style="margin: 0; font-size: 16px">📚 我创建的花笺</h3>
+                            <button class="btn btn-primary btn-sm" id="btn-create-list">
+                                <span>➕</span>
+                                <span>创建花笺</span>
+                            </button>
+                        </div>
+                        <div class="book-lists-grid" id="my-lists-grid">
+                            <p class="empty-message">还没有创建花笺，点击上方按钮创建一个吧</p>
+                        </div>
+                    </div>
+
+                    <!-- 书单广场 -->
+                    <div class="list-tab-content" id="tab-square">
+                        <div class="square-header" style="margin-bottom: 16px">
+                            <div class="search-box" style="margin-bottom: 12px">
+                                <input type="text" id="list-search-input" class="search-input" placeholder="觅花笺..." />
+                                <button class="btn btn-primary btn-sm" id="btn-search-lists">🔍 搜索</button>
+                            </div>
+                            <div class="sort-tabs">
+                                <button class="sort-tab active" data-sort="hot">🔥 热门</button>
+                                <button class="sort-tab" data-sort="new">🆕 最新</button>
+                                <button class="sort-tab" data-sort="collect">⭐ 收藏</button>
+                            </div>
+                        </div>
+                        <div class="book-lists-grid" id="square-lists-grid">
+                            <p class="empty-message">加载中...</p>
+                        </div>
+                    </div>
+
+                    <!-- 我的收藏 -->
+                    <div class="list-tab-content" id="tab-collected">
+                        <div class="list-header" style="margin-bottom: 16px">
+                            <h3 style="margin: 0; font-size: 16px">⭐ 我集藏的花笺</h3>
+                        </div>
+                        <div class="book-lists-grid" id="collected-lists-grid">
+                            <p class="empty-message">还没有集藏花笺，去花间广场看看吧</p>
+                        </div>
+                    </div>
+
+                    <!-- 书评 -->
+                    <div class="list-tab-content" id="tab-reviews">
+                        <div class="list-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px">
+                            <h3 style="margin: 0; font-size: 16px">📝 玉台语</h3>
+                            <button class="btn btn-primary btn-sm" id="btn-write-review">
+                                <span>✏️</span>
+                                <span>题评</span>
+                            </button>
+                        </div>
+                        <div class="reviews-sort-tabs" style="margin-bottom: 16px">
+                            <button class="sort-tab active" data-sort="latest">🕛 最新</button>
+                            <button class="sort-tab" data-sort="hot">🔥 热门</button>
+                            <button class="sort-tab" data-sort="rating">⭐ 高分</button>
+                        </div>
+                        <div class="reviews-list" id="reviews-list">
+                            <p class="empty-message">加载中...</p>
+                        </div>
+                    </div>
+                </section>
             </main>
 
             <!-- 底部 -->
             <footer class="footer">
-                <p>PO18小说下载站 &copy; 2024 | 仅供学习交流使用</p>
+                <p>荼蘼辞 &copy; 2024 | 仅供学习交流使用</p>
             </footer>
         </div>
 
@@ -1135,49 +1238,145 @@
             </div>
         </div>
 
+        <!-- 书单创建/编辑弹窗 -->
+        <div class="modal-overlay" id="book-list-modal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 id="list-modal-title">📝 创建花笺</h3>
+                    <button class="modal-close" onclick="App.hideModal('book-list-modal')">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="book-list-form">
+                        <input type="hidden" id="edit-list-id" />
+                        
+                        <div class="form-group">
+                            <label for="list-name">花笺名称</label>
+                            <input type="text" id="list-name" class="md-input" placeholder="例如：我的收藏、必读好书..." required />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="list-description">花笺简介</label>
+                            <textarea id="list-description" class="md-textarea" rows="3" placeholder="介绍一下这个书单..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="list-cover">封面图片URL（可选）</label>
+                            <input type="text" id="list-cover" class="md-input" placeholder="https://example.com/cover.jpg" />
+                        </div>
+
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="list-is-public" checked />
+                                <span>🌍 公开书单（其他用户可以查看）</span>
+                            </label>
+                        </div>
+
+                        <div class="form-error" id="list-form-error"></div>
+                        
+                        <div class="button-group" style="display: flex; gap: 8px; margin-top: 16px">
+                            <button type="button" class="btn btn-outline" onclick="App.hideModal('book-list-modal')">取消</button>
+                            <button type="submit" class="btn btn-primary" id="save-list-btn">保存</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- 书单详情弹窗 -->
+        <div class="modal-overlay" id="book-list-detail-modal" style="display: none">
+            <div class="modal modal-lg">
+                <div class="modal-header">
+                    <h3 id="list-detail-title">书单详情</h3>
+                    <button class="modal-close" onclick="App.hideModal('book-list-detail-modal')">&times;</button>
+                </div>
+                <div class="modal-body" id="list-detail-body">
+                    <!-- 动态内容 -->
+                </div>
+            </div>
+        </div>
+
         <!-- Toast消息 -->
         <div class="toast-container" id="toast-container"></div>
+
+        <!-- 写书评弹窗 -->
+        <div class="modal-overlay" id="review-modal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 id="review-modal-title">✏️ 题玉台语</h3>
+                    <button class="modal-close" onclick="App.hideModal('review-modal')">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="review-form">
+                        <div class="form-group">
+                            <label>选择书籍（从书架）</label>
+                            <select id="review-book-select" class="md-select">
+                                <option value="">请选择书籍...</option>
+                            </select>
+                            <input type="hidden" id="review-book-id" />
+                            <div id="selected-book-info" class="selected-book" style="display: none;"></div>
+                        </div>
+                        <div class="form-group">
+                            <label>评分</label>
+                            <div class="rating-stars" id="review-rating">
+                                <span class="star" data-rating="1">☆</span>
+                                <span class="star" data-rating="2">☆</span>
+                                <span class="star" data-rating="3">☆</span>
+                                <span class="star" data-rating="4">☆</span>
+                                <span class="star" data-rating="5">☆</span>
+                            </div>
+                            <input type="hidden" id="review-rating-value" value="0" />
+                        </div>
+                        <div class="form-group">
+                            <label for="review-content">评语</label>
+                            <textarea id="review-content" class="md-textarea" rows="5" placeholder="分享你的阅读感受..."></textarea>
+                        </div>
+                        <div class="form-error" id="review-error"></div>
+                        <button type="submit" class="btn btn-primary btn-block">发表评语</button>
+                    </form>
+                </div>
+            </div>
+        </div>
 
         <!-- 移动端底部Tab导航 -->
         <nav class="bottom-tab-bar" id="bottom-tab-bar">
             <a href="#" class="tab-item active" data-page="download">
-                <span class="tab-icon">📥</span>
-                <span class="tab-label">快速下载</span>
+                <span class="tab-icon">🌸</span>
+                <span class="tab-label">春尽阁</span>
             </a>
             <a href="#" class="tab-item" data-page="bookshelf">
                 <span class="tab-icon">📚</span>
-                <span class="tab-label">书架</span>
+                <span class="tab-label">芸香屉</span>
             </a>
             <a href="#" class="tab-item" data-page="rankings">
                 <span class="tab-icon">🏆</span>
-                <span class="tab-label">排行榜</span>
+                <span class="tab-label">花事了</span>
             </a>
             <a href="#" class="tab-item" data-page="global-library" id="tab-global-library" style="display: none">
                 <span class="tab-icon">🌐</span>
-                <span class="tab-label">全站</span>
+                <span class="tab-label">琅嬛录</span>
             </a>
             <a href="#" class="tab-item" data-page="subscriptions" id="tab-subscriptions">
                 <span class="tab-icon">🔔</span>
-                <span class="tab-label">订阅</span>
+                <span class="tab-label">青鸟约</span>
                 <span class="tab-badge" id="tab-subscription-badge">0</span>
             </a>
             <a href="#" class="tab-item" data-page="settings">
                 <span class="tab-icon">👤</span>
-                <span class="tab-label">我的</span>
+                <span class="tab-label">镜里妆</span>
             </a>
         </nav>
 
         <!-- 延迟加载 JSZip 库，仅在需要时加载 -->
         <!-- <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script> -->
-        <script src="js/performance-optimizer.js?v=20251223a"></script>
-        <script src="js/utils.js?v=20251223a"></script>
-        <script src="js/mobile-enhancements.js?v=20251223a"></script>
-        <script src="js/app-enhancements.js?v=20251223a"></script>
-        <script src="js/generator.js?v=20251223a"></script>
-        <script src="js/api.js?v=20251223a"></script>
-        <script src="js/mobile.js?v=20251223a"></script>
-        <script src="js/app.js?v=20251223a"></script>
-        <script src="js/final-enhancements.js?v=20251223a"></script>
+        <script src="js/performance-optimizer.js?v=20251224e"></script>
+        <script src="js/utils.js?v=20251224e"></script>
+        <script src="js/mobile-enhancements.js?v=20251224e"></script>
+        <script src="js/app-enhancements.js?v=20251224e"></script>
+        <script src="js/generator.js?v=20251224e"></script>
+        <script src="js/api.js?v=20251224e"></script>
+        <script src="js/mobile.js?v=20251224e"></script>
+        <script src="js/app.js?v=20251224e"></script>
+        <script src="js/final-enhancements.js?v=20251224e"></script>
 
         <!-- PWA Service Worker 注册 -->
         <script>

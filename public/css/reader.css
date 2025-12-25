@@ -36,6 +36,13 @@
     --line-height: 1.8;
     --content-width: 800px;
     --font-family: "Noto Sans SC", "Roboto", -apple-system, BlinkMacSystemFont, sans-serif;
+    
+    /* 阅读器主题颜色变量 - 可自定义 */
+    --reader-bg-color: #FFFFFF;
+    --reader-text-color: #333333;
+    --reader-title-color: #1a1a1a;
+    --reader-highlight-color: #D81B60;
+    --reader-font-family: var(--font-family);
 }
 
 * {
@@ -51,6 +58,12 @@ body {
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+}
+
+/* 章节标题样式 */
+.chapter-title {
+    color: var(--reader-title-color, var(--md-on-surface));
+    transition: color 0.3s ease;
 }
 
 /* 文字选中样式美化 */
@@ -245,11 +258,15 @@ body {
 .chapter-content {
     font-size: var(--font-size);
     line-height: var(--line-height);
-    color: var(--md-on-surface);
-    font-family: inherit; /* 继承body的字体设置 */
+    color: var(--reader-text-color, var(--md-on-surface));
+    font-family: var(--reader-font-family, inherit); /* 使用自定义字体 */
+    background-color: var(--reader-bg-color, transparent);
     word-wrap: break-word;
     word-break: break-word;
     animation: fadeIn 0.5s ease-in-out;
+    padding: 20px;
+    border-radius: 12px;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 @keyframes fadeIn {
@@ -455,19 +472,33 @@ body {
     top: 0;
     bottom: 0;
     right: -100%;
-    width: 85%;
-    max-width: 400px;
-    background: var(--md-surface-container-lowest);
-    box-shadow: var(--md-elevation-3);
+    width: 90%;
+    max-width: 440px;
+    /* MD3 毛玻璃效果 - 更强的模糊和饱和度 */
+    background: rgba(255, 251, 255, 0.75);
+    backdrop-filter: blur(40px) saturate(200%) brightness(1.05);
+    -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.05);
+    /* MD3 多层阴影 */
+    box-shadow: 
+        -8px 0 32px rgba(0, 0, 0, 0.12),
+        -4px 0 16px rgba(0, 0, 0, 0.08),
+        -2px 0 8px rgba(0, 0, 0, 0.04),
+        inset 1px 0 0 rgba(255, 255, 255, 0.4);
     z-index: 200;
-    transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     flex-direction: column;
+    /* 微妙的内边框光效 */
+    border-left: 1px solid rgba(255, 255, 255, 0.5);
+    /* 整体提升感 */
+    transform: translateZ(0);
 }
 
 .catalog-panel.active,
 .settings-panel.active {
     right: 0;
+    transform: translateZ(0) scale(1);
 }
 
 .catalog-header,
@@ -475,81 +506,151 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--md-outline-variant);
-    background: var(--md-surface-container-lowest);
+    padding: 24px 28px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    /* 头部更强的毛玻璃效果 */
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    /* 微妙的底部阴影 */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    position: relative;
+    z-index: 1;
 }
 
 .catalog-header h3,
 .settings-header h3 {
-    font-size: 18px;
-    font-weight: 600;
+    font-size: 22px;
+    font-weight: 700;
     color: var(--md-on-surface);
+    letter-spacing: -0.6px;
+    /* MD3 标题增强 */
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
 }
 
 .close-btn {
-    width: 36px;
-    height: 36px;
+    width: 42px;
+    height: 42px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
-    border: none;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(0, 0, 0, 0.06);
     color: var(--md-on-surface-variant);
     cursor: pointer;
     border-radius: 50%;
-    transition: var(--md-transition);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* MD3 微妙阴影 */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .close-btn:hover {
-    background: rgba(0, 0, 0, 0.05);
-    color: var(--md-on-surface);
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(216, 27, 96, 0.2);
+    color: var(--md-primary);
+    transform: rotate(90deg) scale(1.1);
+    box-shadow: 
+        0 4px 12px rgba(0, 0, 0, 0.12),
+        0 0 0 4px rgba(216, 27, 96, 0.08);
+}
+
+.close-btn:active {
+    background: rgba(255, 255, 255, 1);
+    border-color: var(--md-primary);
+    transform: rotate(90deg) scale(1.05);
+    box-shadow: 0 2px 8px rgba(216, 27, 96, 0.25);
 }
 
 /* ===== 目录面板 ===== */
 .catalog-search {
-    padding: 16px;
-    border-bottom: 1px solid var(--md-outline-variant);
+    padding: 20px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    background: rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
 }
 
 .search-input {
     width: 100%;
-    padding: 10px 16px;
-    border: 1px solid var(--md-outline-variant);
-    border-radius: 8px;
+    padding: 12px 16px;
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    border-radius: 12px;
     font-size: 14px;
     outline: none;
-    transition: var(--md-transition);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* MD3 毛玻璃搜索框 */
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    box-shadow: 
+        0 2px 8px rgba(0, 0, 0, 0.04),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .search-input:focus {
-    border-color: var(--md-primary);
-    box-shadow: 0 0 0 3px rgba(233, 30, 99, 0.1);
+    border-color: rgba(216, 27, 96, 0.5);
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 
+        0 0 0 4px rgba(216, 27, 96, 0.1),
+        0 4px 16px rgba(0, 0, 0, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 1);
 }
 
 .catalog-list {
     flex: 1;
     overflow-y: auto;
     padding: 8px 0;
+    /* 滚动条美化 - MD3 风格 */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(216, 27, 96, 0.25) transparent;
+}
+
+.catalog-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.catalog-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 4px;
+}
+
+.catalog-list::-webkit-scrollbar-thumb {
+    background: rgba(216, 27, 96, 0.2);
+    border-radius: 4px;
+    transition: background 0.3s ease;
+}
+
+.catalog-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(216, 27, 96, 0.35);
 }
 
 .catalog-item {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 14px 20px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    padding: 16px 24px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
     cursor: pointer;
-    transition: var(--md-transition);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
 }
 
 .catalog-item:hover {
-    background: rgba(0, 0, 0, 0.03);
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transform: translateX(4px);
 }
 
 .catalog-item.current {
-    background: rgba(233, 30, 99, 0.08);
+    background: rgba(216, 27, 96, 0.12);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
     color: var(--md-primary);
+    box-shadow: inset 3px 0 0 var(--md-primary);
 }
 
 .catalog-item.locked {
@@ -587,19 +688,85 @@ body {
 .settings-content {
     flex: 1;
     overflow-y: auto;
-    padding: 20px;
+    padding: 28px;
+    /* 滚动条美化 - MD3 风格 */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(216, 27, 96, 0.3) transparent;
+}
+
+.settings-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.settings-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 4px;
+}
+
+.settings-content::-webkit-scrollbar-thumb {
+    background: rgba(216, 27, 96, 0.25);
+    border-radius: 4px;
+    transition: background 0.3s ease;
+}
+
+.settings-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(216, 27, 96, 0.4);
 }
 
 .setting-group {
-    margin-bottom: 28px;
+    margin-bottom: 24px;
+    padding: 24px;
+    /* MD3 毛玻璃效果 - 更精致的半透明 */
+    background: rgba(255, 255, 255, 0.45);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    /* MD3 分层阴影系统 */
+    box-shadow: 
+        0 1px 3px rgba(0, 0, 0, 0.04),
+        0 4px 12px rgba(0, 0, 0, 0.02),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.setting-group:hover {
+    background: rgba(255, 255, 255, 0.65);
+    border-color: rgba(216, 27, 96, 0.15);
+    box-shadow: 
+        0 2px 8px rgba(0, 0, 0, 0.06),
+        0 8px 24px rgba(0, 0, 0, 0.04),
+        0 0 0 1px rgba(216, 27, 96, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 1);
+    transform: translateY(-2px) scale(1.005);
 }
 
 .setting-label {
     display: block;
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 15px;
+    font-weight: 600;
     color: var(--md-on-surface);
-    margin-bottom: 12px;
+    margin-bottom: 16px;
+    letter-spacing: -0.3px;
+    /* MD3 标签增强 */
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+    position: relative;
+    padding-left: 12px;
+}
+
+.setting-label::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 16px;
+    background: linear-gradient(135deg, var(--md-primary), rgba(216, 27, 96, 0.6));
+    border-radius: 2px;
+    box-shadow: 0 2px 4px rgba(216, 27, 96, 0.3);
 }
 
 .setting-options {
@@ -608,17 +775,145 @@ body {
     flex-wrap: wrap;
 }
 
-.option-btn {
-    padding: 8px 16px;
-    background: var(--md-background);
-    border: 2px solid transparent;
+/* 滑块样式 */
+.setting-slider {
+    width: 100%;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: linear-gradient(to right, 
+        var(--md-primary) 0%, 
+        var(--md-primary) 50%, 
+        rgba(0, 0, 0, 0.1) 50%, 
+        rgba(0, 0, 0, 0.1) 100%);
     border-radius: 8px;
+    outline: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin: 8px 0;
+}
+
+.setting-slider:hover {
+    background: linear-gradient(to right, 
+        var(--md-primary) 0%, 
+        var(--md-primary) 50%, 
+        rgba(0, 0, 0, 0.15) 50%, 
+        rgba(0, 0, 0, 0.15) 100%);
+}
+
+.setting-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border: 3px solid var(--md-primary);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 
+        0 2px 8px rgba(0, 0, 0, 0.15),
+        0 0 0 0 rgba(233, 30, 99, 0.3);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.setting-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    box-shadow: 
+        0 4px 12px rgba(0, 0, 0, 0.2),
+        0 0 0 6px rgba(233, 30, 99, 0.15);
+}
+
+.setting-slider::-webkit-slider-thumb:active {
+    transform: scale(1.1);
+}
+
+.setting-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: white;
+    border: 3px solid var(--md-primary);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.slider-marks {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--md-on-surface-variant);
+    margin-top: 4px;
+    padding: 0 2px;
+}
+
+.setting-value {
+    display: inline-block;
+    min-width: 32px;
+    text-align: center;
+    font-weight: 600;
+    color: var(--md-primary);
+    background: rgba(233, 30, 99, 0.1);
+    padding: 2px 8px;
+    border-radius: 6px;
+    margin: 0 4px;
+}
+
+.setting-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* 切换按钮 */
+.toggle-btn {
+    position: relative;
+    width: 50px;
+    height: 28px;
+    background: rgba(0, 0, 0, 0.12);
+    border: none;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+}
+
+.toggle-btn.active {
+    background: var(--md-primary);
+}
+
+.toggle-slider {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 24px;
+    height: 24px;
+    background: white;
+    border-radius: 50%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-btn.active .toggle-slider {
+    transform: translateX(22px);
+}
+
+.option-btn {
+    padding: 12px 20px;
+    /* MD3 毛玻璃按钮效果 */
+    background: rgba(255, 255, 255, 0.8);
+    border: 1.5px solid rgba(216, 27, 96, 0.1);
+    border-radius: 12px;
     font-size: 14px;
+    font-weight: 500;
     color: var(--md-on-surface);
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    box-shadow: 
+        0 2px 6px rgba(0, 0, 0, 0.04),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 .option-btn::before {
@@ -629,55 +924,213 @@ body {
     width: 0;
     height: 0;
     border-radius: 50%;
-    background: rgba(233, 30, 99, 0.1);
+    background: rgba(233, 30, 99, 0.15);
     transform: translate(-50%, -50%);
-    transition:
-        width 0.6s,
-        height 0.6s;
+    transition: width 0.6s, height 0.6s;
 }
 
 .option-btn:hover::before {
-    width: 200%;
-    height: 200%;
+    width: 300%;
+    height: 300%;
 }
 
 .option-btn:hover {
-    background: rgba(233, 30, 99, 0.08);
-    border-color: rgba(233, 30, 99, 0.3);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(233, 30, 99, 0.15);
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(216, 27, 96, 0.3);
+    transform: translateY(-3px);
+    box-shadow: 
+        0 8px 20px rgba(216, 27, 96, 0.15),
+        0 2px 8px rgba(0, 0, 0, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .option-btn:active {
-    transform: translateY(0);
+    transform: translateY(0) scale(0.98);
 }
 
 .option-btn.active {
-    background: linear-gradient(135deg, var(--md-primary) 0%, var(--md-primary) 100%);
+    background: linear-gradient(135deg, 
+        rgba(216, 27, 96, 0.95) 0%, 
+        rgba(233, 30, 99, 0.95) 100%);
     color: #fff;
-    border-color: var(--md-primary);
+    border-color: transparent;
     box-shadow:
-        0 4px 12px rgba(233, 30, 99, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        0 8px 24px rgba(216, 27, 96, 0.35),
+        0 2px 8px rgba(216, 27, 96, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+    transform: translateY(-3px);
+    font-weight: 600;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+/* 主题扩展系统样式 */
+/* 颜色选择器样式 */
+.color-pickers {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.color-picker-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.color-picker-item label {
+    font-size: 13px;
+    color: var(--md-on-surface-variant);
+}
+
+.color-picker-item input[type="color"] {
+    width: 100%;
+    height: 48px;
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* MD3 毛玻璃效果 */
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 
+        0 2px 8px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.color-picker-item input[type="color"]:hover {
+    border-color: rgba(216, 27, 96, 0.4);
+    transform: scale(1.05);
+    box-shadow: 
+        0 4px 16px rgba(216, 27, 96, 0.15),
+        0 2px 8px rgba(0, 0, 0, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+
+/* 背景设置样式 */
+.background-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.bg-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.bg-input-group label {
+    font-size: 13px;
+    color: var(--md-on-surface-variant);
+}
+
+.setting-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    border-radius: 12px;
+    font-size: 14px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* MD3 毛玻璃输入框 */
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 
+        0 2px 8px rgba(0, 0, 0, 0.04),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.setting-input:focus {
+    outline: none;
+    border-color: rgba(216, 27, 96, 0.5);
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: 
+        0 0 0 4px rgba(216, 27, 96, 0.1),
+        0 4px 12px rgba(0, 0, 0, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+
+.setting-file-input {
+    padding: 8px;
+    border: 2px dashed var(--md-outline-variant);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--md-transition);
+}
+
+.setting-file-input:hover {
+    border-color: var(--md-primary);
+    background: rgba(233, 30, 99, 0.03);
+}
+
+.bg-style-group {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.bg-style-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.bg-style-item label {
+    font-size: 12px;
+    color: var(--md-on-surface-variant);
+}
+
+.setting-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    border-radius: 10px;
+    font-size: 13px;
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 
+        0 2px 6px rgba(0, 0, 0, 0.04),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.setting-select:focus {
+    outline: none;
+    border-color: rgba(216, 27, 96, 0.5);
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: 
+        0 0 0 3px rgba(216, 27, 96, 0.1),
+        0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .theme-options {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+    gap: 14px;
 }
 
 .theme-btn {
-    padding: 20px 12px;
-    border: 2px solid var(--md-outline-variant);
-    border-radius: 12px;
+    padding: 28px 12px;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-radius: 16px;
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     text-align: center;
     position: relative;
     overflow: hidden;
+    /* MD3 毛玻璃主题卡片 */
+    backdrop-filter: blur(25px) saturate(160%);
+    -webkit-backdrop-filter: blur(25px) saturate(160%);
+    box-shadow: 
+        0 3px 10px rgba(0, 0, 0, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .theme-btn::after {
@@ -687,7 +1140,7 @@ body {
     left: 0;
     right: 0;
     height: 0;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.1), transparent);
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.15), transparent);
     transition: height 0.3s ease;
 }
 
@@ -696,8 +1149,12 @@ body {
 }
 
 .theme-btn:hover {
-    transform: translateY(-4px) scale(1.02);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    transform: translateY(-8px) scale(1.05);
+    box-shadow: 
+        0 16px 36px rgba(0, 0, 0, 0.15),
+        0 6px 12px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    border-color: rgba(255, 255, 255, 0.7);
 }
 
 .theme-btn:active {
@@ -705,12 +1162,21 @@ body {
 }
 
 .theme-btn.active {
-    border-color: var(--md-primary);
+    border-color: rgba(216, 27, 96, 0.5);
     border-width: 3px;
     box-shadow:
-        0 0 0 3px rgba(233, 30, 99, 0.15),
-        0 8px 20px rgba(233, 30, 99, 0.2);
-    transform: scale(1.05);
+        0 0 0 4px rgba(216, 27, 96, 0.15),
+        0 16px 36px rgba(216, 27, 96, 0.3),
+        0 6px 12px rgba(216, 27, 96, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    transform: translateY(-6px) scale(1.08);
+}
+
+/* 主题按钮内部文字阴影 */
+.theme-btn span {
+    position: relative;
+    z-index: 1;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 /* ===== 遮罩层 ===== */
@@ -732,30 +1198,7 @@ body {
     visibility: visible;
 }
 
-/* ===== Toast 提示 ===== */
-.toast {
-    position: fixed;
-    top: 80px;
-    left: 50%;
-    transform: translateX(-50%) translateY(-100px);
-    background: rgba(0, 0, 0, 0.85);
-    color: #fff;
-    padding: 12px 24px;
-    border-radius: 24px;
-    font-size: 14px;
-    z-index: 300;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    max-width: 80%;
-    text-align: center;
-}
-
-.toast.show {
-    opacity: 1;
-    visibility: visible;
-    transform: translateX(-50%) translateY(0);
-}
+/* ===== Toast 提示 - 使用style.css中的MD3 Snackbar样式 ===== */
 
 /* ===== 主题样式 ===== */
 body[data-theme="white"] {
@@ -809,7 +1252,84 @@ body[data-theme="dark"] .reader-toolbar {
 
 body[data-theme="dark"] .catalog-panel,
 body[data-theme="dark"] .settings-panel {
-    background: #2c2c2c;
+    background: rgba(44, 44, 44, 0.85);
+    backdrop-filter: blur(40px) saturate(180%) brightness(0.9);
+    -webkit-backdrop-filter: blur(40px) saturate(180%) brightness(0.9);
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+        -8px 0 32px rgba(0, 0, 0, 0.5),
+        -4px 0 16px rgba(0, 0, 0, 0.4),
+        inset 1px 0 0 rgba(255, 255, 255, 0.05);
+}
+
+/* 暗色主题下的设置组 */
+body[data-theme="dark"] .setting-group {
+    background: rgba(60, 60, 60, 0.5);
+    border-color: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(25px) saturate(150%);
+    -webkit-backdrop-filter: blur(25px) saturate(150%);
+    box-shadow: 
+        0 2px 8px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+body[data-theme="dark"] .setting-group:hover {
+    background: rgba(70, 70, 70, 0.6);
+    border-color: rgba(216, 27, 96, 0.3);
+    box-shadow: 
+        0 4px 16px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(216, 27, 96, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* 暗色主题下的按钮 */
+body[data-theme="dark"] .option-btn {
+    background: rgba(60, 60, 60, 0.7);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #d0d0d0;
+}
+
+body[data-theme="dark"] .option-btn:hover {
+    background: rgba(70, 70, 70, 0.8);
+    border-color: rgba(216, 27, 96, 0.5);
+}
+
+body[data-theme="dark"] .option-btn.active {
+    background: linear-gradient(135deg, 
+        rgba(216, 27, 96, 0.9) 0%, 
+        rgba(233, 30, 99, 0.9) 100%);
+    border-color: transparent;
+}
+
+/* 暗色主题下的输入框 */
+body[data-theme="dark"] .setting-input,
+body[data-theme="dark"] .search-input,
+body[data-theme="dark"] .setting-select {
+    background: rgba(60, 60, 60, 0.6);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #d0d0d0;
+}
+
+body[data-theme="dark"] .setting-input:focus,
+body[data-theme="dark"] .search-input:focus,
+body[data-theme="dark"] .setting-select:focus {
+    background: rgba(70, 70, 70, 0.8);
+    border-color: rgba(216, 27, 96, 0.6);
+}
+
+/* 暗色主题下的目录项 */
+body[data-theme="dark"] .catalog-item {
+    background: rgba(60, 60, 60, 0.3);
+    border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+body[data-theme="dark"] .catalog-item:hover {
+    background: rgba(70, 70, 70, 0.5);
+}
+
+body[data-theme="dark"] .catalog-item.current {
+    background: rgba(216, 27, 96, 0.25);
+    box-shadow: inset 3px 0 0 rgba(216, 27, 96, 0.8);
 }
 
 body[data-theme="dark"] .chapter-article {

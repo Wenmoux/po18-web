@@ -1,3 +1,11 @@
+/*
+ * File: api.js
+ * Input: fetch API，后端/api/*接口
+ * Output: API对象，封装所有后端 API调用，提供缓存机制和错误处理
+ * Pos: API通信层，为所有前端模块提供统一的后端请求接口
+ * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和public/js/文件夹的README.md
+ */
+
 /**
  * PO18小说下载站 - API模块
  */
@@ -101,20 +109,29 @@ const API = {
             const response = await fetch(this.baseUrl + url, mergedOptions);
             clearTimeout(timeoutId);
 
-            const data = await response.json();
-
+            // 先检查响应状态，再读取body
             if (!response.ok) {
+                let errorData;
+                try {
+                    errorData = await response.json();
+                } catch (e) {
+                    // 如果无法解析JSON，使用默认错误消息
+                    throw new Error(`请求失败 (${response.status})`);
+                }
+                
                 // 检查是否是被踢出登录（单点登录）
-                if (response.status === 401 && data.code === "SESSION_KICKED") {
+                if (response.status === 401 && errorData.code === "SESSION_KICKED") {
                     // 触发全局事件，通知App处理
                     if (typeof App !== "undefined" && App.handleSessionKicked) {
                         App.handleSessionKicked();
                     }
                     throw new Error("您的账号已在其他设备登录，当前会话已失效");
                 }
-                throw new Error(data.error || "请求失败");
+                throw new Error(errorData.error || `请求失败 (${response.status})`);
             }
 
+            // 响应成功，读取数据
+            const data = await response.json();
             return data;
         } catch (error) {
             if (error.name === "AbortError") {
@@ -458,6 +475,93 @@ const API = {
         // 更新章节数（检查是否有更新）
         updateChapterCount(bookId, chapterCount) {
             return API.post(`/subscriptions/${bookId}/update-count`, { chapterCount });
+        },
+
+        // 手动检查所有订阅更新
+        checkUpdates() {
+            return API.post('/subscriptions/check-updates');
+        }
+    },
+
+    // ==================== 书单API ====================
+
+    bookLists: {
+        // 创建书单
+        create(name, description, cover, isPublic) {
+            return API.post("/book-lists", { name, description, cover, isPublic });
+        },
+
+        // 获取用户的书单列表
+        getMyLists() {
+            return API.get("/book-lists/my");
+        },
+
+        // 获取单个书单详情
+        getById(listId) {
+            return API.get(`/book-lists/${listId}`);
+        },
+
+        // 更新书单
+        update(listId, name, description, cover, isPublic) {
+            return API.request(`/book-lists/${listId}`, {
+                method: "PUT",
+                body: { name, description, cover, isPublic }
+            });
+        },
+
+        // 删除书单
+        delete(listId) {
+            return API.delete(`/book-lists/${listId}`);
+        },
+
+        // 添加书籍到书单
+        addBook(listId, bookInfo) {
+            return API.post(`/book-lists/${listId}/books`, bookInfo);
+        },
+
+        // 从书单移除书籍
+        removeBook(listId, bookId) {
+            return API.delete(`/book-lists/${listId}/books/${bookId}`);
+        },
+
+        // 书单广场
+        getSquare(page = 1, pageSize = 20, sortBy = 'hot') {
+            return API.get("/book-lists/square/list", { page, pageSize, sortBy });
+        },
+
+        // 搜索书单
+        search(keyword, page = 1, pageSize = 20) {
+            return API.get("/book-lists/square/search", { keyword, page, pageSize });
+        },
+
+        // 收藏书单
+        collect(listId) {
+            return API.post(`/book-lists/${listId}/collect`);
+        },
+
+        // 取消收藏书单
+        uncollect(listId) {
+            return API.delete(`/book-lists/${listId}/collect`);
+        },
+
+        // 获取收藏的书单
+        getCollected() {
+            return API.get("/book-lists/collected/list");
+        },
+
+        // 添加评论
+        addComment(listId, content, rating = null) {
+            return API.post(`/book-lists/${listId}/comments`, { content, rating });
+        },
+
+        // 获取评论
+        getComments(listId, page = 1, pageSize = 20) {
+            return API.get(`/book-lists/${listId}/comments`, { page, pageSize });
+        },
+
+        // 获取评分统计
+        getRatingStats(listId) {
+            return API.get(`/book-lists/${listId}/rating`);
         }
     }
 };

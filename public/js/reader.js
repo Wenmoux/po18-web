@@ -1,3 +1,11 @@
+/*
+ * File: reader.js
+ * Input: api.js, reader.html DOM元素，后端章节数据
+ * Output: Reader类，提供在线阅读、TTS朗读、阅读设置、进度管理、主题自定义功能
+ * Pos: 阅读器核心模块，实现书籍在线阅读的所有功能，包括6个预设主题、自定义颜色/背景/字体
+ * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和public/js/文件夹的README.md
+ */
+
 /**
  * PO18 在线阅读器
  * 移动端友好的阅读界面
@@ -22,7 +30,75 @@ class Reader {
             ttsApiUrl: "", // 自定义TTS API
             titleStyle: "default", // 标题样式
             contentStyle: "default", // 正文样式
-            textConvert: "none" // 繁简转换
+            textConvert: "none", // 繁简转换
+            // 主题配色设置
+            customTheme: {
+                backgroundColor: "#F5E6D3", // 背景色
+                textColor: "#333333", // 正文颜色
+                titleColor: "#484034", // 标题颜色
+                highlightColor: "#8F7042", // 高亮颜色
+                backgroundImage: "", // 背景图片URL
+                backgroundRepeat: "no-repeat", // 背景重复方式: repeat, no-repeat, repeat-x, repeat-y
+                backgroundSize: "cover", // 背景大小: cover, contain, auto
+                backgroundPosition: "center" // 背景位置
+            }
+        };
+
+        // 预设主题方案
+        this.presetThemes = {
+            default: {
+                name: "默认白",
+                backgroundColor: "#FFFFFF",
+                textColor: "#333333",
+                titleColor: "#1a1a1a",
+                highlightColor: "#D81B60"
+            },
+            sepia: {
+                name: "护眼黄",
+                backgroundColor: "#F5E6D3",
+                textColor: "#333333",
+                titleColor: "#484034",
+                highlightColor: "#8F7042"
+            },
+            night: {
+                name: "夜间黑",
+                backgroundColor: "#1E1E1E",
+                textColor: "#B8B8B8",
+                titleColor: "#E0E0E0",
+                highlightColor: "#FF6B9D"
+            },
+            green: {
+                name: "护眼绿",
+                backgroundColor: "#C7EDCC",
+                textColor: "#2D4A2B",
+                titleColor: "#1A3A1A",
+                highlightColor: "#5B8C5A"
+            },
+            pink: {
+                name: "少女粉",
+                backgroundColor: "#FFE4E1",
+                textColor: "#4A3333",
+                titleColor: "#8B4A4A",
+                highlightColor: "#D8849B"
+            },
+            blue: {
+                name: "清新蓝",
+                backgroundColor: "#E6F3FF",
+                textColor: "#2C4A5E",
+                titleColor: "#1A3A4A",
+                highlightColor: "#4A7BA7"
+            }
+        };
+
+        // 预设字体方案
+        this.presetFonts = {
+            system: { name: "系统默认", value: "system-ui, -apple-system, sans-serif" },
+            serif: { name: "宋体", value: "'Noto Serif SC', 'SimSun', serif" },
+            song: { name: "思源宋体", value: "'Source Han Serif SC', 'Noto Serif SC', serif" },
+            kai: { name: "楷体", value: "'KaiTi', 'STKaiti', serif" },
+            hei: { name: "黑体", value: "'SimHei', 'Microsoft YaHei', sans-serif" },
+            fangsong: { name: "仿宋", value: "'FangSong', 'STFangSong', serif" },
+            ming: { name: "明体", value: "'PMingLiU', 'MingLiU', serif" }
         };
 
         // 阅读进度
@@ -624,6 +700,17 @@ class Reader {
         document.getElementById("reader-content").addEventListener("click", (e) => {
             // 避免点击链接时触发
             if (e.target.tagName === "A") return;
+            
+            // 纠错操作进行中，不触发工具栏
+            if (this.isCorrecting) return;
+            
+            // 避免有选中文本时触发翻页
+            const selection = window.getSelection();
+            if (selection && selection.toString().trim()) return;
+            
+            // 避免点击纠错按钮时触发
+            const correctionBtn = document.getElementById('correction-btn');
+            if (correctionBtn && correctionBtn.contains(e.target)) return;
 
             clearTimeout(clickTimer);
             clickTimer = setTimeout(() => {
@@ -654,6 +741,220 @@ class Reader {
         window.addEventListener("popstate", (e) => {
             if (e.state && typeof e.state.chapter === "number") {
                 this.loadChapter(e.state.chapter);
+            }
+        });
+
+        // 长按选中纠错功能
+        this.initCorrectionFeature();
+    }
+
+    // 初始化纠错功能
+    initCorrectionFeature() {
+        const readerContent = document.getElementById("reader-content");
+        let longPressTimer = null;
+        let selectedText = '';
+        
+        // 标记是否正在进行纠错操作，用于阻止工具栏弹出
+        this.isCorrecting = false;
+
+        // 创建纠错按钮
+        const correctionBtn = document.createElement('div');
+        correctionBtn.id = 'correction-btn';
+        correctionBtn.innerHTML = '📝 纠错';
+        correctionBtn.style.cssText = `
+            display: none;
+            position: fixed;
+            background: var(--md-primary, #d81b60);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            z-index: 9999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        document.body.appendChild(correctionBtn);
+
+        // 监听文本选中事件
+        document.addEventListener('selectionchange', () => {
+            try {
+                const selection = window.getSelection();
+                selectedText = selection.toString().trim();
+                
+                if (selectedText.length > 0 && selectedText.length < 500 && selection.rangeCount > 0) {
+                    // 显示纠错按钮
+                    const range = selection.getRangeAt(0);
+                    const rect = range.getBoundingClientRect();
+                    if (rect.width > 0) {
+                        correctionBtn.style.display = 'block';
+                        correctionBtn.style.left = `${Math.max(10, rect.left + (rect.width / 2) - 40)}px`;
+                        correctionBtn.style.top = `${rect.bottom + 10}px`;
+                    }
+                } else {
+                    correctionBtn.style.display = 'none';
+                }
+            } catch (e) {
+                // 选中事件异常时隐藏按钮
+                correctionBtn.style.display = 'none';
+            }
+        });
+
+        // 点击纠错按钮 - 使用mousedown在选中被取消前捕获
+        correctionBtn.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            
+            // 在mousedown时保存当前选中的文本
+            const currentSelection = window.getSelection();
+            const textToCorrect = currentSelection ? currentSelection.toString().trim() : selectedText;
+            
+            console.log('纠错按钮被点击, textToCorrect:', textToCorrect);
+            
+            if (textToCorrect) {
+                // 设置标记阻止工具栏弹出
+                this.isCorrecting = true;
+                // 先隐藏按钮再显示弹窗
+                correctionBtn.style.display = 'none';
+                // 稍微延迟以避免事件冲突
+                setTimeout(() => {
+                    this.showCorrectionModal(textToCorrect);
+                    // 延迟重置标记
+                    setTimeout(() => { this.isCorrecting = false; }, 500);
+                }, 50);
+            }
+        });
+
+        // 点击其他区域隐藏按钮
+        document.addEventListener('mousedown', (e) => {
+            if (!correctionBtn.contains(e.target)) {
+                setTimeout(() => {
+                    const selection = window.getSelection();
+                    if (!selection || !selection.toString().trim()) {
+                        correctionBtn.style.display = 'none';
+                    }
+                }, 300);
+            }
+        });
+    }
+
+    // 显示纠错弹窗
+    showCorrectionModal(originalText) {
+        // 创建弹窗
+        const modal = document.createElement('div');
+        modal.id = 'correction-modal';
+        modal.innerHTML = `
+            <div class="correction-overlay" style="
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            ">
+                <div class="correction-dialog" style="
+                    background: white;
+                    border-radius: 16px;
+                    padding: 24px;
+                    width: 90%;
+                    max-width: 500px;
+                    max-height: 80vh;
+                    overflow-y: auto;
+                ">
+                    <h3 style="margin: 0 0 16px 0; font-size: 18px;">📝 提交纠错</h3>
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 500;">原文：</label>
+                        <div style="background: #f5f5f5; padding: 12px; border-radius: 8px; font-size: 14px; line-height: 1.6; max-height: 100px; overflow-y: auto;">${this.escapeHtml(originalText)}</div>
+                    </div>
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 500;">修正为：</label>
+                        <textarea id="correction-text" style="
+                            width: 100%;
+                            min-height: 100px;
+                            padding: 12px;
+                            border: 1px solid #ddd;
+                            border-radius: 8px;
+                            font-size: 14px;
+                            resize: vertical;
+                            box-sizing: border-box;
+                        ">${this.escapeHtml(originalText)}</textarea>
+                    </div>
+                    <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                        <button id="cancel-correction" style="
+                            padding: 10px 24px;
+                            border: 1px solid #ddd;
+                            background: white;
+                            border-radius: 8px;
+                            cursor: pointer;
+                        ">取消</button>
+                        <button id="submit-correction" style="
+                            padding: 10px 24px;
+                            border: none;
+                            background: var(--md-primary, #d81b60);
+                            color: white;
+                            border-radius: 8px;
+                            cursor: pointer;
+                        ">提交</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // 取消按钮
+        modal.querySelector('#cancel-correction').addEventListener('click', () => {
+            modal.remove();
+        });
+
+        // 点击遮罩关闭
+        modal.querySelector('.correction-overlay').addEventListener('click', (e) => {
+            if (e.target.classList.contains('correction-overlay')) {
+                modal.remove();
+            }
+        });
+
+        // 提交按钮
+        modal.querySelector('#submit-correction').addEventListener('click', async () => {
+            const correctedText = modal.querySelector('#correction-text').value.trim();
+            
+            if (!correctedText) {
+                this.showToast('请输入修正内容', 'error');
+                return;
+            }
+            
+            if (correctedText === originalText) {
+                this.showToast('修正内容与原文相同', 'error');
+                return;
+            }
+            
+            try {
+                const chapter = this.chapters[this.currentChapterIndex];
+                const response = await fetch('/api/corrections', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        bookId: this.bookId,
+                        chapterId: chapter.chapterId,
+                        originalText: originalText,
+                        correctedText: correctedText
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    this.showToast(result.message || '纠错已提交', 'success');
+                    modal.remove();
+                } else {
+                    this.showToast(result.error || '提交失败', 'error');
+                }
+            } catch (error) {
+                this.showToast('提交失败，请重试', 'error');
             }
         });
     }
@@ -841,6 +1142,108 @@ class Reader {
                 this.saveSettings();
             });
         }
+
+        // ========== 主题配色事件绑定 ==========
+        
+        // 预设主题选择
+        document.querySelectorAll("[data-preset-theme]").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const themeKey = btn.dataset.presetTheme;
+                this.applyPresetTheme(themeKey);
+                this.updateActiveButton(btn, "[data-preset-theme]");
+            });
+        });
+
+        // 自定义颜色选择
+        const bgColorPicker = document.getElementById("bg-color-picker");
+        if (bgColorPicker) {
+            bgColorPicker.value = this.settings.customTheme?.backgroundColor || "#FFFFFF";
+            bgColorPicker.addEventListener("change", (e) => {
+                this.updateCustomColor("background", e.target.value);
+            });
+        }
+
+        const textColorPicker = document.getElementById("text-color-picker");
+        if (textColorPicker) {
+            textColorPicker.value = this.settings.customTheme?.textColor || "#333333";
+            textColorPicker.addEventListener("change", (e) => {
+                this.updateCustomColor("text", e.target.value);
+            });
+        }
+
+        const titleColorPicker = document.getElementById("title-color-picker");
+        if (titleColorPicker) {
+            titleColorPicker.value = this.settings.customTheme?.titleColor || "#1a1a1a";
+            titleColorPicker.addEventListener("change", (e) => {
+                this.updateCustomColor("title", e.target.value);
+            });
+        }
+
+        const highlightColorPicker = document.getElementById("highlight-color-picker");
+        if (highlightColorPicker) {
+            highlightColorPicker.value = this.settings.customTheme?.highlightColor || "#D81B60";
+            highlightColorPicker.addEventListener("change", (e) => {
+                this.updateCustomColor("highlight", e.target.value);
+            });
+        }
+
+        // 背景图片上传
+        const bgImageInput = document.getElementById("bg-image-input");
+        if (bgImageInput) {
+            bgImageInput.addEventListener("change", (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        this.updateBackgroundImage(event.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        // 背景图片URL输入
+        const bgImageUrl = document.getElementById("bg-image-url");
+        if (bgImageUrl) {
+            bgImageUrl.value = this.settings.customTheme?.backgroundImage || "";
+            bgImageUrl.addEventListener("change", (e) => {
+                this.updateBackgroundImage(e.target.value.trim());
+            });
+        }
+
+        // 背景图片样式设置
+        const bgRepeat = document.getElementById("bg-repeat");
+        if (bgRepeat) {
+            bgRepeat.value = this.settings.customTheme?.backgroundRepeat || "no-repeat";
+            bgRepeat.addEventListener("change", (e) => {
+                this.updateBackgroundStyle("repeat", e.target.value);
+            });
+        }
+
+        const bgSize = document.getElementById("bg-size");
+        if (bgSize) {
+            bgSize.value = this.settings.customTheme?.backgroundSize || "cover";
+            bgSize.addEventListener("change", (e) => {
+                this.updateBackgroundStyle("size", e.target.value);
+            });
+        }
+
+        const bgPosition = document.getElementById("bg-position");
+        if (bgPosition) {
+            bgPosition.value = this.settings.customTheme?.backgroundPosition || "center";
+            bgPosition.addEventListener("change", (e) => {
+                this.updateBackgroundStyle("position", e.target.value);
+            });
+        }
+
+        // 字体选择
+        document.querySelectorAll("[data-preset-font]").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const fontKey = btn.dataset.presetFont;
+                this.applyFont(fontKey);
+                this.updateActiveButton(btn, "[data-preset-font]");
+            });
+        });
     }
 
     // 更新按钮激活状态
@@ -863,6 +1266,34 @@ class Reader {
                 ? `${this.settings.contentWidth}px`
                 : this.settings.contentWidth
         );
+
+        // 应用主题配色
+        if (this.settings.customTheme) {
+            const theme = this.settings.customTheme;
+            root.style.setProperty("--reader-bg-color", theme.backgroundColor);
+            root.style.setProperty("--reader-text-color", theme.textColor);
+            root.style.setProperty("--reader-title-color", theme.titleColor);
+            root.style.setProperty("--reader-highlight-color", theme.highlightColor);
+            
+            // 应用背景图片
+            const contentEl = document.getElementById("reader-content");
+            if (contentEl) {
+                if (theme.backgroundImage) {
+                    contentEl.style.backgroundImage = `url(${theme.backgroundImage})`;
+                    contentEl.style.backgroundRepeat = theme.backgroundRepeat || "no-repeat";
+                    contentEl.style.backgroundSize = theme.backgroundSize || "cover";
+                    contentEl.style.backgroundPosition = theme.backgroundPosition || "center";
+                    contentEl.style.backgroundAttachment = "fixed";
+                } else {
+                    contentEl.style.backgroundImage = "none";
+                }
+            }
+        }
+
+        // 应用字体
+        if (this.settings.font && this.presetFonts[this.settings.font]) {
+            root.style.setProperty("--reader-font-family", this.presetFonts[this.settings.font].value);
+        }
 
         document.body.setAttribute("data-theme", this.settings.theme);
         document.body.setAttribute("data-font", this.settings.font);
@@ -1073,15 +1504,52 @@ class Reader {
         });
     }
 
-    // 显示提示
-    showToast(message, type = "info") {
-        const toast = document.getElementById("toast");
-        toast.textContent = message;
-        toast.classList.add("show");
-
-        setTimeout(() => {
-            toast.classList.remove("show");
-        }, 2500);
+    // 显示提示 - MD3 Snackbar风格
+    showToast(message, type = "info", options = {}) {
+        const container = document.getElementById("toast-container");
+        const toast = document.createElement("div");
+        toast.className = `toast toast-${type}`;
+        
+        // Toast图标映射
+        const icons = {
+            success: '✓',
+            error: '✕',
+            warning: '⚠',
+            info: 'ℹ'
+        };
+        
+        const icon = options.icon !== undefined ? options.icon : icons[type];
+        const duration = options.duration || 3000;
+        const action = options.action;
+        
+        toast.innerHTML = `
+            ${icon ? `<span class="toast-icon">${icon}</span>` : ''}
+            <span class="toast-message">${message}</span>
+            ${action ? `<button class="toast-action" onclick="${action.onClick}">${action.text}</button>` : ''}
+        `;
+        
+        container.appendChild(toast);
+        
+        requestAnimationFrame(() => {
+            toast.classList.add('toast-show');
+        });
+        
+        const removeToast = () => {
+            toast.classList.remove('toast-show');
+            toast.classList.add('toast-hide');
+            setTimeout(() => toast.remove(), 300);
+        };
+        
+        const timer = setTimeout(removeToast, duration);
+        
+        if (!action) {
+            toast.addEventListener('click', () => {
+                clearTimeout(timer);
+                removeToast();
+            });
+        }
+        
+        return { element: toast, close: removeToast, timer };
     }
 
     // HTML转义
@@ -1648,6 +2116,99 @@ class Reader {
         }
 
         content.innerHTML = convertedText;
+    }
+
+    // ==================== 主题管理功能 ====================
+
+    // 应用预设主题
+    applyPresetTheme(themeKey) {
+        const theme = this.presetThemes[themeKey];
+        if (!theme) return;
+
+        this.settings.customTheme = {
+            backgroundColor: theme.backgroundColor,
+            textColor: theme.textColor,
+            titleColor: theme.titleColor,
+            highlightColor: theme.highlightColor,
+            backgroundImage: "",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "cover",
+            backgroundPosition: "center"
+        };
+
+        this.settings.theme = themeKey;
+        this.applySettings();
+        this.saveSettings();
+        this.showToast(`已切换到 ${theme.name}`, "success");
+    }
+
+    // 更新自定义颜色
+    updateCustomColor(colorType, color) {
+        if (!this.settings.customTheme) {
+            this.settings.customTheme = { ...this.presetThemes.default };
+        }
+        
+        switch (colorType) {
+            case "background":
+                this.settings.customTheme.backgroundColor = color;
+                break;
+            case "text":
+                this.settings.customTheme.textColor = color;
+                break;
+            case "title":
+                this.settings.customTheme.titleColor = color;
+                break;
+            case "highlight":
+                this.settings.customTheme.highlightColor = color;
+                break;
+        }
+
+        this.applySettings();
+        this.saveSettings();
+    }
+
+    // 更新背景图片
+    updateBackgroundImage(imageUrl) {
+        if (!this.settings.customTheme) {
+            this.settings.customTheme = { ...this.presetThemes.sepia };
+        }
+        
+        this.settings.customTheme.backgroundImage = imageUrl;
+        this.applySettings();
+        this.saveSettings();
+    }
+
+    // 更新背景图片样式
+    updateBackgroundStyle(property, value) {
+        if (!this.settings.customTheme) {
+            this.settings.customTheme = { ...this.presetThemes.sepia };
+        }
+        
+        switch (property) {
+            case "repeat":
+                this.settings.customTheme.backgroundRepeat = value;
+                break;
+            case "size":
+                this.settings.customTheme.backgroundSize = value;
+                break;
+            case "position":
+                this.settings.customTheme.backgroundPosition = value;
+                break;
+        }
+
+        this.applySettings();
+        this.saveSettings();
+    }
+
+    // 应用字体
+    applyFont(fontKey) {
+        const font = this.presetFonts[fontKey];
+        if (!font) return;
+
+        this.settings.font = fontKey;
+        this.applySettings();
+        this.saveSettings();
+        this.showToast(`已切换到 ${font.name}`, "success");
     }
 }
 

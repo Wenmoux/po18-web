@@ -1,3 +1,210 @@
+/*
+ * File: mobile-enhancements.js
+ * Input: DOM元素，触摸事件
+ * Output: 移动端交互增强功能，包括触摸手势、滚动优化、懒加载等
+ * Pos: 移动端增强模块，提供手势操作和响应式优化
+ * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和public/js/文件夹的README.md
+ */
+
+/**
+ * 移动端增强功能
+ * 包括触摸手势、滚动优化、适配增强等
+ */
+
+// 移动端特定功能增强
+document.addEventListener('DOMContentLoaded', () => {
+    // 检测是否为移动设备
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    
+    if (isMobile) {
+        // 优化排行榜和共享书库布局
+        optimizeListLayouts();
+        
+        // 监听屏幕方向变化
+        window.addEventListener('resize', () => {
+            if (window.matchMedia('(max-width: 768px)').matches) {
+                optimizeListLayouts();
+            }
+        });
+    }
+});
+
+// 优化列表布局
+function optimizeListLayouts() {
+    // 优化排行榜布局
+    const rankingItems = document.querySelectorAll('.ranking-item');
+    rankingItems.forEach(item => {
+        // 确保排行榜项目为垂直布局
+        if (window.matchMedia('(max-width: 768px)').matches) {
+            // 检查是否已有优化标记
+            if (!item.hasAttribute('data-mobile-optimized')) {
+                item.setAttribute('data-mobile-optimized', 'true');
+                
+                // 确保统计信息移到底部
+                const stats = item.querySelector('.ranking-stats');
+                if (stats) {
+                    // 移动统计元素到末尾
+                    item.appendChild(stats);
+                }
+            }
+        }
+    });
+    
+    // 优化共享书库布局
+    const sharedItems = document.querySelectorAll('.shared-list .book-card');
+    sharedItems.forEach(item => {
+        if (window.matchMedia('(max-width: 768px)').matches) {
+            if (!item.hasAttribute('data-mobile-optimized')) {
+                item.setAttribute('data-mobile-optimized', 'true');
+                
+                // 确保共享信息和按钮在底部
+                const shareInfo = item.querySelector('.book-share-info');
+                const footer = item.querySelector('.book-card-footer');
+                
+                if (shareInfo) {
+                    item.appendChild(shareInfo);
+                }
+                if (footer) {
+                    item.appendChild(footer);
+                }
+            }
+        }
+    });
+}
+
+// 触摸手势增强
+class TouchGestures {
+    constructor() {
+        this.swipeThreshold = 30; // 滑动阈值
+        this.startX = 0;
+        this.startY = 0;
+        this.callbacks = {};
+    }
+
+    // 绑定滑动手势
+    bindSwipe(element, callback) {
+        element.addEventListener('touchstart', (e) => {
+            this.startX = e.touches[0].clientX;
+            this.startY = e.touches[0].clientY;
+        });
+
+        element.addEventListener('touchend', (e) => {
+            const endX = e.changedTouches[0].clientX;
+            const endY = e.changedTouches[0].clientY;
+            
+            const diffX = endX - this.startX;
+            const diffY = endY - this.startY;
+
+            // 判断是否为水平滑动
+            if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > this.swipeThreshold) {
+                if (diffX > 0) {
+                    callback('right');
+                } else {
+                    callback('left');
+                }
+            }
+        });
+    }
+}
+
+// 滚动性能优化
+class ScrollOptimizer {
+    constructor() {
+        this.isScrolling = false;
+        this.init();
+    }
+
+    init() {
+        // 使用节流优化滚动事件
+        let scrollTimer;
+        window.addEventListener('scroll', () => {
+            if (!this.isScrolling) {
+                this.isScrolling = true;
+                requestAnimationFrame(() => {
+                    this.onScroll();
+                    this.isScrolling = false;
+                });
+            }
+        }, { passive: true });
+    }
+
+    onScroll() {
+        // 滚动时的优化逻辑
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        
+        // 显示/隐藏回到顶部按钮
+        const topBtn = document.querySelector('.scroll-top-btn');
+        if (topBtn) {
+            if (scrollTop > 300) {
+                topBtn.style.display = 'flex';
+            } else {
+                topBtn.style.display = 'none';
+            }
+        }
+    }
+}
+
+// 初始化移动端增强功能
+const touchGestures = new TouchGestures();
+const scrollOptimizer = new ScrollOptimizer();
+
+// 优化图片加载（移动端懒加载）
+function initLazyLoading() {
+    if ('IntersectionObserver' in window) {
+        const imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    if (img.dataset.src) {
+                        img.src = img.dataset.src;
+                        img.removeAttribute('data-src');
+                        img.classList.add('loaded');
+                    }
+                    observer.unobserve(img);
+                }
+            });
+        });
+
+        // 观察所有带data-src的图片
+        document.querySelectorAll('img[data-src]').forEach(img => {
+            imageObserver.observe(img);
+        });
+    }
+}
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', () => {
+    initLazyLoading();
+    
+    // 优化按钮触摸效果
+    const touchElements = document.querySelectorAll('.btn, .nav-link, .card-interactive');
+    touchElements.forEach(el => {
+        // 添加触摸反馈
+        el.addEventListener('touchstart', () => {
+            el.style.transform = 'scale(0.98)';
+        });
+        
+        el.addEventListener('touchend', () => {
+            el.style.transform = '';
+        });
+    });
+});
+
+// 防止移动端页面缩放
+document.addEventListener('touchstart', function(event) {
+    if (event.touches.length > 1) {
+        event.preventDefault();
+    }
+}, { passive: false });
+
+let lastTouchEnd = 0;
+document.addEventListener('touchend', function(event) {
+    if ((Date.now() - lastTouchEnd) <= 300) {
+        event.preventDefault();
+    }
+    lastTouchEnd = Date.now();
+}, { passive: false });
+
 /**
  * 移动端交互增强
  * 手势、触摸反馈、PWA功能

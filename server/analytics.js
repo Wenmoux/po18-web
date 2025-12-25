@@ -1,3 +1,11 @@
+/*
+ * File: analytics.js
+ * Input: database.js, logger.js
+ * Output: UserAnalytics类，提供用户行为记录、用户画像分析、书籍推荐等功能
+ * Pos: 用户分析模块，统计用户活跃度、下载量、阅读时长等行为数据，生成个性化推荐
+ * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和所属server/文件夹的README.md
+ */
+
 /**
  * PO18小说下载网站 - 用户行为分析与推荐系统
  */

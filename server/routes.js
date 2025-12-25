@@ -1,3 +1,11 @@
+/*
+ * File: routes.js
+ * Input: Express Router, database.js, crawler.js, webdav.js, config.js, logger.js, backup.js, monitor.js, analytics.js
+ * Output: Express路由实例，定义所有RESTful API端点
+ * Pos: API路由层，处理所有HTTP请求，调用对应的业务逻辑模块
+ * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和所属server/文件夹的README.md
+ */
+
 /**
  * PO18小说下载网站 - API路由模块
  */
@@ -24,7 +32,9 @@ const {
     ChapterCacheDB,
     BookshelfDB,
     ReadingStatsDB,
-    SubscriptionDB
+    SubscriptionDB,
+    BookListDB,
+    BookListCommentDB
 } = require("./database");
 const { NovelCrawler, ContentFormatter, EpubGenerator } = require("./crawler");
 const WebDAVClient = require("./webdav");
@@ -171,7 +181,7 @@ const logAdminAction = (action) => {
 router.post("/auth/register", async (req, res) => {
     try {
         // 检查注册是否开放
-        if (!config.registration.enabled) {
+        if (!config.getRegistrationEnabled()) {
             return res.status(403).json({ error: "注册功能已关闭，请联系管理员" });
         }
 
@@ -379,7 +389,8 @@ router.post("/metadata/batch", async (req, res) => {
                     title: book.title,
                     author: book.author || "",
                     cover: book.cover || "",
-                    description: book.description || "",
+                    description: book.descriptionHTML || book.description || "",  // 优先使用HTML版本
+                    descriptionHTML: book.descriptionHTML || book.description || "",  // 添加HTML版本
                     tags: book.tags || "",
                     category: book.tags ? book.tags.split("·")[0] : "",
                     status: book.status || "unknown",
@@ -394,7 +405,11 @@ router.post("/metadata/batch", async (req, res) => {
                     favoritesCount: book.favoritesCount || 0,
                     commentsCount: book.commentsCount || 0,
                     monthlyPopularity: book.monthlyPopularity || 0,
+                    weeklyPopularity: book.weeklyPopularity || 0,
+                    dailyPopularity: book.dailyPopularity || 0,
                     totalPopularity: book.totalPopularity || 0,
+                    purchaseCount: book.purchaseCount || 0,
+                    readersCount: book.readersCount || 0,
                     detailUrl: book.detailUrl || (book.platform === 'popo' ? `https://www.popo.tw/books/${book.bookId}` : `https://www.po18.tw/books/${book.bookId}/articles`),
                     uploader: book.uploader || "unknown_user",  // 添加上传者用户名
                     uploaderId: book.uploaderId || "unknown"  // 添加上传者ID
@@ -2231,18 +2246,22 @@ router.get("/admin/check", requireLogin, (req, res) => {
 // 获取系统配置（注册开关）
 router.get("/admin/config", requireAdmin, (req, res) => {
     res.json({
-        registrationEnabled: config.registration.enabled
+        registrationEnabled: config.getRegistrationEnabled()
     });
 });
 
 // 切换注册开关
 router.post("/admin/config/registration", requireAdmin, (req, res) => {
     const { enabled } = req.body;
-    config.registration.enabled = enabled === true;
-    res.json({
-        success: true,
-        registrationEnabled: config.registration.enabled
-    });
+    const success = config.setRegistrationEnabled(enabled === true);
+    if (success) {
+        res.json({
+            success: true,
+            registrationEnabled: config.getRegistrationEnabled()
+        });
+    } else {
+        res.status(500).json({ error: "保存配置失败" });
+    }
 });
 
 // 统计数据
@@ -4441,6 +4460,34 @@ router.post("/subscriptions/:bookId/update-count", requireLogin, (req, res) => {
     }
 });
 
+// 手动触发订阅检查（立即检查所有订阅）
+router.post("/subscriptions/check-updates", requireLogin, async (req, res) => {
+    try {
+        const { subscriptionChecker } = require('./monitor');
+        
+        // 如果正在检查中，返回提示
+        if (subscriptionChecker.isChecking) {
+            return res.json({
+                success: false,
+                message: '正在检查中，请稍后...',
+                status: subscriptionChecker.getStatus()
+            });
+        }
+        
+        // 触发检查（不等待完成，异步执行）
+        subscriptionChecker.checkAllSubscriptions();
+        
+        res.json({
+            success: true,
+            message: '已开始检查订阅更新',
+            status: subscriptionChecker.getStatus()
+        });
+    } catch (error) {
+        console.error("触发订阅检查失败:", error);
+        res.status(500).json({ error: "操作失败" });
+    }
+});
+
 // ==================== 数据库备份与恢复 API ====================
 
 // 创建数据库备份
@@ -5043,6 +5090,712 @@ router.get("/debug/session", (req, res) => {
         userId: req.session?.userId,
         isAuthenticated: !!req.session?.userId
     });
+});
+
+// ==================== 书单功能 API ====================
+
+// 创建书单
+router.post("/book-lists", requireLogin, (req, res) => {
+    try {
+        const { name, description, cover, isPublic } = req.body;
+        
+        if (!name || name.trim().length === 0) {
+            return res.status(400).json({ error: "书单名称不能为空" });
+        }
+        
+        const listId = BookListDB.create(
+            req.session.userId,
+            name.trim(),
+            description || '',
+            cover || '',
+            isPublic !== false ? 1 : 0
+        );
+        
+        logger.info("创建书单成功", { userId: req.session.userId, listId, name });
+        res.json({ success: true, listId });
+    } catch (error) {
+        logger.error("创建书单失败", { error: error.message });
+        res.status(500).json({ error: "创建书单失败" });
+    }
+});
+
+// 获取用户的书单列表
+router.get("/book-lists/my", requireLogin, (req, res) => {
+    try {
+        const lists = BookListDB.getByUser(req.session.userId);
+        res.json(lists);
+    } catch (error) {
+        logger.error("获取用户书单失败", { error: error.message });
+        res.status(500).json({ error: "获取书单失败" });
+    }
+});
+
+// 获取单个书单详情
+router.get("/book-lists/:id", requireLogin, (req, res) => {
+    try {
+        const listId = parseInt(req.params.id);
+        const list = BookListDB.getById(listId);
+        
+        if (!list) {
+            return res.status(404).json({ error: "书单不存在" });
+        }
+        
+        // 检查权限：公开书单或自己的书单
+        if (list.is_public === 0 && list.user_id !== req.session.userId) {
+            return res.status(403).json({ error: "无权访问私有书单" });
+        }
+        
+        // 获取书单中的书籍
+        const books = BookListDB.getBooks(listId);
+        
+        // 增加浏览量（不是自己的书单）
+        if (list.user_id !== req.session.userId) {
+            BookListDB.incrementViewCount(listId);
+        }
+        
+        // 检查是否已收藏
+        const isCollected = BookListDB.isCollected(listId, req.session.userId);
+        
+        res.json({
+            ...list,
+            books,
+            isCollected
+        });
+    } catch (error) {
+        logger.error("获取书单详情失败", { error: error.message });
+        res.status(500).json({ error: "获取书单详情失败" });
+    }
+});
+
+// 更新书单
+router.put("/book-lists/:id", requireLogin, (req, res) => {
+    try {
+        const listId = parseInt(req.params.id);
+        const { name, description, cover, isPublic } = req.body;
+        
+        if (!name || name.trim().length === 0) {
+            return res.status(400).json({ error: "书单名称不能为空" });
+        }
+        
+        const result = BookListDB.update(
+            listId,
+            req.session.userId,
+            name.trim(),
+            description || '',
+            cover || '',
+            isPublic !== false ? 1 : 0
+        );
+        
+        if (result.changes === 0) {
+            return res.status(403).json({ error: "无权修改此书单" });
+        }
+        
+        logger.info("更新书单成功", { userId: req.session.userId, listId, name });
+        res.json({ success: true });
+    } catch (error) {
+        logger.error("更新书单失败", { error: error.message });
+        res.status(500).json({ error: "更新书单失败" });
+    }
+});
+
+// 删除书单
+router.delete("/book-lists/:id", requireLogin, (req, res) => {
+    try {
+        const listId = parseInt(req.params.id);
+        const result = BookListDB.delete(listId, req.session.userId);
+        
+        if (result.changes === 0) {
+            return res.status(403).json({ error: "无权删除此书单" });
+        }
+        
+        logger.info("删除书单成功", { userId: req.session.userId, listId });
+        res.json({ success: true });
+    } catch (error) {
+        logger.error("删除书单失败", { error: error.message });
+        res.status(500).json({ error: "删除书单失败" });
+    }
+});
+
+// 添加书籍到书单
+router.post("/book-lists/:id/books", requireLogin, (req, res) => {
+    try {
+        const listId = parseInt(req.params.id);
+        const { bookId, title, author, cover, note } = req.body;
+        
+        if (!bookId || !title) {
+            return res.status(400).json({ error: "书籍ID和标题不能为空" });
+        }
+        
+        // 检查书单所有者
+        const list = BookListDB.getById(listId);
+        if (!list || list.user_id !== req.session.userId) {
+            return res.status(403).json({ error: "无权修改此书单" });
+        }
+        
+        const added = BookListDB.addBook(listId, bookId, title, author || '', cover || '', note || '');
+        
+        if (!added) {
+            return res.json({ success: false, message: "书籍已存在于书单中" });
+        }
+        
+        logger.info("添加书籍到书单", { userId: req.session.userId, listId, bookId, title });
+        res.json({ success: true });
+    } catch (error) {
+        logger.error("添加书籍到书单失败", { error: error.message });
+        res.status(500).json({ error: "添加书籍失败" });
+    }
+});
+
+// 从书单移除书籍
+router.delete("/book-lists/:id/books/:bookId", requireLogin, (req, res) => {
+    try {
+        const listId = parseInt(req.params.id);
+        const bookId = req.params.bookId;
+        
+        // 检查书单所有者
+        const list = BookListDB.getById(listId);
+        if (!list || list.user_id !== req.session.userId) {
+            return res.status(403).json({ error: "无权修改此书单" });
+        }
+        
+        const removed = BookListDB.removeBook(listId, bookId);
+        
+        if (!removed) {
+            return res.status(404).json({ error: "书籍不在书单中" });
+        }
+        
+        logger.info("从书单移除书籍", { userId: req.session.userId, listId, bookId });
+        res.json({ success: true });
+    } catch (error) {
+        logger.error("移除书籍失败", { error: error.message });
+        res.status(500).json({ error: "移除书籍失败" });
+    }
+});
+
+// 书单广场（获取公开书单）
+router.get("/book-lists/square/list", (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const pageSize = parseInt(req.query.pageSize) || 20;
+        const sortBy = req.query.sortBy || 'hot'; // hot, new, collect
+        
+        const lists = BookListDB.getPublicLists(page, pageSize, sortBy);
+        res.json(lists);
+    } catch (error) {
+        logger.error("获取书单广场失败", { error: error.message });
+        res.status(500).json({ error: "获取书单广场失败" });
+    }
+});
+
+// 搜索书单
+router.get("/book-lists/square/search", (req, res) => {
+    try {
+        const keyword = req.query.keyword || '';
+        const page = parseInt(req.query.page) || 1;
+        const pageSize = parseInt(req.query.pageSize) || 20;
+        
+        if (!keyword.trim()) {
+            return res.json([]);
+        }
+        
+        const lists = BookListDB.search(keyword.trim(), page, pageSize);
+        res.json(lists);
+    } catch (error) {
+        logger.error("搜索书单失败", { error: error.message });
+        res.status(500).json({ error: "搜索书单失败" });
+    }
+});
+
+// 收藏书单
+router.post("/book-lists/:id/collect", requireLogin, (req, res) => {
+    try {
+        const listId = parseInt(req.params.id);
+        const list = BookListDB.getById(listId);
+        
+        if (!list) {
+            return res.status(404).json({ error: "书单不存在" });
+        }
+        
+        if (list.user_id === req.session.userId) {
+            return res.status(400).json({ error: "不能收藏自己的书单" });
+        }
+        
+        const collected = BookListDB.collect(listId, req.session.userId);
+        
+        if (!collected) {
+            return res.json({ success: false, message: "已经收藏过此书单" });
+        }
+        
+        logger.info("收藏书单", { userId: req.session.userId, listId });
+        res.json({ success: true });
+    } catch (error) {
+        logger.error("收藏书单失败", { error: error.message });
+        res.status(500).json({ error: "收藏书单失败" });
+    }
+});
+
+// 取消收藏书单
+router.delete("/book-lists/:id/collect", requireLogin, (req, res) => {
+    try {
+        const listId = parseInt(req.params.id);
+        const uncollected = BookListDB.uncollect(listId, req.session.userId);
+        
+        if (!uncollected) {
+            return res.status(404).json({ error: "未收藏此书单" });
+        }
+        
+        logger.info("取消收藏书单", { userId: req.session.userId, listId });
+        res.json({ success: true });
+    } catch (error) {
+        logger.error("取消收藏书单失败", { error: error.message });
+        res.status(500).json({ error: "取消收藏书单失败" });
+    }
+});
+
+// 获取用户收藏的书单
+router.get("/book-lists/collected/list", requireLogin, (req, res) => {
+    try {
+        const lists = BookListDB.getCollectedLists(req.session.userId);
+        res.json(lists);
+    } catch (error) {
+        logger.error("获取收藏书单失败", { error: error.message });
+        res.status(500).json({ error: "获取收藏书单失败" });
+    }
+});
+
+// ==================== 书单评论 API ====================
+
+// 添加书单评论
+router.post("/book-lists/:id/comments", requireLogin, (req, res) => {
+    try {
+        const listId = parseInt(req.params.id);
+        const { content, rating } = req.body;
+        
+        if (!content || content.trim().length < 1) {
+            return res.status(400).json({ error: "评论内容不能为空" });
+        }
+        
+        if (rating !== null && rating !== undefined && (rating < 1 || rating > 5)) {
+            return res.status(400).json({ error: "评分必须在1-5之间" });
+        }
+        
+        // 检查书单是否存在
+        const list = BookListDB.getById(listId);
+        if (!list) {
+            return res.status(404).json({ error: "书单不存在" });
+        }
+        
+        // 添加评论
+        BookListCommentDB.addComment(listId, req.session.userId, content.trim(), rating);
+        
+        logger.info("添加书单评论", { userId: req.session.userId, listId, rating });
+        res.json({ success: true });
+    } catch (error) {
+        logger.error("添加书单评论失败", { error: error.message });
+        res.status(500).json({ error: "添加评论失败" });
+    }
+});
+
+// 获取书单评论
+router.get("/book-lists/:id/comments", (req, res) => {
+    try {
+        const listId = parseInt(req.params.id);
+        const page = parseInt(req.query.page) || 1;
+        const pageSize = parseInt(req.query.pageSize) || 20;
+        
+        // 检查书单是否存在
+        const list = BookListDB.getById(listId);
+        if (!list) {
+            return res.status(404).json({ error: "书单不存在" });
+        }
+        
+        const comments = BookListCommentDB.getComments(listId, page, pageSize);
+        
+        res.json(comments);
+    } catch (error) {
+        logger.error("获取书单评论失败", { error: error.message });
+        res.status(500).json({ error: "获取评论失败" });
+    }
+});
+
+// 获取书单评分统计
+router.get("/book-lists/:id/rating", (req, res) => {
+    try {
+        const listId = parseInt(req.params.id);
+        
+        // 检查书单是否存在
+        const list = BookListDB.getById(listId);
+        if (!list) {
+            return res.status(404).json({ error: "书单不存在" });
+        }
+        
+        const avgRating = BookListCommentDB.getAverageRating(listId);
+        const commentCount = BookListCommentDB.getCommentCount(listId);
+        
+        res.json({
+            averageRating: avgRating,
+            commentCount: commentCount
+        });
+    } catch (error) {
+        logger.error("获取书单评分统计失败", { error: error.message });
+        res.status(500).json({ error: "获取评分统计失败" });
+    }
+});
+
+// ==================== 纠错功能 API ====================
+
+// 检查是否是管理员
+router.get("/auth/check-admin", requireLogin, (req, res) => {
+    try {
+        const user = UserDB.findById(req.session.userId);
+        res.json({ isAdmin: user && user.username === 'admin' });
+    } catch (error) {
+        res.json({ isAdmin: false });
+    }
+});
+
+// 提交纠错
+router.post("/corrections", requireLogin, (req, res) => {
+    try {
+        const { bookId, chapterId, originalText, correctedText } = req.body;
+        
+        if (!bookId || !chapterId || !originalText || !correctedText) {
+            return res.status(400).json({ error: "缺少必要参数" });
+        }
+        
+        if (originalText === correctedText) {
+            return res.status(400).json({ error: "原文和修正内容相同" });
+        }
+        
+        const db = require("better-sqlite3")("./data/po18.db");
+        db.prepare(`
+            INSERT INTO corrections (user_id, book_id, chapter_id, original_text, corrected_text)
+            VALUES (?, ?, ?, ?, ?)
+        `).run(req.session.userId, bookId, chapterId, originalText, correctedText);
+        
+        logger.info("提交纠错", { userId: req.session.userId, bookId, chapterId });
+        res.json({ success: true, message: "纠错已提交，等待审核" });
+    } catch (error) {
+        logger.error("提交纠错失败", { error: error.message });
+        res.status(500).json({ error: "提交失败" });
+    }
+});
+
+// 获取用户的纠错记录
+router.get("/corrections/my", requireLogin, (req, res) => {
+    try {
+        const db = require("better-sqlite3")("./data/po18.db");
+        const corrections = db.prepare(`
+            SELECT c.*, m.title as book_title
+            FROM corrections c
+            LEFT JOIN book_metadata m ON c.book_id = m.book_id
+            WHERE c.user_id = ?
+            ORDER BY c.created_at DESC
+        `).all(req.session.userId);
+        
+        res.json(corrections);
+    } catch (error) {
+        res.status(500).json({ error: "获取失败" });
+    }
+});
+
+// 获取所有纠错列表（管理员）
+router.get("/admin/corrections", requireAdmin, (req, res) => {
+    try {
+        const { status = 'pending', page = 1, pageSize = 20 } = req.query;
+        const offset = (parseInt(page) - 1) * parseInt(pageSize);
+        
+        const db = require("better-sqlite3")("./data/po18.db");
+        
+        // 获取各状态统计
+        const stats = {
+            pending: db.prepare("SELECT COUNT(*) as count FROM corrections WHERE status = 'pending'").get().count,
+            approved: db.prepare("SELECT COUNT(*) as count FROM corrections WHERE status = 'approved'").get().count,
+            rejected: db.prepare("SELECT COUNT(*) as count FROM corrections WHERE status = 'rejected'").get().count
+        };
+        
+        const total = stats[status] || 0;
+        
+        const corrections = db.prepare(`
+            SELECT c.*, u.username, m.title as book_title
+            FROM corrections c
+            LEFT JOIN users u ON c.user_id = u.id
+            LEFT JOIN book_metadata m ON c.book_id = m.book_id
+            WHERE c.status = ?
+            ORDER BY c.created_at DESC
+            LIMIT ? OFFSET ?
+        `).all(status, parseInt(pageSize), offset);
+        
+        res.json({ corrections, total, stats });
+    } catch (error) {
+        logger.error("获取纠错列表失败", { error: error.message });
+        res.status(500).json({ error: "获取失败" });
+    }
+});
+
+// 审核纠错（管理员）
+router.post("/admin/corrections/:id/review", requireAdmin, (req, res) => {
+    try {
+        const correctionId = parseInt(req.params.id);
+        const { action } = req.body; // 'approve' or 'reject'
+        
+        if (!['approve', 'reject'].includes(action)) {
+            return res.status(400).json({ error: "无效的操作" });
+        }
+        
+        const db = require("better-sqlite3")("./data/po18.db");
+        
+        // 获取纠错记录
+        const correction = db.prepare("SELECT * FROM corrections WHERE id = ?").get(correctionId);
+        if (!correction) {
+            return res.status(404).json({ error: "纠错记录不存在" });
+        }
+        
+        if (correction.status !== 'pending') {
+            return res.status(400).json({ error: "该纠错已被处理" });
+        }
+        
+        const newStatus = action === 'approve' ? 'approved' : 'rejected';
+        
+        // 更新纠错状态
+        db.prepare(`
+            UPDATE corrections SET status = ?, reviewer_id = ?, review_time = datetime('now')
+            WHERE id = ?
+        `).run(newStatus, req.session.userId, correctionId);
+        
+        // 如果审核通过，更新章节内容并给用户加积分
+        if (action === 'approve') {
+            // 更新章节内容
+            const chapter = db.prepare(`
+                SELECT * FROM chapter_cache WHERE book_id = ? AND chapter_id = ?
+            `).get(correction.book_id, correction.chapter_id);
+            
+            if (chapter) {
+                const newText = chapter.text.replace(correction.original_text, correction.corrected_text);
+                const newHtml = chapter.html ? chapter.html.replace(correction.original_text, correction.corrected_text) : null;
+                
+                db.prepare(`
+                    UPDATE chapter_cache SET text = ?, html = ?, updated_at = datetime('now')
+                    WHERE book_id = ? AND chapter_id = ?
+                `).run(newText, newHtml, correction.book_id, correction.chapter_id);
+            }
+            
+            // 给用户加积分
+            db.prepare(`
+                UPDATE users SET points = COALESCE(points, 0) + 1 WHERE id = ?
+            `).run(correction.user_id);
+            
+            logger.info("纠错审核通过", { correctionId, userId: correction.user_id });
+        }
+        
+        res.json({ success: true, message: action === 'approve' ? '已通过并更新内容' : '已拒绝' });
+    } catch (error) {
+        logger.error("审核纠错失败", { error: error.message });
+        res.status(500).json({ error: "审核失败" });
+    }
+});
+
+// ==================== 书籍删除 API ====================
+
+// 删除书籍（可选删除全部或仅章节）
+router.delete("/books/:bookId", requireAdmin, (req, res) => {
+    try {
+        const { bookId } = req.params;
+        const { deleteType = 'all' } = req.query; // 'all' or 'chapters'
+        
+        const db = require("better-sqlite3")("./data/po18.db");
+        
+        // 删除章节缓存
+        const chapterResult = db.prepare("DELETE FROM chapter_cache WHERE book_id = ?").run(bookId);
+        
+        let metadataDeleted = 0;
+        if (deleteType === 'all') {
+            // 删除书籍元信息
+            const metaResult = db.prepare("DELETE FROM book_metadata WHERE book_id = ?").run(bookId);
+            metadataDeleted = metaResult.changes;
+            
+            // 删除相关纠错记录
+            db.prepare("DELETE FROM corrections WHERE book_id = ?").run(bookId);
+        }
+        
+        logger.info("删除书籍", { bookId, deleteType, chaptersDeleted: chapterResult.changes, metadataDeleted });
+        res.json({ 
+            success: true, 
+            chaptersDeleted: chapterResult.changes,
+            metadataDeleted,
+            message: deleteType === 'all' ? '已删除全部数据' : '已删除章节数据'
+        });
+    } catch (error) {
+        logger.error("删除书籍失败", { error: error.message });
+        res.status(500).json({ error: "删除失败" });
+    }
+});
+
+// 获取用户积分
+router.get("/user/points", requireLogin, (req, res) => {
+    try {
+        const db = require("better-sqlite3")("./data/po18.db");
+        const user = db.prepare("SELECT points FROM users WHERE id = ?").get(req.session.userId);
+        res.json({ points: user?.points || 0 });
+    } catch (error) {
+        res.status(500).json({ error: "获取失败" });
+    }
+});
+
+// ==================== 书评功能 API ====================
+
+// 获取书评列表
+router.get("/reviews", (req, res) => {
+    try {
+        const { sort = 'latest', page = 1, pageSize = 20 } = req.query;
+        const offset = (parseInt(page) - 1) * parseInt(pageSize);
+        
+        let orderBy = 'r.created_at DESC';
+        if (sort === 'hot') {
+            orderBy = 'r.likes DESC, r.created_at DESC';
+        } else if (sort === 'rating') {
+            orderBy = 'r.rating DESC, r.created_at DESC';
+        }
+        
+        const total = db.prepare("SELECT COUNT(*) as count FROM book_reviews").get().count;
+        
+        const reviews = db.prepare(`
+            SELECT r.*, u.username
+            FROM book_reviews r
+            LEFT JOIN users u ON r.user_id = u.id
+            ORDER BY ${orderBy}
+            LIMIT ? OFFSET ?
+        `).all(parseInt(pageSize), offset);
+        
+        // 如果用户已登录，检查是否已点赞
+        if (req.session && req.session.userId) {
+            const likedIds = db.prepare(`
+                SELECT review_id FROM review_likes WHERE user_id = ?
+            `).all(req.session.userId).map(l => l.review_id);
+            
+            reviews.forEach(r => {
+                r.hasLiked = likedIds.includes(r.id);
+            });
+        }
+        
+        res.json({ reviews, total, page: parseInt(page), pageSize: parseInt(pageSize) });
+    } catch (error) {
+        logger.error("获取书评列表失败", { error: error.message, stack: error.stack });
+        res.status(500).json({ error: "获取失败: " + error.message });
+    }
+});
+
+// 发表书评
+router.post("/reviews", requireLogin, (req, res) => {
+    try {
+        const { bookId, bookTitle, bookCover, bookAuthor, rating, content } = req.body;
+        
+        if (!bookId || !content) {
+            return res.status(400).json({ error: "缺少必要参数" });
+        }
+        
+        if (rating < 1 || rating > 5) {
+            return res.status(400).json({ error: "评分必须在1-5之间" });
+        }
+        
+        // 检查是否已经评论过这本书
+        const existing = db.prepare(`
+            SELECT id FROM book_reviews WHERE user_id = ? AND book_id = ?
+        `).get(req.session.userId, bookId);
+        
+        if (existing) {
+            return res.status(400).json({ error: "你已经评论过这本书了" });
+        }
+        
+        const result = db.prepare(`
+            INSERT INTO book_reviews (user_id, book_id, book_title, book_cover, book_author, rating, content)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(req.session.userId, bookId, bookTitle, bookCover, bookAuthor, rating, content);
+        
+        logger.info("发表书评", { userId: req.session.userId, bookId, rating });
+        res.json({ success: true, reviewId: result.lastInsertRowid, message: "书评发表成功" });
+    } catch (error) {
+        logger.error("发表书评失败", { error: error.message });
+        res.status(500).json({ error: "发表失败" });
+    }
+});
+
+// 点赞/取消点赞书评
+router.post("/reviews/:id/like", requireLogin, (req, res) => {
+    try {
+        const reviewId = parseInt(req.params.id);
+        
+        // 检查是否已点赞
+        const existing = db.prepare(`
+            SELECT id FROM review_likes WHERE review_id = ? AND user_id = ?
+        `).get(reviewId, req.session.userId);
+        
+        if (existing) {
+            // 取消点赞
+            db.prepare("DELETE FROM review_likes WHERE id = ?").run(existing.id);
+            db.prepare("UPDATE book_reviews SET likes = likes - 1 WHERE id = ?").run(reviewId);
+            res.json({ success: true, liked: false, message: "已取消点赞" });
+        } else {
+            // 点赞
+            db.prepare(`
+                INSERT INTO review_likes (review_id, user_id) VALUES (?, ?)
+            `).run(reviewId, req.session.userId);
+            db.prepare("UPDATE book_reviews SET likes = likes + 1 WHERE id = ?").run(reviewId);
+            res.json({ success: true, liked: true, message: "点赞成功" });
+        }
+    } catch (error) {
+        logger.error("点赞操作失败", { error: error.message });
+        res.status(500).json({ error: "操作失败" });
+    }
+});
+
+// 搜索书籍（用于写书评时选择书籍）
+router.get("/books/search", (req, res) => {
+    try {
+        const { keyword } = req.query;
+        if (!keyword || keyword.length < 2) {
+            return res.json([]);
+        }
+        
+        const books = db.prepare(`
+            SELECT book_id, title, author, cover
+            FROM book_metadata
+            WHERE title LIKE ? OR author LIKE ?
+            LIMIT 10
+        `).all(`%${keyword}%`, `%${keyword}%`);
+        
+        res.json(books);
+    } catch (error) {
+        res.status(500).json({ error: "搜索失败" });
+    }
+});
+
+// 删除书评（仅作者或管理员）
+router.delete("/reviews/:id", requireLogin, (req, res) => {
+    try {
+        const reviewId = parseInt(req.params.id);
+        
+        const review = db.prepare("SELECT * FROM book_reviews WHERE id = ?").get(reviewId);
+        if (!review) {
+            return res.status(404).json({ error: "书评不存在" });
+        }
+        
+        // 检查权限
+        const user = UserDB.findById(req.session.userId);
+        if (review.user_id !== req.session.userId && user.username !== 'admin') {
+            return res.status(403).json({ error: "无权删除" });
+        }
+        
+        // 删除点赞记录
+        db.prepare("DELETE FROM review_likes WHERE review_id = ?").run(reviewId);
+        // 删除书评
+        db.prepare("DELETE FROM book_reviews WHERE id = ?").run(reviewId);
+        
+        res.json({ success: true, message: "删除成功" });
+    } catch (error) {
+        logger.error("删除书评失败", { error: error.message });
+        res.status(500).json({ error: "删除失败" });
+    }
 });
 
 module.exports = router;

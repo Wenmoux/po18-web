@@ -1,3 +1,11 @@
+/*
+ * File: crawler.js
+ * Input: axios, cheerio, config.js, PO18/POPO网站HTML
+ * Output: NovelCrawler类，提供搜索、获取详情、下载章节、生成TXT/HTML/EPUB文件等功能
+ * Pos: 爬虫核心模块，负责抓取PO18/POPO小说信息和章节内容，生成多种格式文件
+ * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和所属server/文件夹的README.md
+ */
+
 /**
  * PO18小说下载网站 - 小说爬取核心模块
  */

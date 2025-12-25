@@ -1,3 +1,11 @@
+/*
+ * File: app.js
+ * Input: Express, session, config.js, routes.js, database.js, logger.js, monitor.js
+ * Output: Express应用实例，启动HTTP服务器，提供静态文件服务和API路由
+ * Pos: 服务端应用入口，负责初始化Express服务器、配置中间件、启动监控和订阅检查
+ * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和所属server/文件夹的README.md
+ */
+
 /**
  * PO18小说下载网站 - 主服务器入口
  */

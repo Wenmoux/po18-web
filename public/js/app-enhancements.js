@@ -1,3 +1,11 @@
+/*
+ * File: app-enhancements.js
+ * Input: app.js, DOM元素
+ * Output: 应用增强功能，包括长按菜单、滑动手势、下拉刷新等UI交互增强
+ * Pos: UI交互增强模块，提供额外的用户体验优化
+ * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和public/js/文件夹的README.md
+ */
+
 /**
  * 应用增强功能集成
  * 统一初始化所有优化功能

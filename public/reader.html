@@ -280,47 +280,111 @@
                     </div>
                 </div>
 
-                <!-- 背景主题 -->
+                <!-- 【主题扩展系统 - 开始】 -->
+                <!-- 预设主题方案 -->
                 <div class="setting-group">
-                    <label class="setting-label">背景主题</label>
+                    <label class="setting-label">主题方案</label>
                     <div class="theme-options">
-                        <button class="theme-btn active" data-theme="default" style="background: #f5f5f5; color: #333">
-                            <span>默认</span>
+                        <button class="theme-btn active" data-preset-theme="default" style="background: #FFFFFF; color: #333333; border: 1px solid #ddd">
+                            <span>默认白</span>
                         </button>
-                        <button
-                            class="theme-btn"
-                            data-theme="white"
-                            style="background: #fff; color: #333; border: 1px solid #ddd"
-                        >
-                            <span>纯白</span>
+                        <button class="theme-btn" data-preset-theme="sepia" style="background: #F5E6D3; color: #333333">
+                            <span>护眼黄</span>
                         </button>
-                        <button class="theme-btn" data-theme="sepia" style="background: #f4ecd8; color: #5c4a35">
-                            <span>护眼</span>
+                        <button class="theme-btn" data-preset-theme="night" style="background: #1E1E1E; color: #B8B8B8">
+                            <span>夜间黑</span>
                         </button>
-                        <button class="theme-btn" data-theme="green" style="background: #e8f5e9; color: #2e7d32">
-                            <span>绿色</span>
+                        <button class="theme-btn" data-preset-theme="green" style="background: #C7EDCC; color: #2D4A2B">
+                            <span>护眼绿</span>
                         </button>
-                        <button class="theme-btn" data-theme="blue" style="background: #e3f2fd; color: #1565c0">
-                            <span>蓝色</span>
+                        <button class="theme-btn" data-preset-theme="pink" style="background: #FFE4E1; color: #4A3333">
+                            <span>少女粉</span>
                         </button>
-                        <button class="theme-btn" data-theme="pink" style="background: #fce4ec; color: #c2185b">
-                            <span>粉色</span>
-                        </button>
-                        <button class="theme-btn" data-theme="dark" style="background: #2c2c2c; color: #d0d0d0">
-                            <span>夜间</span>
+                        <button class="theme-btn" data-preset-theme="blue" style="background: #E6F3FF; color: #2C4A5E">
+                            <span>清新蓝</span>
                         </button>
                     </div>
                 </div>
+
+                <!-- 自定义颜色 -->
+                <div class="setting-group">
+                    <label class="setting-label">自定义颜色</label>
+                    <div class="color-pickers">
+                        <div class="color-picker-item">
+                            <label for="bg-color-picker">背景色</label>
+                            <input type="color" id="bg-color-picker" value="#FFFFFF" />
+                        </div>
+                        <div class="color-picker-item">
+                            <label for="text-color-picker">正文色</label>
+                            <input type="color" id="text-color-picker" value="#333333" />
+                        </div>
+                        <div class="color-picker-item">
+                            <label for="title-color-picker">标题色</label>
+                            <input type="color" id="title-color-picker" value="#1a1a1a" />
+                        </div>
+                        <div class="color-picker-item">
+                            <label for="highlight-color-picker">高亮色</label>
+                            <input type="color" id="highlight-color-picker" value="#D81B60" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 背景图片设置 -->
+                <div class="setting-group">
+                    <label class="setting-label">背景图片</label>
+                    <div class="background-settings">
+                        <div class="bg-input-group">
+                            <label for="bg-image-url">图片URL</label>
+                            <input type="text" id="bg-image-url" class="setting-input" placeholder="输入图片URL或上传本地图片" />
+                        </div>
+                        <div class="bg-input-group">
+                            <label for="bg-image-input">上传图片</label>
+                            <input type="file" id="bg-image-input" accept="image/*" class="setting-file-input" />
+                        </div>
+                        <div class="bg-style-group">
+                            <div class="bg-style-item">
+                                <label for="bg-repeat">重复方式</label>
+                                <select id="bg-repeat" class="setting-select">
+                                    <option value="no-repeat">不重复</option>
+                                    <option value="repeat">平铺</option>
+                                    <option value="repeat-x">水平平铺</option>
+                                    <option value="repeat-y">垂直平铺</option>
+                                </select>
+                            </div>
+                            <div class="bg-style-item">
+                                <label for="bg-size">大小</label>
+                                <select id="bg-size" class="setting-select">
+                                    <option value="cover">覆盖</option>
+                                    <option value="contain">包含</option>
+                                    <option value="auto">自动</option>
+                                </select>
+                            </div>
+                            <div class="bg-style-item">
+                                <label for="bg-position">位置</label>
+                                <select id="bg-position" class="setting-select">
+                                    <option value="center">居中</option>
+                                    <option value="top">顶部</option>
+                                    <option value="bottom">底部</option>
+                                    <option value="left">左侧</option>
+                                    <option value="right">右侧</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- 【主题扩展系统 - 结束】 -->
 
                 <!-- 字体切换 -->
                 <div class="setting-group">
                     <label class="setting-label">字体</label>
                     <div class="setting-options">
-                        <button class="option-btn active" data-font="system">系统</button>
-                        <button class="option-btn" data-font="serif">宋体</button>
-                        <button class="option-btn" data-font="kai">楷体</button>
-                        <button class="option-btn" data-font="hei">黑体</button>
-                        <button class="option-btn" data-font="siyuan">思源</button>
+                        <button class="option-btn active" data-preset-font="system">系统默认</button>
+                        <button class="option-btn" data-preset-font="serif">宋体</button>
+                        <button class="option-btn" data-preset-font="song">思源宋体</button>
+                        <button class="option-btn" data-preset-font="kai">楷体</button>
+                        <button class="option-btn" data-preset-font="hei">黑体</button>
+                        <button class="option-btn" data-preset-font="fangsong">仿宋</button>
+                        <button class="option-btn" data-preset-font="ming">明体</button>
                     </div>
                 </div>
 
@@ -480,7 +544,7 @@
         </aside>
 
         <!-- Toast 提示 -->
-        <div class="toast" id="toast"></div>
+        <div class="toast-container" id="toast-container"></div>
 
         <script src="js/utils.js"></script>
         <script src="js/reader.js"></script>

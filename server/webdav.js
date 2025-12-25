@@ -1,3 +1,11 @@
+/*
+ * File: webdav.js
+ * Input: webdav模块，本地文件系统
+ * Output: WebDAVClient类，提供连接、上传、下载、删除、列表等WebDAV操作
+ * Pos: WebDAV客户端封装，实现个人书库的WebDAV同步功能
+ * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和所属server/文件夹的README.md
+ */
+
 /**
  * WebDAV客户端封装
  */

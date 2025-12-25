@@ -2,58 +2,124 @@
 <html lang="zh-CN">
     <head>
         <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-        <title>我的书架 - PO18书库</title>
-        <link rel="stylesheet" href="css/style.css" />
-        <link rel="stylesheet" href="css/bookshelf.css" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+        />
+        <title>荼蘼辞 - 当时明月</title>
+
+        <!-- 性能优化：预加载CSS -->
+        <link rel="preload" href="css/style.css?v=20251224e" as="style" />
+        <link rel="preload" href="css/components.css?v=20251224e" as="style" />
+
+        <!-- DNS预解析 -->
+        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+        <link rel="dns-prefetch" href="https://www.po18.tw" />
+        <link rel="dns-prefetch" href="https://www.popo.tw" />
+        <link rel="dns-prefetch" href="https://unpkg.com" />
+        <link rel="preconnect" href="https://unpkg.com" crossorigin />
+
+        <!-- PWA支持 -->
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#D81B60" />
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="default">
+        <meta name="apple-mobile-web-app-title" content="荼蘼辞">
+        <link rel="apple-touch-icon" href="/icons/icon.svg" />
+
+        <!-- 关键CSSS内联 -->
+        <style>
+            /* 首屏关键CCS */
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                background: #fafafa;
+                color: #333;
+                line-height: 1.6;
+            }
+            .loading { opacity: 0; }
+            .loaded { opacity: 1; transition: opacity 0.3s ease; }
+            .skeleton { 
+                background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+                background-size: 200% 100%;
+                animation: skeleton-loading 1.5s ease-in-out infinite;
+                border-radius: 8px;
+            }
+            @keyframes skeleton-loading {
+                0% { background-position: 200% 0; }
+                100% { background-position: -200% 0; }
+            }
+            .skeleton-card { height: 120px; margin-bottom: 16px; }
+            #app { min-height: 100vh; }
+        </style>
+
+        <link rel="stylesheet" href="css/style.css?v=20251224e" />
+        <link rel="stylesheet" href="css/bookshelf.css?v=20251224e" />
+        <link rel="stylesheet" href="css/components.css?v=20251224e" />
+        <link rel="stylesheet" href="css/mobile-enhancements.css?v=20251224e" />
+
+        <!-- 字体异步加载 -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
             href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&display=swap"
             rel="stylesheet"
+            media="print"
+            onload="this.media = 'all'"
         />
+        <noscript>
+            <link
+                href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&display=swap"
+                rel="stylesheet"
+            />
+        </noscript>
     </head>
     <body>
         <div id="app">
-            <!-- 顶部导航栏 -->
+            <!-- 顶部导航 - MD3风格 -->
             <header class="header">
-                <div class="header-left">
-                    <button class="btn-back" onclick="window.location.href = '/'">
-                        <svg
-                            width="24"
-                            height="24"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                        >
-                            <polyline points="15 18 9 12 15 6"></polyline>
-                        </svg>
-                        <span>返回</span>
-                    </button>
-                </div>
                 <div class="logo">
-                    <span class="logo-icon">📚</span>
-                    <span class="logo-text">我的书架</span>
+                    <span class="logo-icon">🌸</span>
+                    <span class="logo-text">荼蘼辞</span>
                 </div>
-                <div class="header-right">
-                    <div class="user-info" id="user-info" style="display: none">
-                        <span id="username-display"></span>
-                        <button class="btn btn-sm btn-outline" id="btn-logout">登出</button>
-                    </div>
+                <nav class="nav" id="main-nav">
+                    <a href="index.html" class="nav-link" data-page="download">🏠 首页</a>
+                    <a href="rankings.html" class="nav-link" data-page="rankings">🏆 花事了</a>
+                    <a href="bookshelf.html" class="nav-link active" data-page="bookshelf">📖 当时明月</a>
+                    <a href="index.html#downloads" class="nav-link" data-page="downloads">📥 庭院深深</a>
+                    <a href="index.html#library" class="nav-link" data-page="library">📚 花事了</a>
+                    <a href="index.html#subscriptions" class="nav-link" data-page="subscriptions" id="nav-subscriptions">
+                        🔔 西窗话
+                        <span class="nav-badge" id="subscription-badge" style="display: none">0</span>
+                    </a>
+                    <a href="index.html#settings" class="nav-link" data-page="settings">👤 我的</a>
+                </nav>
+                <div class="user-area" id="user-area">
+                    <button class="btn btn-primary" id="btn-login">登录</button>
+                    <button class="btn btn-outline" id="btn-register">注册</button>
+                </div>
+                <div class="user-info" id="user-info" style="display: none">
+                    <span id="username-display"></span>
+                    <a href="/admin.html" id="admin-link" class="btn btn-sm btn-tonal" style="display: none">📊 管理</a>
+                    <button class="theme-toggle" id="theme-toggle" title="切换主题">🌙</button>
+                    <button class="btn btn-sm btn-tonal" id="btn-settings">⚙️ 设置</button>
+                    <button class="btn btn-sm btn-outline" id="btn-logout">登出</button>
                 </div>
             </header>
 
             <!-- 主内容区 -->
             <main class="main-content">
-                <div class="bookshelf-container">
-                    <!-- 书架头部 -->
-                    <div class="bookshelf-header">
-                        <h2>我的书架</h2>
-                        <p class="bookshelf-subtitle">记录你的阅读历程</p>
+                <!-- 我的书架页 -->
+                <section class="page active" id="page-bookshelf">
+                    <div class="page-header">
+                        <h2>📖 当时明月</h2>
+                        <p class="page-subtitle">记录你的阅读历程</p>
                     </div>
 
                     <!-- 筛选和排序 -->
-                    <div class="bookshelf-filters">
-                        <select id="sort-select" class="md-select">
+                    <div class="filter-bar">
+                        <select id="bookshelf-sort-select" class="md-select">
                             <option value="recent">最近阅读</option>
                             <option value="progress">阅读进度</option>
                             <option value="time">阅读时长</option>
@@ -62,24 +128,108 @@
                     </div>
 
                     <!-- 书架列表 -->
-                    <div class="bookshelf-grid" id="bookshelf-grid">
-                        <div class="loading-state">
-                            <div class="spinner"></div>
-                            <p>加载中...</p>
-                        </div>
+                    <div class="bookshelf-list" id="bookshelf-list">
+                        <p class="empty-message">书架空空如也，快去添加你喜欢的书籍吧</p>
                     </div>
-
-                    <!-- 空状态 -->
-                    <div class="empty-state" id="empty-state" style="display: none">
-                        <div class="empty-icon">📚</div>
-                        <h3>书架空空如也</h3>
-                        <p>快去添加你喜欢的书籍吧</p>
-                        <button class="btn btn-primary" onclick="window.location.href = '/'">去浏览书籍</button>
-                    </div>
-                </div>
+                </section>
             </main>
+
+            <!-- 底部 -->
+            <footer class="footer">
+                <p>荼蘼辞 &copy; 2024 | 仅供学习交流使用</p>
+            </footer>
         </div>
 
-        <script src="js/bookshelf.js"></script>
+        <!-- 登录/注册弹窗 -->
+        <div class="modal-overlay" id="auth-modal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 id="auth-modal-title">登录</h3>
+                    <button class="modal-close" id="auth-modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="auth-form">
+                        <div class="form-group">
+                            <label for="auth-username">用户名</label>
+                            <input type="text" id="auth-username" required minlength="3" />
+                        </div>
+                        <div class="form-group">
+                            <label for="auth-password">密码</label>
+                            <input type="password" id="auth-password" required minlength="6" />
+                        </div>
+                        <div class="form-error" id="auth-error"></div>
+                        <button type="submit" class="btn btn-primary btn-block" id="auth-submit">登录</button>
+                    </form>
+                    <div class="auth-switch">
+                        <span id="auth-switch-text">还没有账号？</span>
+                        <a href="#" id="auth-switch-link">去注册</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast消息 -->
+        <div class="toast-container" id="toast-container"></div>
+
+        <!-- 移动端底部Tab导航 -->
+        <nav class="bottom-tab-bar" id="bottom-tab-bar">
+            <a href="index.html" class="tab-item" data-page="download">
+                <span class="tab-icon">📥</span>
+                <span class="tab-label">快速下载</span>
+            </a>
+            <a href="bookshelf.html" class="tab-item active" data-page="bookshelf">
+                <span class="tab-icon">📚</span>
+                <span class="tab-label">当时明月</span>
+            </a>
+            <a href="rankings.html" class="tab-item" data-page="rankings">
+                <span class="tab-icon">🏆</span>
+                <span class="tab-label">花事了</span>
+            </a>
+            <a href="index.html#subscriptions" class="tab-item" data-page="subscriptions" id="tab-subscriptions">
+                <span class="tab-icon">🔔</span>
+                <span class="tab-label">西窗话</span>
+                <span class="tab-badge" id="tab-subscription-badge">0</span>
+            </a>
+            <a href="index.html#settings" class="tab-item" data-page="settings">
+                <span class="tab-icon">👤</span>
+                <span class="tab-label">我的</span>
+            </a>
+        </nav>
+
+        <script src="js/performance-optimizer.js?v=20251224e"></script>
+        <script src="js/utils.js?v=20251224e"></script>
+        <script src="js/mobile-enhancements.js?v=20251224e"></script>
+        <script src="js/api.js?v=20251224e"></script>
+        <script src="js/app.js?v=20251224e"></script>
+
+        <!-- PWA Service Worker 注册 -->
+        <script>
+            if ("serviceWorker" in navigator) {
+                window.addEventListener("load", () => {
+                    navigator.serviceWorker
+                        .register("/service-worker.js")
+                        .then((registration) => {
+                            console.log("SW registered:", registration.scope);
+                        })
+                        .catch((err) => {
+                            console.log("SW registration failed:", err);
+                        });
+                });
+            }
+            
+            // 修复页面初始化滑动问题
+            document.addEventListener('DOMContentLoaded', () => {
+                // 确保 body 和根元素样式正确
+                document.body.style.overflow = 'auto';
+                document.documentElement.style.overflow = 'auto';
+                
+                // 触发一次重排以修复潜在的渲染问题
+                setTimeout(() => {
+                    document.body.style.display = 'none';
+                    document.body.offsetHeight; // 触发重排
+                    document.body.style.display = '';
+                }, 100);
+            });
+        </script>
     </body>
 </html>

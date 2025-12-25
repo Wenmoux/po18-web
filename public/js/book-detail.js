@@ -1,3 +1,11 @@
+/*
+ * File: book-detail.js
+ * Input: api.js, book-detail.html DOM元素
+ * Output: BookDetail类，展示书籍详情、章节列表、下载操作
+ * Pos: 书籍详情页模块，处理单本书籍的详细信息展示
+ * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和public/js/文件夹的README.md
+ */
+
 /**
  * 书籍详情页 JavaScript
  */
@@ -11,6 +19,7 @@ const BookDetail = {
     currentCommentPage: 1,
     totalCommentPages: 1,
     isSubscribed: false,
+    isAdmin: false,
 
     // 初始化
     async init() {
@@ -27,10 +36,31 @@ const BookDetail = {
         // 绑定事件
         this.bindEvents();
 
+        // 检查管理员状态
+        await this.checkAdminStatus();
+
         // 加载数据
         await this.loadBookData();
         await this.loadChapters();
         await this.loadComments(1);
+    },
+
+    // 检查是否是管理员
+    async checkAdminStatus() {
+        try {
+            const response = await fetch('/api/auth/check-admin', { credentials: 'include' });
+            if (response.ok) {
+                const data = await response.json();
+                this.isAdmin = data.isAdmin;
+                if (this.isAdmin) {
+                    document.querySelectorAll('.admin-only').forEach(el => {
+                        el.style.display = '';
+                    });
+                }
+            }
+        } catch (error) {
+            console.log('检查管理员状态失败');
+        }
     },
 
     // 绑定事件
@@ -51,6 +81,16 @@ const BookDetail = {
         // 加入书架
         document.getElementById("btn-add-bookshelf")?.addEventListener("click", () => {
             this.toggleBookshelf();
+        });
+
+        // 加入书单
+        document.getElementById("btn-add-to-list")?.addEventListener("click", () => {
+            this.showAddToListModal();
+        });
+
+        // 确认加入书单
+        document.getElementById("confirm-add-to-list")?.addEventListener("click", () => {
+            this.confirmAddToList();
         });
 
         // 跳转原站（根据站点字段跳转）
@@ -122,6 +162,15 @@ const BookDetail = {
         // 阅读器关闭按钮
         document.getElementById("reader-close-btn")?.addEventListener("click", () => {
             document.getElementById("reader-modal").classList.remove("active");
+        });
+
+        // 管理员操作按钮
+        document.getElementById("btn-edit-book")?.addEventListener("click", () => {
+            this.showEditModal();
+        });
+
+        document.getElementById("btn-delete-book")?.addEventListener("click", () => {
+            this.showDeleteModal();
         });
 
         // 点击遮罩不关闭（注释掉，避免误触）
@@ -282,7 +331,7 @@ const BookDetail = {
                 "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI4MCIgZmlsbD0iI0ZGRDBEQyIvPjx0ZXh0IHg9IjEwMCIgeT0iMTQwIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNiIgZmlsbD0iI0ZGOEJBNyIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Tm8gQ292ZXI8L3RleHQ+PC9zdmc+";
         }
 
-        // 简介
+        // 简介：直接使用 description（已包含HTML标签）
         const description = this.bookData.description || "暂无简介";
         document.getElementById("book-description").innerHTML = description.replace(/\n/g, "<br>");
 
@@ -1102,19 +1151,52 @@ const BookDetail = {
         }
     },
 
-    // 显示提示
-    showToast(message, type = "info") {
+    // 显示提示 - MD3 Snackbar风格
+    showToast(message, type = "info", options = {}) {
         const container = document.getElementById("toast-container");
         const toast = document.createElement("div");
         toast.className = `toast toast-${type}`;
-        toast.textContent = message;
+        
+        // Toast图标映射
+        const icons = {
+            success: '✓',
+            error: '✕',
+            warning: '⚠',
+            info: 'ℹ'
+        };
+        
+        const icon = options.icon !== undefined ? options.icon : icons[type];
+        const duration = options.duration || 3000;
+        const action = options.action;
+        
+        toast.innerHTML = `
+            ${icon ? `<span class="toast-icon">${icon}</span>` : ''}
+            <span class="toast-message">${message}</span>
+            ${action ? `<button class="toast-action" onclick="${action.onClick}">${action.text}</button>` : ''}
+        `;
+        
         container.appendChild(toast);
-
-        setTimeout(() => toast.classList.add("show"), 100);
-        setTimeout(() => {
-            toast.classList.remove("show");
+        
+        requestAnimationFrame(() => {
+            toast.classList.add('toast-show');
+        });
+        
+        const removeToast = () => {
+            toast.classList.remove('toast-show');
+            toast.classList.add('toast-hide');
             setTimeout(() => toast.remove(), 300);
-        }, 3000);
+        };
+        
+        const timer = setTimeout(removeToast, duration);
+        
+        if (!action) {
+            toast.addEventListener('click', () => {
+                clearTimeout(timer);
+                removeToast();
+            });
+        }
+        
+        return { element: toast, close: removeToast, timer };
     },
 
     // 分享章节
@@ -1289,9 +1371,20 @@ const BookDetail = {
             if (result.updated && result.newChapters > 0) {
                 // 有新章节，显示提醒
                 this.showToast(`🎉 有 ${result.newChapters} 章新更新！`, "success");
-
-                // 清除更新标记（因为用户已经看到了）
-                await API.subscriptions.clearUpdate(this.bookId);
+            }
+            
+            // 无论是否有更新，都清除更新标记（因为用户已经访问了这本书）
+            await API.subscriptions.clearUpdate(this.bookId);
+            
+            // 通知主页面更新订阅徽章
+            if (window.opener && !window.opener.closed) {
+                // 如果是从主页面打开的，通知主页面刷新
+                window.opener.postMessage({ type: 'subscription-updated' }, window.location.origin);
+            }
+            
+            // 如果是SPA式导航，直接调用App的检查方法
+            if (window.App && typeof window.App.checkSubscriptionUpdates === 'function') {
+                window.App.checkSubscriptionUpdates();
             }
         } catch (error) {
             console.log("检查章节更新失败:", error);
@@ -1330,6 +1423,179 @@ const BookDetail = {
         } catch (error) {
             console.error("订阅操作失败:", error);
             this.showToast("操作失败", "error");
+        }
+    },
+
+    // 显示加入书单弹窗
+    async showAddToListModal() {
+        const modal = document.getElementById("add-to-list-modal");
+        const container = document.getElementById("book-lists-container");
+        const errorEl = document.getElementById("add-to-list-error");
+        
+        errorEl.textContent = "";
+        document.getElementById("book-note").value = "";
+        
+        try {
+            // 获取用户的书单列表
+            const lists = await API.bookLists.getMyLists();
+            
+            if (lists.length === 0) {
+                container.innerHTML = '<p class="empty-message">还没有书单，<a href="index.html#book-lists" style="color: var(--md-primary);">去创建一个</a></p>';
+            } else {
+                container.innerHTML = lists.map(list => `
+                    <label class="book-list-option">
+                        <input type="radio" name="selected-list" value="${list.id}" />
+                        <div class="list-option-content">
+                            <div class="list-option-name">${this.escapeHtml(list.name)}</div>
+                            <div class="list-option-info">📚 ${list.book_count || 0}本 · ${list.is_public ? '🌐 公开' : '🔒 私密'}</div>
+                        </div>
+                    </label>
+                `).join('');
+            }
+            
+            modal.style.display = "flex";
+            modal.classList.add("active");
+        } catch (error) {
+            console.error("加载书单失败:", error);
+            this.showToast("请先登录", "error");
+        }
+    },
+
+    // 确认加入书单
+    async confirmAddToList() {
+        const selectedList = document.querySelector('input[name="selected-list"]:checked');
+        const note = document.getElementById("book-note").value.trim();
+        const errorEl = document.getElementById("add-to-list-error");
+        
+        if (!selectedList) {
+            errorEl.textContent = "请选择一个书单";
+            return;
+        }
+        
+        try {
+            await API.bookLists.addBook(selectedList.value, {
+                bookId: this.bookId,
+                title: this.bookData?.title || "未知书名",
+                author: this.bookData?.author || "未知作者",
+                cover: this.bookData?.cover || "",
+                note: note
+            });
+            
+            this.showToast("加入书单成功", "success");
+            closeAddToListModal();
+        } catch (error) {
+            errorEl.textContent = error.message || "加入失败";
+        }
+    },
+
+    // ================ 管理员功能 ================
+
+    // 显示编辑弹窗
+    showEditModal() {
+        if (!this.isAdmin) return;
+        const modal = document.getElementById("edit-book-modal");
+        document.getElementById("edit-book-title").value = this.bookData?.title || "";
+        document.getElementById("edit-book-description").value = this.bookData?.description || "";
+        modal.style.display = "flex";
+        modal.classList.add("active");
+    },
+
+    // 关闭编辑弹窗
+    closeEditModal() {
+        const modal = document.getElementById("edit-book-modal");
+        modal.classList.remove("active");
+        setTimeout(() => { modal.style.display = "none"; }, 200);
+    },
+
+    // 保存编辑
+    async saveBookEdit() {
+        if (!this.isAdmin) return;
+        
+        const title = document.getElementById("edit-book-title").value.trim();
+        const description = document.getElementById("edit-book-description").value.trim();
+        
+        if (!title) {
+            this.showToast("书名不能为空", "error");
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/admin/books/${this.bookId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({
+                    ...this.bookData,
+                    title,
+                    description
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error("保存失败");
+            }
+            
+            this.bookData.title = title;
+            this.bookData.description = description;
+            document.getElementById("book-title").textContent = title;
+            document.getElementById("book-description").innerHTML = description.replace(/\n/g, "<br>");
+            
+            this.showToast("保存成功", "success");
+            this.closeEditModal();
+        } catch (error) {
+            this.showToast(error.message, "error");
+        }
+    },
+
+    // 显示删除弹窗
+    showDeleteModal() {
+        if (!this.isAdmin) return;
+        const modal = document.getElementById("delete-book-modal");
+        modal.style.display = "flex";
+        modal.classList.add("active");
+    },
+
+    // 关闭删除弹窗
+    closeDeleteModal() {
+        const modal = document.getElementById("delete-book-modal");
+        modal.classList.remove("active");
+        setTimeout(() => { modal.style.display = "none"; }, 200);
+    },
+
+    // 删除书籍
+    async deleteBook(deleteType) {
+        if (!this.isAdmin) return;
+        
+        const confirmMsg = deleteType === 'all' 
+            ? '确定要删除这本书的所有数据吗？此操作不可恢复！'
+            : '确定要删除所有章节缓存吗？';
+        
+        if (!confirm(confirmMsg)) return;
+        
+        try {
+            const response = await fetch(`/api/books/${this.bookId}?deleteType=${deleteType}`, {
+                method: "DELETE",
+                credentials: "include"
+            });
+            
+            if (!response.ok) {
+                throw new Error("删除失败");
+            }
+            
+            const result = await response.json();
+            this.showToast(result.message, "success");
+            this.closeDeleteModal();
+            
+            if (deleteType === 'all') {
+                setTimeout(() => {
+                    window.location.href = "/";
+                }, 1500);
+            } else {
+                // 刷新章节列表
+                await this.loadChapters();
+            }
+        } catch (error) {
+            this.showToast(error.message, "error");
         }
     }
 };

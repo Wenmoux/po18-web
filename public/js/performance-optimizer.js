@@ -1,3 +1,11 @@
+/*
+ * File: performance-optimizer.js
+ * Input: DOM元素，浏览器API
+ * Output: 性能优化功能，包括资源预加载、图片优化、虚拟滚动等
+ * Pos: 性能优化核心模块，负责提升应用加载速度和运行流畅度
+ * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和public/js/文件夹的README.md
+ */
+
 /**
  * 性能优化模块
  * 专注于加载速度和流畅度优化
@@ -12,12 +20,13 @@
     const originalError = console.error;
     console.error = function(...args) {
         const message = args.join(' ');
-        // 忽略浏览器扩展相关的错误
+        // 忽略浏览器扩展相关的错误，但保留其他错误
         if (message.includes('chrome-extension://') || 
             message.includes('NotReadableError') ||
             message.includes('web_accessible_resources')) {
             return;
         }
+        // 保留业务错误
         originalError.apply(console, args);
     };
 
@@ -76,22 +85,89 @@
     // ==================== 2. 图片优化 ====================
     class ImageOptimizer {
         constructor() {
+            this.observer = null;
             this.init();
         }
 
         init() {
             // 使用 Intersection Observer 优化图片加载
-            this.setupProgressiveImageLoading();
+            this.setupLazyLoading();
             
             // 图片加载失败重试
             this.setupImageRetry();
             
             // WebP支持检测
             this.checkWebPSupport();
+            
+            // 设置渐进式加载
+            this.setupProgressiveImageLoading();
+        }
+
+        setupLazyLoading() {
+            // 使用 Intersection Observer 实现真正的懒加载
+            if ('IntersectionObserver' in window) {
+                this.observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const img = entry.target;
+                            
+                            // 如果有 data-src，加载真实图片
+                            if (img.dataset.src) {
+                                img.src = img.dataset.src;
+                                img.removeAttribute('data-src');
+                            }
+                            
+                            // 如果有 data-srcset，加载响应式图片
+                            if (img.dataset.srcset) {
+                                img.srcset = img.dataset.srcset;
+                                img.removeAttribute('data-srcset');
+                            }
+                            
+                            // 停止观察
+                            this.observer.unobserve(img);
+                        }
+                    });
+                }, {
+                    rootMargin: '50px', // 提前50px开始加载
+                    threshold: 0.01
+                });
+                
+                // 观察所有带 data-src 的图片
+                document.addEventListener('DOMContentLoaded', () => {
+                    this.observeImages();
+                });
+                
+                // 监听DOM变化，观察新添加的图片
+                const mutationObserver = new MutationObserver(() => {
+                    this.observeImages();
+                });
+                
+                mutationObserver.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+            } else {
+                // 降级：直接加载所有图片
+                document.addEventListener('DOMContentLoaded', () => {
+                    document.querySelectorAll('img[data-src]').forEach(img => {
+                        img.src = img.dataset.src;
+                        img.removeAttribute('data-src');
+                    });
+                });
+            }
+        }
+
+        observeImages() {
+            if (!this.observer) return;
+            
+            const images = document.querySelectorAll('img[data-src]:not([src]), img[data-srcset]:not([srcset])');
+            images.forEach(img => {
+                this.observer.observe(img);
+            });
         }
 
         setupProgressiveImageLoading() {
-            // 为所有图片添加渐进式加载
+            // 为所有图片添加渐进式加载效果
             document.addEventListener('DOMContentLoaded', () => {
                 const images = document.querySelectorAll('img');
                 images.forEach(img => {
@@ -548,24 +624,30 @@
         setTimeout(() => {
             if (window.performance && window.performance.timing) {
                 const timing = performance.timing;
-                const loadTime = timing.loadEventEnd - timing.navigationStart;
-                const domReady = timing.domContentLoadedEventEnd - timing.navigationStart;
+                
+                // 修复：使用 fetchStart 或 domainLookupStart 作为起点
+                const startPoint = timing.fetchStart || timing.domainLookupStart || timing.navigationStart;
+                const loadTime = timing.loadEventEnd - startPoint;
+                const domReady = timing.domContentLoadedEventEnd - startPoint;
                 const firstPaint = performance.getEntriesByType('paint')[0];
+                
+                // 过滤异常的加载时间（超过60秒可能是统计错误）
+                const displayLoadTime = loadTime > 60000 ? domReady : loadTime;
                 
                 console.log('%c📊 [性能统计]', 'color: #4CAF50; font-weight: bold; font-size: 16px; padding: 10px 0;');
                 console.log('%c──────────────────────────────', 'color: #ddd');
-                console.log(`%c⏱️  页面加载: ${loadTime}ms`, loadTime < 2000 ? 'color: #4CAF50; font-weight: bold' : loadTime < 3000 ? 'color: #FF9800' : 'color: #f44336');
+                console.log(`%c⏱️  页面加载: ${displayLoadTime}ms`, displayLoadTime < 2000 ? 'color: #4CAF50; font-weight: bold' : displayLoadTime < 3000 ? 'color: #FF9800' : 'color: #f44336');
                 console.log(`%c📦  DOM解析: ${domReady}ms`, domReady < 1500 ? 'color: #4CAF50' : domReady < 2000 ? 'color: #FF9800' : 'color: #f44336');
                 if (firstPaint) {
                     const fpTime = firstPaint.startTime.toFixed(0);
                     console.log(`%c🎨  首次绘制: ${fpTime}ms`, fpTime < 1000 ? 'color: #4CAF50' : fpTime < 1500 ? 'color: #FF9800' : 'color: #f44336');
                 }
 
-                // 性能评分
+                // 性能评分（使用修正后的时间）
                 let score = 100;
-                if (loadTime > 2000) score -= 10;
-                if (loadTime > 3000) score -= 20;
-                if (loadTime > 5000) score -= 30;
+                if (displayLoadTime > 2000) score -= 10;
+                if (displayLoadTime > 3000) score -= 20;
+                if (displayLoadTime > 5000) score -= 30;
                 if (domReady > 1500) score -= 10;
                 if (domReady > 2000) score -= 20;
                 
@@ -602,11 +684,29 @@
 
                 // 在页面上显示性能徽章（仅开发环境）
                 if (window.location.hostname === 'localhost') {
-                    showPerformanceBadge(score, loadTime);
+                    showPerformanceBadge(score, displayLoadTime);
+                }
+                
+                // 如果图片加载慢，给出优化建议
+                const slowImages = resources.filter(r => 
+                    isImageResource(r.name) && r.duration > 3000
+                );
+                if (slowImages.length > 0) {
+                    console.log('%c💡 优化建议:', 'color: #2196F3; font-weight: bold');
+                    console.log('   检测到慢速图片加载，建议：');
+                    console.log('   1. 启用图片懒加载');
+                    console.log('   2. 使用 CDN 加速图片');
+                    console.log('   3. 压缩图片大小（建议<200KB）');
+                    console.log('   4. 使用 WebP 格式');
                 }
             }
         }, 0);
     });
+
+    // 判断是否为图片资源
+    function isImageResource(url) {
+        return /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)$/i.test(url);
+    }
 
     // 显示性能徽章
     function showPerformanceBadge(score, loadTime) {

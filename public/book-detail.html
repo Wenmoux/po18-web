@@ -91,7 +91,22 @@
                                     >
                                         <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
                                     </svg>
-                                    加入书架
+                                    收入芸香
+                                </button>
+                                <button class="btn btn-tonal" id="btn-add-to-list" style="border-color: #9c27b0; color: #9c27b0">
+                                    <svg
+                                        width="20"
+                                        height="20"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                        <line x1="12" y1="8" x2="12" y2="16"></line>
+                                        <line x1="8" y1="12" x2="16" y2="12"></line>
+                                    </svg>
+                                    加入书单
                                 </button>
                                 <button class="btn btn-outline" id="btn-download">
                                     <svg
@@ -147,7 +162,14 @@
                                         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                                         <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                                     </svg>
-                                    <span id="subscribe-text">订阅更新</span>
+                                    <span id="subscribe-text">青鸟约</span>
+                                </button>
+                                <!-- 管理员操作按钮 -->
+                                <button class="btn btn-outline admin-only" id="btn-edit-book" style="display: none; border-color: #2196f3; color: #2196f3;">
+                                    ✏️ 编辑信息
+                                </button>
+                                <button class="btn btn-outline admin-only" id="btn-delete-book" style="display: none; border-color: #f44336; color: #f44336;">
+                                    🗑️ 删除书籍
                                 </button>
                             </div>
                         </div>
@@ -352,10 +374,95 @@
         <!-- Toast提示 -->
         <div id="toast-container" class="toast-container"></div>
 
+        <!-- 编辑书籍弹窗 -->
+        <div class="modal-overlay" id="edit-book-modal" style="display: none">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3>✏️ 编辑书籍信息</h3>
+                    <button class="modal-close" onclick="BookDetail.closeEditModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>书名：</label>
+                        <input type="text" id="edit-book-title" class="md-input" />
+                    </div>
+                    <div class="form-group">
+                        <label>简介：</label>
+                        <textarea id="edit-book-description" class="md-textarea" rows="6"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="BookDetail.closeEditModal()">取消</button>
+                    <button class="btn btn-primary" onclick="BookDetail.saveBookEdit()">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 删除书籍弹窗 -->
+        <div class="modal-overlay" id="delete-book-modal" style="display: none">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3>🗑️ 删除书籍</h3>
+                    <button class="modal-close" onclick="BookDetail.closeDeleteModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p style="margin-bottom: 20px; color: #666;">请选择删除方式：</p>
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <button class="btn btn-outline" onclick="BookDetail.deleteBook('chapters')" style="border-color: #ff9800; color: #ff9800;">
+                            📄 仅删除章节数据
+                        </button>
+                        <button class="btn btn-outline" onclick="BookDetail.deleteBook('all')" style="border-color: #f44336; color: #f44336;">
+                            🗑️ 删除全部数据（包括元信息）
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="BookDetail.closeDeleteModal()">取消</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 加入书单弹窗 -->
+        <div class="modal-overlay" id="add-to-list-modal" style="display: none">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3>📚 加入书单</h3>
+                    <button class="modal-close" onclick="closeAddToListModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>选择书单：</label>
+                        <div id="book-lists-container" class="book-lists-selector">
+                            <p class="empty-message">加载中...</p>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="book-note">添加备注（可选）：</label>
+                        <textarea id="book-note" class="md-textarea" rows="3" placeholder="例如：强烈推荐、必读经典..."></textarea>
+                    </div>
+                    <div class="form-error" id="add-to-list-error"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="closeAddToListModal()">取消</button>
+                    <button class="btn btn-primary" id="confirm-add-to-list">确定</button>
+                </div>
+            </div>
+        </div>
+
         <!-- 引入脚本 -->
         <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
         <script src="js/generator.js"></script>
         <script src="js/api.js"></script>
+        <script>
+            // 关闭加入书单弹窗
+            function closeAddToListModal() {
+                const modal = document.getElementById("add-to-list-modal");
+                modal.classList.remove("active");
+                setTimeout(() => {
+                    modal.style.display = "none";
+                }, 200);
+            }
+        </script>
         <script src="js/book-detail.js"></script>
     </body>
 </html>

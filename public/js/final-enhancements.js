@@ -1,3 +1,11 @@
+/*
+ * File: final-enhancements.js
+ * Input: app.js, utils.js, DOM元素
+ * Output: 最终增强功能，包括虚拟滚动、动画增强、本地存储应用等
+ * Pos: 最终优化模块，完善用户体验和性能优化
+ * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和public/js/文件夹的README.md
+ */
+
 /**
  * 最终增强功能应用
  * 应用所有剩余的优化功能
@@ -119,11 +127,6 @@
                         <div class="ranking-info" style="cursor: pointer;" onclick="window.location.href='/book-detail.html?id=${book.book_id}'">
                             <div class="ranking-title">${this.escapeHtml(book.title)}</div>
                             <div class="ranking-author">作者：${this.escapeHtml(book.author || '未知')}</div>
-                            <div class="ranking-meta">
-                                <span>${this.formatNumber(book.total_chapters || 0)} 章</span>
-                                <span>${this.formatNumber(book.word_count || 0)} 字</span>
-                                <span>${statusText}</span>
-                            </div>
                         </div>
                         <div class="ranking-stats">
                             <div class="ranking-value">${statValue}</div>
@@ -144,10 +147,12 @@
         const showModalOriginal = window.App?.showModal;
         if (showModalOriginal) {
             App.showModal = function(id) {
+                // 先调用原始方法设置display
+                showModalOriginal.call(this, id);
+                
                 const modal = document.getElementById(id);
                 if (modal) {
                     modal.classList.add('active');
-                    modal.style.display = 'flex';
                     
                     // 使用淡入动画
                     const modalDialog = modal.querySelector('.modal');
@@ -161,7 +166,6 @@
                         }, 10);
                     }
                 }
-                return showModalOriginal.call(this, id);
             };
         }
 

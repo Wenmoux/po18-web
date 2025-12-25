@@ -1,3 +1,11 @@
+/*
+ * File: config.js
+ * Input: 环境变量process.env
+ * Output: 全局配置对象，包含服务器、Session、PO18、数据库、下载、共享等配置
+ * Pos: 全局配置中心，为所有服务端模块提供统一的配置参数
+ * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和所属server/文件夹的README.md
+ */
+
 /**
  * PO18小说下载网站 - 配置文件
  */
@@ -61,7 +69,39 @@ module.exports = {
 
     // 注册配置
     registration: {
-        enabled: true // 是否开放注册，管理员可通过后台切换
+        enabled: true // 默认值，会从数据库读取实际值
+    },
+
+    // 获取注册状态（从数据库读取）
+    getRegistrationEnabled() {
+        try {
+            const db = require('better-sqlite3')('./data/po18.db');
+            const result = db.prepare("SELECT value FROM system_config WHERE key = 'registration_enabled'").get();
+            if (result) {
+                return result.value === '1' || result.value === 'true';
+            }
+            return this.registration.enabled; // 如果数据库中没有，返回默认值
+        } catch (error) {
+            console.error('读取注册配置失败:', error);
+            return this.registration.enabled;
+        }
+    },
+
+    // 设置注册状态（保存到数据库）
+    setRegistrationEnabled(enabled) {
+        try {
+            const db = require('better-sqlite3')('./data/po18.db');
+            db.prepare(`
+                INSERT INTO system_config (key, value, updated_at) 
+                VALUES ('registration_enabled', ?, datetime('now'))
+                ON CONFLICT(key) DO UPDATE SET value = ?, updated_at = datetime('now')
+            `).run(enabled ? '1' : '0', enabled ? '1' : '0');
+            this.registration.enabled = enabled;
+            return true;
+        } catch (error) {
+            console.error('保存注册配置失败:', error);
+            return false;
+        }
     },
 
     // 数据库配置

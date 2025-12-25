@@ -1,3 +1,11 @@
+/*
+ * File: utils.js
+ * Input: 无直接外部依赖
+ * Output: 工具类和函数，包括防抖节流、懒加载、Toast通知、本地存储、表单验证等
+ * Pos: 通用工具库，为所有模块提供通用功能和性能优化
+ * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和public/js/文件夹的README.md
+ */
+
 /**
  * 工具函数库 - 性能优化和通用功能
  */
@@ -51,31 +59,43 @@ class LazyImageLoader {
     }
 
     handleIntersection(entries) {
-        entries.forEach((entry) => {
+        entries.forEach(entry => {
             if (entry.isIntersecting) {
-                this.loadImage(entry.target);
-                this.observer.unobserve(entry.target);
+                const img = entry.target;
+                this.loadImage(img);
+                this.observer.unobserve(img);
             }
         });
     }
 
     loadImage(img) {
-        const src = img.dataset.src;
-        if (!src) return;
-
-        img.src = src;
-        img.classList.add("loaded");
-        img.removeAttribute("data-src");
-    }
-
-    loadAllImages() {
-        const images = document.querySelectorAll("img[data-src]");
-        images.forEach((img) => this.loadImage(img));
+        if (img.dataset.src) {
+            img.src = img.dataset.src;
+            img.removeAttribute('data-src');
+        }
+        if (img.dataset.srcset) {
+            img.srcset = img.dataset.srcset;
+            img.removeAttribute('data-srcset');
+        }
     }
 
     observe() {
-        const images = document.querySelectorAll("img[data-src]");
-        images.forEach((img) => this.observer.observe(img));
+        const images = document.querySelectorAll('img[data-src], img[data-srcset]');
+        images.forEach(img => this.observer.observe(img));
+    }
+
+    loadAllImages() {
+        const images = document.querySelectorAll('img[data-src], img[data-srcset]');
+        images.forEach(img => this.loadImage(img));
+    }
+
+    // 添加新图片到观察列表
+    observeNew(img) {
+        if (this.observer && (img.dataset.src || img.dataset.srcset)) {
+            this.observer.observe(img);
+        } else {
+            this.loadImage(img);
+        }
     }
 
     disconnect() {

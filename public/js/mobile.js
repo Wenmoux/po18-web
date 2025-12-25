@@ -1,3 +1,11 @@
+/*
+ * File: mobile.js
+ * Input: 触摸事件，DOM元素
+ * Output: MobileEnhance对象，提供滑动手势、双击放大、下拉刷新等移动端交互
+ * Pos: 移动端适配核心模块，优化移动设备交互体验
+ * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和public/js/文件夹的README.md
+ */
+
 /**
  * PO18书库 - 移动端交互增强模块
  */

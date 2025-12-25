@@ -1,3 +1,11 @@
+/*
+ * File: backup.js
+ * Input: database.js, logger.js, config.js, 本地文件系统
+ * Output: DatabaseBackup类，提供数据库备份、恢复、自动清理旧备份等功能
+ * Pos: 数据库备份模块，定期备份用户数据，支持全量和增量备份，防止数据丢失
+ * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和所属server/文件夹的README.md
+ */
+
 /**
  * PO18小说下载网站 - 数据库备份与恢复模块
  */

@@ -1,3 +1,11 @@
+/*
+ * File: logger.js
+ * Input: date-fns, 本地文件系统
+ * Output: Logger类，提供多级别日志记录（error/warn/info/debug）和日志查询功能
+ * Pos: 日志系统，记录用户操作、管理员操作、API请求、系统错误等日志，支持文件持久化
+ * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和所属server/文件夹的README.md
+ */
+
 /**
  * PO18小说下载网站 - 日志管理模块
  */

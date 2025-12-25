@@ -1,3 +1,11 @@
+/*
+ * File: generator.js
+ * Input: JSZip库，书籍数据和章节内容
+ * Output: FileGenerator对象，提供生成TXT/HTML/EPUB格式文件的功能
+ * Pos: 文件生成模块，处理多种格式电子书的生成
+ * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和public/js/文件夹的README.md
+ */
+
 /**
  * 文件生成器 - 用于生成 EPUB 和 TXT 格式的电子书
  */
