@@ -52,6 +52,21 @@
             }
             .skeleton-card { height: 120px; margin-bottom: 16px; }
             #app { min-height: 100vh; }
+            /* 强制隐藏旧书架容器 */
+            #bookshelf-list {
+                display: none !important;
+                visibility: hidden !important;
+                position: absolute !important;
+                left: -9999px !important;
+                opacity: 0 !important;
+                pointer-events: none !important;
+                height: 0 !important;
+                overflow: hidden !important;
+            }
+            /* 确保智能书架容器显示 */
+            #bookshelf-container {
+                display: block !important;
+            }
         </style>
 
         <link rel="stylesheet" href="css/style.css?v=20251224e" />
@@ -100,10 +115,8 @@
                     <button class="btn btn-outline" id="btn-register">注册</button>
                 </div>
                 <div class="user-info" id="user-info" style="display: none">
-                    <span id="username-display"></span>
                     <a href="/admin.html" id="admin-link" class="btn btn-sm btn-tonal" style="display: none">📊 管理</a>
                     <button class="theme-toggle" id="theme-toggle" title="切换主题">🌙</button>
-                    <button class="btn btn-sm btn-tonal" id="btn-settings">⚙️ 设置</button>
                     <button class="btn btn-sm btn-outline" id="btn-logout">登出</button>
                 </div>
             </header>
@@ -389,8 +402,8 @@
                         <p class="page-subtitle">记录你的阅读历程</p>
                     </div>
 
-                    <!-- 筛选和排序 -->
-                    <div class="filter-bar">
+                    <!-- 筛选和排序 - 已隐藏，使用智能书架的标签筛选器 -->
+                    <div class="filter-bar" style="display: none !important; visibility: hidden !important;">
                         <select id="bookshelf-sort-select" class="md-select">
                             <option value="recent">最近阅读</option>
                             <option value="progress">阅读进度</option>
@@ -399,9 +412,65 @@
                         </select>
                     </div>
 
-                    <!-- 书架列表 -->
-                    <div class="bookshelf-list" id="bookshelf-list">
-                        <p class="empty-message">书架空空如也，快去添加你喜欢的书籍吧</p>
+                    <!-- 智能书架容器 -->
+                    <div id="bookshelf-container">
+                        <!-- 标签筛选器 -->
+                        <div class="tag-filters" id="tag-filters-container"></div>
+
+                        <!-- 批量操作栏 -->
+                        <div class="bookshelf-batch-actions" id="bookshelf-batch-actions" style="display: none;">
+                            <div class="batch-info">
+                                <span>已选择 <span id="batch-count">0</span> 本书</span>
+                            </div>
+                            <div class="batch-controls">
+                                <select id="batch-tag-select" class="md-select">
+                                    <option value="">选择标签</option>
+                                </select>
+                                <button class="btn btn-sm btn-primary" id="batch-apply-tag">应用标签</button>
+                                <button class="btn btn-sm btn-outline" id="batch-mark-read">标记已读</button>
+                                <button class="btn btn-sm btn-outline" id="batch-mark-unread">标记未读</button>
+                                <button class="btn btn-sm btn-outline" id="batch-cancel">取消</button>
+                            </div>
+                        </div>
+
+                        <!-- 批量操作按钮 -->
+                        <div class="bookshelf-toolbar">
+                            <button class="btn btn-outline btn-sm" id="bookshelf-batch-mode">批量操作</button>
+                        </div>
+
+                        <!-- 书架列表（智能分组） -->
+                        <div class="bookshelf-groups">
+                            <div id="bookshelf-group-reading" class="bookshelf-group" style="display: none;">
+                                <h3 class="group-title">📖 阅读中</h3>
+                                <div class="bookshelf-list" id="bookshelf-list-reading"></div>
+                            </div>
+                            <div id="bookshelf-group-to-read" class="bookshelf-group" style="display: none;">
+                                <h3 class="group-title">📚 待读</h3>
+                                <div class="bookshelf-list" id="bookshelf-list-to-read"></div>
+                            </div>
+                            <div id="bookshelf-group-finished" class="bookshelf-group" style="display: none;">
+                                <h3 class="group-title">✅ 已读完</h3>
+                                <div class="bookshelf-list" id="bookshelf-list-finished"></div>
+                            </div>
+                            <div id="bookshelf-group-dropped" class="bookshelf-group" style="display: none;">
+                                <h3 class="group-title">🗑️ 已弃</h3>
+                                <div class="bookshelf-list" id="bookshelf-list-dropped"></div>
+                            </div>
+                            <div id="bookshelf-group-default" class="bookshelf-group" style="display: none;">
+                                <h3 class="group-title">📦 未分类</h3>
+                                <div class="bookshelf-list" id="bookshelf-list-default"></div>
+                            </div>
+                        </div>
+
+                        <!-- 空状态 -->
+                        <div id="bookshelf-empty" class="empty-message" style="display: none;">
+                            <p>书架空空如也，快去添加你喜欢的书籍吧</p>
+                        </div>
+
+                        <!-- 兼容旧版：保留原有列表容器（默认隐藏） -->
+                        <div class="bookshelf-list" id="bookshelf-list" style="display: none !important; visibility: hidden !important; position: absolute !important; left: -9999px !important; opacity: 0 !important; pointer-events: none !important;">
+                            <p class="empty-message">书架空空如也，快去添加你喜欢的书籍吧</p>
+                        </div>
                     </div>
                 </section>
 
@@ -529,7 +598,7 @@
                                 <input type="number" id="global-max-words" class="md-input" placeholder="最多字数" />
                             </div>
                             <button class="btn btn-primary" id="global-filter-btn">筛选</button>
-                  
+                            <button class="btn btn-outline" id="global-reset-btn">重置</button>
                         </div>
                     </div>
 
@@ -1376,6 +1445,48 @@
         <script src="js/api.js?v=20251224e"></script>
         <script src="js/mobile.js?v=20251224e"></script>
         <script src="js/app.js?v=20251224e"></script>
+        <script src="js/smart-bookshelf.js?v=20251224e"></script>
+        
+        <!-- 确保智能书架正确初始化 -->
+        <script>
+            // 立即强制隐藏旧容器
+            (function() {
+                function hideOldContainer() {
+                    const oldContainer = document.getElementById('bookshelf-list');
+                    if (oldContainer && document.getElementById('bookshelf-container')) {
+                        oldContainer.style.display = 'none';
+                        oldContainer.style.visibility = 'hidden';
+                        oldContainer.style.position = 'absolute';
+                        oldContainer.style.left = '-9999px';
+                    }
+                }
+                
+                // 立即执行
+                hideOldContainer();
+                
+                // DOM加载后再次执行
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', hideOldContainer);
+                }
+                
+                // 页面完全加载后再次执行
+                window.addEventListener('load', function() {
+                    hideOldContainer();
+                    setTimeout(function() {
+                        hideOldContainer();
+                        // 如果书架数据已加载，触发渲染
+                        if (window.App && window.App.bookshelfData) {
+                            if (window.SmartBookshelf && window.SmartBookshelf.render) {
+                                window.SmartBookshelf.render();
+                            }
+                        }
+                    }, 200);
+                });
+                
+                // 定期检查并隐藏（防止被其他脚本显示）
+                setInterval(hideOldContainer, 500);
+            })();
+        </script>
         <script src="js/final-enhancements.js?v=20251224e"></script>
 
         <!-- PWA Service Worker 注册 -->

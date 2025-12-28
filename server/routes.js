@@ -1,6 +1,6 @@
 /*
  * File: routes.js
- * Input: Express Router, database.js, crawler.js, webdav.js, config.js, logger.js, backup.js, monitor.js, analytics.js
+ * Input: Express Router, database.js, crawler.js, webdav.js, config.js, logger.js, backup.js, monitor.js
  * Output: Express路由实例，定义所有RESTful API端点
  * Pos: API路由层，处理所有HTTP请求，调用对应的业务逻辑模块
  * Note: ⚠️ 一旦此文件被更新，请同步更新文件头注释和所属server/文件夹的README.md
@@ -31,6 +31,7 @@ const {
     WebDAVConfigDB,
     ChapterCacheDB,
     BookshelfDB,
+    BookshelfCategoryDB,
     ReadingStatsDB,
     SubscriptionDB,
     BookListDB,
@@ -42,7 +43,6 @@ const config = require("./config");
 const { logger } = require("./logger");
 const { databaseBackup } = require("./backup");
 const { performanceMonitor } = require("./monitor");
-const { userAnalytics } = require("./analytics");
 
 // ==================== ID遍历爬取状态 ====================
 const crawlerState = {
@@ -627,6 +627,48 @@ router.post("/webdav/test", requireLogin, async (req, res) => {
 // ==================== 搜索 API ====================
 
 // 搜索小说
+// 获取预设字体列表
+router.get("/fonts", async (req, res) => {
+    try {
+        const fontsDir = path.join(__dirname, "../data/fonts");
+        const fontFiles = [];
+        
+        // 检查目录是否存在
+        if (!fs.existsSync(fontsDir)) {
+            return res.json({ fonts: [] });
+        }
+        
+        // 读取目录中的所有文件
+        const files = fs.readdirSync(fontsDir);
+        const validExtensions = ['.ttf', '.otf', '.woff', '.woff2'];
+        
+        for (const file of files) {
+            const filePath = path.join(fontsDir, file);
+            const stat = fs.statSync(filePath);
+            
+            // 只处理文件（不包括目录和 README.md）
+            if (stat.isFile() && file !== 'README.md') {
+                const ext = path.extname(file).toLowerCase();
+                if (validExtensions.includes(ext)) {
+                    const fontName = path.basename(file, ext);
+                    fontFiles.push({
+                        name: fontName,
+                        filename: file,
+                        url: `/data/fonts/${file}`,
+                        format: ext.substring(1) // 移除点号
+                    });
+                }
+            }
+        }
+        
+        res.json({ fonts: fontFiles });
+    } catch (error) {
+        console.error("获取字体列表失败:", error);
+        logger.error("获取字体列表失败", { error: error.message });
+        res.status(500).json({ error: "获取字体列表失败" });
+    }
+});
+
 // 搜索书籍（从元信息数据库搜索，关联共享书库）
 router.get("/search", requireLogin, async (req, res) => {
     try {
@@ -2599,10 +2641,10 @@ router.get("/global-library", requireLogin, async (req, res) => {
                 orderBy = "m.latest_chapter_date DESC";
                 break;
             case "favorites":
-                orderBy = "m.favorite_count DESC";
+                orderBy = "m.favorites_count DESC"; // 修复：使用正确的字段名 favorites_count
                 break;
             case "comments":
-                orderBy = "m.comment_count DESC";
+                orderBy = "m.comments_count DESC"; // 修复：使用正确的字段名 comments_count
                 break;
             case "wordcount":
                 orderBy = "m.word_count DESC";
@@ -4171,6 +4213,148 @@ router.put("/bookshelf/:bookId/reading-time", requireLogin, (req, res) => {
     }
 });
 
+// ==================== 书架分类管理 API ====================
+
+// 获取用户的所有分类
+router.get("/bookshelf/categories", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const categories = BookshelfCategoryDB.getByUser(userId);
+        res.json({ success: true, data: categories });
+    } catch (error) {
+        logger.error("获取分类列表失败", { error: error.message });
+        res.status(500).json({ success: false, error: "获取分类列表失败" });
+    }
+});
+
+// 创建分类
+router.post("/bookshelf/categories", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const { name, color, icon, sortOrder } = req.body;
+        
+        if (!name || !name.trim()) {
+            return res.status(400).json({ success: false, error: "分类名称不能为空" });
+        }
+        
+        // 检查分类名称是否已存在
+        if (BookshelfCategoryDB.exists(userId, name.trim())) {
+            return res.status(400).json({ success: false, error: "分类名称已存在" });
+        }
+        
+        const result = BookshelfCategoryDB.create(userId, name.trim(), color, icon, sortOrder);
+        res.json({ success: true, data: { id: result.lastInsertRowid } });
+    } catch (error) {
+        logger.error("创建分类失败", { error: error.message });
+        res.status(500).json({ success: false, error: "创建分类失败" });
+    }
+});
+
+// 更新分类
+router.put("/bookshelf/categories/:categoryId", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const { categoryId } = req.params;
+        const { name, color, icon, sortOrder } = req.body;
+        
+        // 检查分类是否存在
+        const category = BookshelfCategoryDB.get(parseInt(categoryId), userId);
+        if (!category) {
+            return res.status(404).json({ success: false, error: "分类不存在" });
+        }
+        
+        // 如果修改了名称，检查新名称是否已存在
+        if (name && name.trim() !== category.name) {
+            if (BookshelfCategoryDB.exists(userId, name.trim(), parseInt(categoryId))) {
+                return res.status(400).json({ success: false, error: "分类名称已存在" });
+            }
+        }
+        
+        BookshelfCategoryDB.update(
+            parseInt(categoryId),
+            userId,
+            name ? name.trim() : category.name,
+            color !== undefined ? color : category.color,
+            icon !== undefined ? icon : category.icon,
+            sortOrder !== undefined ? sortOrder : category.sort_order
+        );
+        
+        res.json({ success: true });
+    } catch (error) {
+        logger.error("更新分类失败", { error: error.message });
+        res.status(500).json({ success: false, error: "更新分类失败" });
+    }
+});
+
+// 删除分类
+router.delete("/bookshelf/categories/:categoryId", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const { categoryId } = req.params;
+        
+        // 检查分类是否存在
+        const category = BookshelfCategoryDB.get(parseInt(categoryId), userId);
+        if (!category) {
+            return res.status(404).json({ success: false, error: "分类不存在" });
+        }
+        
+        BookshelfCategoryDB.delete(parseInt(categoryId), userId);
+        res.json({ success: true });
+    } catch (error) {
+        logger.error("删除分类失败", { error: error.message });
+        res.status(500).json({ success: false, error: "删除分类失败" });
+    }
+});
+
+// 更新书籍分类
+router.put("/bookshelf/:bookId/category", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const { bookId } = req.params;
+        const { categoryId } = req.body;
+        
+        // 如果提供了categoryId，验证分类是否存在且属于当前用户
+        if (categoryId !== null && categoryId !== undefined) {
+            const category = BookshelfCategoryDB.get(parseInt(categoryId), userId);
+            if (!category) {
+                return res.status(404).json({ success: false, error: "分类不存在" });
+            }
+        }
+        
+        BookshelfDB.updateCategory(userId, bookId, categoryId ? parseInt(categoryId) : null);
+        res.json({ success: true });
+    } catch (error) {
+        logger.error("更新书籍分类失败", { error: error.message });
+        res.status(500).json({ success: false, error: "更新书籍分类失败" });
+    }
+});
+
+// 批量更新书籍分类
+router.put("/bookshelf/batch/category", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const { bookIds, categoryId } = req.body;
+        
+        if (!Array.isArray(bookIds) || bookIds.length === 0) {
+            return res.status(400).json({ success: false, error: "请选择至少一本书" });
+        }
+        
+        // 如果提供了categoryId，验证分类是否存在且属于当前用户
+        if (categoryId !== null && categoryId !== undefined) {
+            const category = BookshelfCategoryDB.get(parseInt(categoryId), userId);
+            if (!category) {
+                return res.status(404).json({ success: false, error: "分类不存在" });
+            }
+        }
+        
+        BookshelfDB.batchUpdateCategory(userId, bookIds, categoryId ? parseInt(categoryId) : null);
+        res.json({ success: true });
+    } catch (error) {
+        logger.error("批量更新书籍分类失败", { error: error.message });
+        res.status(500).json({ success: false, error: "批量更新书籍分类失败" });
+    }
+});
+
 // 获取阅读统计数据（热力图）
 router.get("/user/reading-stats", requireLogin, (req, res) => {
     try {
@@ -4610,43 +4794,43 @@ router.post("/admin/backup/compress", requireAdmin, logAdminAction("压缩备份
 // ==================== 性能监控 API ====================
 
 // 获取系统监控数据
-router.get("/admin/monitor/system-stats", requireLogin, (req, res) => {
+router.get("/admin/monitor/system-stats", requireLogin, async (req, res) => {
     try {
-        // 获取CPU信息
-        const cpuUsage = Math.floor(Math.random() * 80) + 10; // 模拟CPU使用率 10-90%
+        // 使用性能监控器获取实时数据
+        const currentStatus = performanceMonitor.getCurrentStatus();
         
-        // 获取内存信息
-        const totalMem = os.totalmem();
-        const freeMem = os.freemem();
-        const usedMem = totalMem - freeMem;
-        const memoryUsagePercent = Math.round((usedMem / totalMem) * 100);
-        
-        // 获取磁盘信息
-        const diskUsagePercent = Math.floor(Math.random() * 70) + 20; // 模拟磁盘使用率 20-90%
-        
-        // 获取网络信息（模拟数据）
-        const networkRx = Math.floor(Math.random() * 1000); // KB/s
-        const networkTx = Math.floor(Math.random() * 800);  // KB/s
+        if (!currentStatus) {
+            // 如果还没有收集到数据，立即收集一次
+            await performanceMonitor.collectMetrics();
+            const status = performanceMonitor.getCurrentStatus();
+            
+            if (!status) {
+                return res.status(503).json({ error: "性能监控数据尚未就绪" });
+            }
+            
+            return res.json({
+                timestamp: status.timestamp,
+                cpu: status.system.cpu,
+                memory: status.system.memory,
+                disk: status.system.disk,
+                process: status.process,
+                database: status.database,
+                api: status.api,
+                uptime: status.system.uptime,
+                loadavg: status.system.loadavg
+            });
+        }
         
         res.json({
-            timestamp: new Date().toISOString(),
-            cpu: {
-                usage: cpuUsage,
-                cores: os.cpus().length
-            },
-            memory: {
-                total: totalMem,
-                used: usedMem,
-                free: freeMem,
-                usagePercent: memoryUsagePercent
-            },
-            disk: {
-                usagePercent: diskUsagePercent
-            },
-            network: {
-                rx_bytes: networkRx * 1024,
-                tx_bytes: networkTx * 1024
-            }
+            timestamp: currentStatus.timestamp,
+            cpu: currentStatus.system.cpu,
+            memory: currentStatus.system.memory,
+            disk: currentStatus.system.disk,
+            process: currentStatus.process,
+            database: currentStatus.database,
+            api: currentStatus.api,
+            uptime: currentStatus.system.uptime,
+            loadavg: currentStatus.system.loadavg
         });
     } catch (error) {
         logger.error("获取系统监控数据失败", { error: error.message });
@@ -4657,15 +4841,15 @@ router.get("/admin/monitor/system-stats", requireLogin, (req, res) => {
 // 获取告警配置
 router.get("/admin/monitor/alert-config", requireLogin, (req, res) => {
     try {
-        // 从数据库或其他存储中获取告警配置
-        // 这里我们返回默认配置
-        const config = {
-            cpuThreshold: 80,
-            memoryThreshold: 85,
-            diskThreshold: 90
-        };
+        // 从性能监控器获取当前告警阈值
+        const thresholds = performanceMonitor.getAlertThresholds();
         
-        res.json(config);
+        res.json({
+            cpuThreshold: thresholds.cpu,
+            memoryThreshold: thresholds.memory,
+            diskThreshold: thresholds.disk,
+            responseTimeThreshold: thresholds.responseTime
+        });
     } catch (error) {
         logger.error("获取告警配置失败", { error: error.message });
         res.status(500).json({ error: "获取告警配置失败" });
@@ -4675,17 +4859,30 @@ router.get("/admin/monitor/alert-config", requireLogin, (req, res) => {
 // 保存告警配置
 router.post("/admin/monitor/alert-config", requireLogin, (req, res) => {
     try {
-        const { cpuThreshold, memoryThreshold, diskThreshold } = req.body;
+        const { cpuThreshold, memoryThreshold, diskThreshold, responseTimeThreshold } = req.body;
         
         // 验证参数
-        if (cpuThreshold < 0 || cpuThreshold > 100 ||
-            memoryThreshold < 0 || memoryThreshold > 100 ||
-            diskThreshold < 0 || diskThreshold > 100) {
-            return res.status(400).json({ error: "阈值必须在0-100之间" });
+        if (cpuThreshold !== undefined && (cpuThreshold < 0 || cpuThreshold > 100)) {
+            return res.status(400).json({ error: "CPU阈值必须在0-100之间" });
+        }
+        if (memoryThreshold !== undefined && (memoryThreshold < 0 || memoryThreshold > 100)) {
+            return res.status(400).json({ error: "内存阈值必须在0-100之间" });
+        }
+        if (diskThreshold !== undefined && (diskThreshold < 0 || diskThreshold > 100)) {
+            return res.status(400).json({ error: "磁盘阈值必须在0-100之间" });
+        }
+        if (responseTimeThreshold !== undefined && responseTimeThreshold < 0) {
+            return res.status(400).json({ error: "响应时间阈值必须大于0" });
         }
         
-        // 保存配置到数据库或其他存储
-        // 这里我们只是模拟保存操作
+        // 更新性能监控器的告警阈值
+        const thresholds = {};
+        if (cpuThreshold !== undefined) thresholds.cpu = cpuThreshold;
+        if (memoryThreshold !== undefined) thresholds.memory = memoryThreshold;
+        if (diskThreshold !== undefined) thresholds.disk = diskThreshold;
+        if (responseTimeThreshold !== undefined) thresholds.responseTime = responseTimeThreshold;
+        
+        performanceMonitor.setAlertThresholds(thresholds);
         
         res.json({ success: true, message: "告警配置保存成功" });
     } catch (error) {
@@ -4697,7 +4894,17 @@ router.post("/admin/monitor/alert-config", requireLogin, (req, res) => {
 // 获取数据库监控数据
 router.get("/admin/monitor/database", requireLogin, (req, res) => {
     try {
-        // 获取数据库文件大小
+        // 使用性能监控器获取数据库指标
+        const currentStatus = performanceMonitor.getCurrentStatus();
+        
+        if (currentStatus && currentStatus.database) {
+            return res.json({
+                ...currentStatus.database,
+                timestamp: currentStatus.timestamp
+            });
+        }
+        
+        // 如果监控器还没有数据，直接查询
         const dbPath = config.database.path;
         const stats = fs.statSync(dbPath);
         const dbSize = stats.size;
@@ -4707,7 +4914,6 @@ router.get("/admin/monitor/database", requireLogin, (req, res) => {
         const bookshelfCount = db.prepare("SELECT COUNT(*) as count FROM bookshelf").get().count;
         const bookMetadataCount = db.prepare("SELECT COUNT(*) as count FROM book_metadata").get().count;
         const chapterCacheCount = db.prepare("SELECT COUNT(*) as count FROM chapter_cache").get().count;
-        const readingStatsCount = db.prepare("SELECT COUNT(*) as count FROM reading_daily_stats").get().count;
         
         res.json({
             size: dbSize,
@@ -4941,129 +5147,6 @@ scheduleRankingCacheClear();
 // ==================== 用户行为分析 API ====================
 
 // 记录用户行为
-router.post("/analytics/action", requireLogin, async (req, res) => {
-    try {
-        const { action, details } = req.body;
-        const userId = req.session.userId;
-        
-        if (!action) {
-            return res.status(400).json({ 
-                success: false, 
-                error: "缺少行为类型参数" 
-            });
-        }
-        
-        await userAnalytics.logUserAction(userId, action, details || {});
-        
-        res.json({
-            success: true,
-            message: "用户行为记录成功"
-        });
-    } catch (error) {
-        logger.error("记录用户行为失败", { error: error.message });
-        res.status(500).json({ 
-            success: false, 
-            error: "记录用户行为失败: " + error.message 
-        });
-    }
-});
-
-// 获取用户阅读统计
-router.get("/analytics/reading-stats", requireLogin, async (req, res) => {
-    try {
-        const userId = req.session.userId;
-        const stats = await userAnalytics.getUserReadingStats(userId);
-        
-        res.json({
-            success: true,
-            data: stats
-        });
-    } catch (error) {
-        logger.error("获取用户阅读统计失败", { error: error.message });
-        res.status(500).json({ 
-            success: false, 
-            error: "获取用户阅读统计失败: " + error.message 
-        });
-    }
-});
-
-// 获取用户画像
-router.get("/analytics/profile", requireLogin, async (req, res) => {
-    try {
-        const userId = req.session.userId;
-        const profile = await userAnalytics.getUserProfile(userId);
-        
-        res.json({
-            success: true,
-            data: profile
-        });
-    } catch (error) {
-        logger.error("获取用户画像失败", { error: error.message });
-        res.status(500).json({ 
-            success: false, 
-            error: "获取用户画像失败: " + error.message 
-        });
-    }
-});
-
-// 获取热门书籍推荐
-router.get("/analytics/recommendations/popular", requireLogin, async (req, res) => {
-    try {
-        const userId = req.session.userId;
-        const { limit = 10 } = req.query;
-        const recommendations = await userAnalytics.generatePopularRecommendations(userId, parseInt(limit));
-        
-        res.json({
-            success: true,
-            data: recommendations
-        });
-    } catch (error) {
-        logger.error("生成热门推荐失败", { error: error.message });
-        res.status(500).json({ 
-            success: false, 
-            error: "生成热门推荐失败: " + error.message 
-        });
-    }
-});
-
-// 获取个性化书籍推荐
-router.get("/analytics/recommendations/personalized", requireLogin, async (req, res) => {
-    try {
-        const userId = req.session.userId;
-        const { limit = 10 } = req.query;
-        const recommendations = await userAnalytics.generatePersonalizedRecommendations(userId, parseInt(limit));
-        
-        res.json({
-            success: true,
-            data: recommendations
-        });
-    } catch (error) {
-        logger.error("生成个性化推荐失败", { error: error.message });
-        res.status(500).json({ 
-            success: false, 
-            error: "生成个性化推荐失败: " + error.message 
-        });
-    }
-});
-
-// 分析用户阅读习惯
-router.get("/analytics/habits", requireLogin, async (req, res) => {
-    try {
-        const userId = req.session.userId;
-        const habits = await userAnalytics.analyzeReadingHabits(userId);
-        
-        res.json({
-            success: true,
-            data: habits
-        });
-    } catch (error) {
-        logger.error("分析用户阅读习惯失败", { error: error.message });
-        res.status(500).json({ 
-            success: false, 
-            error: "分析用户阅读习惯失败: " + error.message 
-        });
-    }
-});
 
 // 调试端点：获取指定用户的分享统计
 router.get("/debug/user/:userId/share-stats", (req, res) => {

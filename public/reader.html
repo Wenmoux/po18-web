@@ -385,6 +385,22 @@
                         <button class="option-btn" data-preset-font="hei">黑体</button>
                         <button class="option-btn" data-preset-font="fangsong">仿宋</button>
                         <button class="option-btn" data-preset-font="ming">明体</button>
+                        <button class="option-btn" data-preset-font="custom">自定义字体</button>
+                    </div>
+                </div>
+
+                <!-- 自定义字体上传 -->
+                <div class="setting-group" id="custom-font-group" style="display: none;">
+                    <label class="setting-label">上传自定义字体</label>
+                    <div class="font-upload-section">
+                        <input type="file" id="font-file-input" accept=".ttf,.otf,.woff,.woff2" class="setting-file-input" />
+                        <small style="color: #999; font-size: 12px; display: block; margin-top: 4px">
+                            支持 TTF、OTF、WOFF、WOFF2 格式，文件大小建议不超过 5MB
+                        </small>
+                        <div id="font-upload-status" style="margin-top: 8px; font-size: 12px;"></div>
+                        <button class="btn btn-sm btn-outline" id="font-remove-btn" style="display: none; margin-top: 8px;">
+                            移除自定义字体
+                        </button>
                     </div>
                 </div>
 
@@ -547,6 +563,7 @@
         <div class="toast-container" id="toast-container"></div>
 
         <script src="js/utils.js"></script>
+        <script src="js/theme-manager.js"></script>
         <script src="js/reader.js"></script>
     </body>
 </html>

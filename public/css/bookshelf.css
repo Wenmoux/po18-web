@@ -1,10 +1,700 @@
-/* 书架页面样式 - 集成到主页Tab中 */
+/* 书架页面样式 - Material Design 3 */
 
-/* 书架列表容器 - 使用与其他页面一致的样式 */
+/* 隐藏旧版筛选栏 */
+#page-bookshelf .filter-bar,
+.page#page-bookshelf .filter-bar {
+    display: none !important;
+    visibility: hidden !important;
+}
+
+/* 智能书架容器 */
+#bookshelf-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* 标签筛选器 - MD3风格 */
+.tag-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 24px;
+    padding: 8px 0;
+}
+
+.tag-filter-btn {
+    position: relative;
+    padding: 10px 20px;
+    border: none;
+    border-radius: var(--md-radius-xl);
+    background: var(--md-surface-container-high);
+    color: var(--md-on-surface-variant);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--md-transition);
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tag-filter-btn::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--md-primary);
+    opacity: 0;
+    transition: opacity var(--md-transition);
+    border-radius: var(--md-radius-xl);
+}
+
+.tag-filter-btn:hover::before {
+    opacity: 0.08;
+}
+
+.tag-filter-btn:active::before {
+    opacity: 0.12;
+}
+
+.tag-filter-btn.active {
+    background: var(--md-primary-container);
+    color: var(--md-on-primary-container);
+}
+
+.tag-filter-btn.active::before {
+    opacity: 0;
+}
+
+.tag-filter-btn.btn-create-tag {
+    background: var(--md-primary);
+    color: var(--md-on-primary);
+    min-width: 40px;
+    padding: 10px;
+    justify-content: center;
+}
+
+.tag-filter-btn.btn-create-tag:hover {
+    background: var(--md-primary);
+    opacity: 0.9;
+}
+
+.tag-delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.1);
+    color: var(--md-on-surface-variant);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    transition: var(--md-transition);
+    margin-left: 4px;
+}
+
+.tag-delete-btn:hover {
+    background: var(--md-error);
+    color: var(--md-on-error);
+    transform: scale(1.1);
+}
+
+/* 批量操作栏 - MD3风格 */
+.bookshelf-batch-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    background: var(--md-surface-container);
+    border-radius: var(--md-radius-md);
+    margin-bottom: 20px;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.batch-info {
+    font-size: 14px;
+    color: var(--md-on-surface-variant);
+    font-weight: 500;
+}
+
+.batch-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.bookshelf-toolbar {
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* 书架分组 - MD3风格 */
+.bookshelf-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+.bookshelf-group {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.group-title {
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--md-on-surface);
+    margin: 0 0 8px 0;
+    padding: 0 4px;
+    /* 隐藏分组标题，直接显示全部书籍 */
+    display: none !important;
+}
+
+/* 标签筛选器 - MD3风格 */
+.tag-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 24px;
+    padding: 8px 0;
+}
+
+.tag-filter-btn {
+    position: relative;
+    padding: 10px 20px;
+    border: none;
+    border-radius: var(--md-radius-xl);
+    background: var(--md-surface-container-high);
+    color: var(--md-on-surface-variant);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--md-transition);
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tag-filter-btn::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--md-primary);
+    opacity: 0;
+    transition: opacity var(--md-transition);
+    border-radius: var(--md-radius-xl);
+}
+
+.tag-filter-btn:hover::before {
+    opacity: 0.08;
+}
+
+.tag-filter-btn:active::before {
+    opacity: 0.12;
+}
+
+.tag-filter-btn.active {
+    background: var(--md-primary-container);
+    color: var(--md-on-primary-container);
+}
+
+.tag-filter-btn.active::before {
+    opacity: 0;
+}
+
+.tag-filter-btn.btn-create-tag {
+    background: var(--md-primary);
+    color: var(--md-on-primary);
+    min-width: 40px;
+    padding: 10px;
+    justify-content: center;
+}
+
+.tag-filter-btn.btn-create-tag:hover {
+    background: var(--md-primary);
+    opacity: 0.9;
+}
+
+.tag-delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.1);
+    color: var(--md-on-surface-variant);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    transition: var(--md-transition);
+    margin-left: 4px;
+}
+
+.tag-delete-btn:hover {
+    background: var(--md-error);
+    color: var(--md-on-error);
+    transform: scale(1.1);
+}
+
+/* 批量操作栏 - MD3风格 */
+.bookshelf-batch-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    background: var(--md-surface-container);
+    border-radius: var(--md-radius-md);
+    margin-bottom: 20px;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.batch-info {
+    font-size: 14px;
+    color: var(--md-on-surface-variant);
+    font-weight: 500;
+}
+
+.batch-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.bookshelf-toolbar {
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* 书架分组 - MD3风格 */
+.bookshelf-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+.bookshelf-group {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.group-title {
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--md-on-surface);
+    margin: 0 0 8px 0;
+    padding: 0 4px;
+    /* 隐藏分组标题，直接显示全部书籍 */
+    display: none !important;
+}
+
+/* 书架列表容器 - MD3网格布局 */
 .bookshelf-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 16px;
+}
+
+/* 智能书架卡片 - 参考全站书库样式，精简文字 */
+.bookshelf-card {
+    position: relative;
+}
+
+.bookshelf-card.selected {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 2px;
+}
+
+/* 阅读进度信息 - 精简显示 */
+.book-progress-info {
+    margin-top: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.progress-text {
+    font-size: 12px;
+    color: var(--md-on-surface-variant);
+    font-weight: 500;
+}
+
+.progress-bar-mini {
+    height: 3px;
+    background: var(--md-surface-container-high);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--md-primary);
+    border-radius: 2px;
+    transition: width var(--md-transition);
+}
+
+/* 书籍元信息 - 精简显示 */
+.book-meta {
+    display: flex;
+    gap: 12px;
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--md-on-surface-variant);
+    flex-wrap: wrap;
+}
+
+.meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+/* 分类标签内联显示 */
+.tag-badge-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 500;
+}
+
+/* 按钮样式优化 */
+.book-card-footer .btn {
+    font-size: 13px;
+    padding: 6px 12px;
+    min-height: 32px;
+}
+
+.book-card-footer .btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* 标签选择菜单 - MD3风格 */
+.tag-select-menu {
+    position: fixed;
+    background: var(--md-surface-container-lowest);
+    border-radius: var(--md-radius-md);
+    box-shadow: var(--md-elevation-3);
+    padding: 8px 0;
+    z-index: 10000;
+    min-width: 160px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.tag-menu-item {
+    padding: 12px 16px;
+    color: var(--md-on-surface);
+    font-size: 14px;
+    cursor: pointer;
+    transition: var(--md-transition);
+}
+
+.tag-menu-item:hover {
+    background: var(--md-surface-container-high);
+}
+
+.tag-menu-item:active {
+    background: var(--md-surface-container);
+}
+
+/* 复选框样式 - MD3风格 */
+.book-checkbox {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 24px;
+    height: 24px;
+    z-index: 10;
+    cursor: pointer;
+    accent-color: var(--md-primary);
+}
+
+/* 空状态 */
+#bookshelf-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--md-on-surface-variant);
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+    #bookshelf-container {
+        padding: 12px;
+    }
+    
+    /* 智能书架列表 - 移动端2列 */
+    .bookshelf-groups .bookshelf-list {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px;
+    }
+    
+    /* 标签筛选器 - 可横向滚动 */
+    .tag-filters {
+        gap: 6px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding-bottom: 4px;
+    }
+    
+    .tag-filters::-webkit-scrollbar {
+        display: none;
+    }
+    
+    .tag-filter-btn {
+        padding: 8px 14px;
+        font-size: 12px;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    
+    .bookshelf-toolbar {
+        margin-bottom: 16px;
+    }
+    
+    .bookshelf-batch-actions {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 12px;
+        gap: 12px;
+    }
+    
+    .batch-controls {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .batch-controls .btn,
+    .batch-controls .md-select {
+        width: 100%;
+    }
+    
+    /* 书架卡片移动端优化 */
+    .bookshelf-card .book-card {
+        padding: 8px;
+    }
+    
+    .bookshelf-card .book-card-body {
+        padding: 10px;
+        gap: 10px;
+    }
+    
+    .bookshelf-card .book-cover {
+        width: 50px !important;
+        height: 70px !important;
+        flex-shrink: 0;
+    }
+    
+    .bookshelf-card .book-title {
+        font-size: 13px !important;
+        line-height: 1.3;
+    }
+    
+    .bookshelf-card .book-author {
+        font-size: 11px !important;
+        margin-top: 2px;
+    }
+    
+    .bookshelf-card .book-progress-info {
+        margin-top: 4px;
+    }
+    
+    .bookshelf-card .progress-text {
+        font-size: 10px !important;
+    }
+    
+    .bookshelf-card .book-meta {
+        font-size: 9px !important;
+        gap: 6px;
+        margin-top: 4px;
+    }
+    
+    .bookshelf-card .book-card-footer {
+        padding: 8px 10px !important;
+        gap: 4px;
+        flex-wrap: wrap;
+    }
+    
+    .bookshelf-card .book-card-footer .btn {
+        font-size: 11px !important;
+        padding: 4px 8px !important;
+        min-height: 26px !important;
+        flex: 1;
+        min-width: 60px;
+    }
+    
+    .bookshelf-card .book-card-footer .btn-tag-select {
+        flex: 0 0 auto;
+        min-width: auto;
+        padding: 4px 6px !important;
+    }
+    
+    .bookshelf-card .tag-badge-inline {
+        font-size: 9px !important;
+        padding: 2px 5px !important;
+    }
+    
+    .bookshelf-card .book-card-footer .btn svg {
+        width: 14px;
+        height: 14px;
+    }
+    
+    .bookshelf-card .book-title-section {
+        min-width: 0;
+        overflow: hidden;
+    }
+    
+    .bookshelf-card .book-title-main {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        word-break: break-word;
+    }
+    
+    .bookshelf-card .stat-card {
+        padding: 6px 8px;
+    }
+    
+    .bookshelf-card .stat-icon {
+        width: 14px;
+        height: 14px;
+    }
+    
+    .bookshelf-card .stat-value {
+        font-size: 11px;
+    }
+    
+    .bookshelf-card .stat-label {
+        font-size: 9px;
+    }
+    
+    .group-title {
+        font-size: 18px;
+        margin-bottom: 12px;
+        padding: 0 8px;
+    }
+    
+    .bookshelf-groups {
+        gap: 24px;
+    }
+    
+    .bookshelf-group {
+        gap: 12px;
+    }
+    
+    /* 确保触摸目标足够大 */
+    .bookshelf-card .btn-action,
+    .bookshelf-card .btn-tag-select {
+        min-height: 32px;
+        min-width: 32px;
+        touch-action: manipulation;
+    }
+}
+
+@media (max-width: 480px) {
+    #bookshelf-container {
+        padding: 8px;
+    }
+    
+    /* 小屏手机 - 单列布局 */
+    .bookshelf-groups .bookshelf-list {
+        grid-template-columns: 1fr !important;
+        gap: 12px;
+    }
+    
+    .bookshelf-card .book-card {
+        padding: 10px;
+    }
+    
+    .bookshelf-card .book-card-body {
+        padding: 12px;
+        gap: 12px;
+    }
+    
+    .bookshelf-card .book-cover {
+        width: 60px !important;
+        height: 84px !important;
+    }
+    
+    .bookshelf-card .book-title {
+        font-size: 14px !important;
+    }
+    
+    .bookshelf-card .book-author {
+        font-size: 12px !important;
+    }
+    
+    .bookshelf-card .book-card-footer {
+        flex-direction: column;
+        gap: 8px;
+        padding: 10px 12px !important;
+    }
+    
+    .bookshelf-card .book-card-footer .btn {
+        width: 100% !important;
+        flex: none;
+        min-height: 36px !important;
+        font-size: 12px !important;
+        padding: 6px 12px !important;
+    }
+    
+    .bookshelf-card .book-card-footer .btn-tag-select {
+        width: 100% !important;
+    }
+    
+    .tag-filters {
+        gap: 4px;
+        padding: 0 4px;
+    }
+    
+    .tag-filter-btn {
+        padding: 6px 12px;
+        font-size: 11px;
+        min-height: 32px;
+    }
+    
+    .bookshelf-batch-actions {
+        padding: 10px;
+    }
+    
+    .group-title {
+        font-size: 16px;
+        margin-bottom: 10px;
+    }
+    
+    .bookshelf-groups {
+        gap: 20px;
+    }
+    
+    /* 确保按钮图标在单列布局中更清晰 */
+    .bookshelf-card .book-card-footer .btn svg {
+        width: 16px;
+        height: 16px;
+    }
+    
+    /* 确保触摸目标足够大 */
+    .bookshelf-card .btn-action,
+    .bookshelf-card .btn-tag-select {
+        min-height: 36px;
+        touch-action: manipulation;
+    }
 }
 
 /* 书架项使用book-card样式，保持UI一致 */

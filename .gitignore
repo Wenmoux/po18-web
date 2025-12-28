@@ -20,3 +20,5 @@ backups/*.db
 scripts/*.js
 scripts/*.html
 !scripts/README.md
+
+docs/*

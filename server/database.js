@@ -264,6 +264,25 @@ function initDatabase() {
         CREATE INDEX IF NOT EXISTS idx_chapter_cache_chapter_id ON chapter_cache(chapter_id);
     `);
 
+    // 书架分类表
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS bookshelf_categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            color TEXT,
+            icon TEXT,
+            sort_order INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            UNIQUE(user_id, name)
+        )
+    `);
+
+    db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_bookshelf_categories_user_id ON bookshelf_categories(user_id);
+    `);
+
     // 书架表
     db.exec(`
         CREATE TABLE IF NOT EXISTS bookshelf (
@@ -278,7 +297,9 @@ function initDatabase() {
             reading_time INTEGER DEFAULT 0,
             last_read_at DATETIME,
             added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            category_id INTEGER,
             FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (category_id) REFERENCES bookshelf_categories(id) ON DELETE SET NULL,
             UNIQUE(user_id, book_id)
         )
     `);
@@ -287,6 +308,37 @@ function initDatabase() {
         CREATE INDEX IF NOT EXISTS idx_bookshelf_user_id ON bookshelf(user_id);
         CREATE INDEX IF NOT EXISTS idx_bookshelf_last_read ON bookshelf(last_read_at);
     `);
+    
+    // 迁移：为现有bookshelf表添加category_id字段（如果不存在）
+    try {
+        // 检查字段是否已存在
+        const tableInfo = db.prepare("PRAGMA table_info(bookshelf)").all();
+        const hasCategoryId = tableInfo.some(col => col.name === 'category_id');
+        
+        if (!hasCategoryId) {
+            db.exec(`ALTER TABLE bookshelf ADD COLUMN category_id INTEGER`);
+            logger.info('已为bookshelf表添加category_id字段');
+        }
+        
+        // 创建category_id索引（如果字段存在）
+        if (hasCategoryId || !hasCategoryId) { // 无论是否新添加，都尝试创建索引
+            try {
+                db.exec(`CREATE INDEX IF NOT EXISTS idx_bookshelf_category_id ON bookshelf(category_id)`);
+            } catch (e) {
+                // 索引可能已存在，忽略错误
+                logger.debug('创建category_id索引时出错（可能已存在）', { error: e.message });
+            }
+        }
+    } catch (e) {
+        // 字段已存在或其他错误，记录日志
+        logger.warn('处理category_id字段时出错', { error: e.message });
+        // 即使出错，也尝试创建索引（字段可能已存在）
+        try {
+            db.exec(`CREATE INDEX IF NOT EXISTS idx_bookshelf_category_id ON bookshelf(category_id)`);
+        } catch (e2) {
+            logger.debug('创建category_id索引失败', { error: e2.message });
+        }
+    }
 
     // 每日阅读统计表（用于热力图）
     db.exec(`
@@ -1989,8 +2041,120 @@ const BookshelfDB = {
 
     // 获取单个书架项
     get(userId, bookId) {
-        const stmt = db.prepare("SELECT * FROM bookshelf WHERE user_id = ? AND book_id = ?");
+        const stmt = db.prepare(`
+            SELECT b.*, c.name as category_name, c.color as category_color, c.icon as category_icon
+            FROM bookshelf b
+            LEFT JOIN bookshelf_categories c ON b.category_id = c.id
+            WHERE b.user_id = ? AND b.book_id = ?
+        `);
         return stmt.get(userId, bookId);
+    },
+    
+    // 更新书籍分类
+    updateCategory(userId, bookId, categoryId) {
+        const stmt = db.prepare(`
+            UPDATE bookshelf 
+            SET category_id = ? 
+            WHERE user_id = ? AND book_id = ?
+        `);
+        return stmt.run(categoryId || null, userId, bookId);
+    },
+    
+    // 批量更新分类
+    batchUpdateCategory(userId, bookIds, categoryId) {
+        const placeholders = bookIds.map(() => '?').join(',');
+        const stmt = db.prepare(`
+            UPDATE bookshelf 
+            SET category_id = ? 
+            WHERE user_id = ? AND book_id IN (${placeholders})
+        `);
+        return stmt.run(categoryId || null, userId, ...bookIds);
+    }
+};
+
+// 书架分类数据库操作
+const BookshelfCategoryDB = {
+    // 获取用户的所有分类
+    getByUser(userId) {
+        const stmt = db.prepare(`
+            SELECT * FROM bookshelf_categories 
+            WHERE user_id = ? 
+            ORDER BY sort_order ASC, created_at ASC
+        `);
+        return stmt.all(userId);
+    },
+    
+    // 创建分类
+    create(userId, name, color, icon, sortOrder) {
+        const stmt = db.prepare(`
+            INSERT INTO bookshelf_categories (user_id, name, color, icon, sort_order)
+            VALUES (?, ?, ?, ?, ?)
+        `);
+        return stmt.run(userId, name, color || null, icon || null, sortOrder || 0);
+    },
+    
+    // 更新分类
+    update(categoryId, userId, name, color, icon, sortOrder) {
+        const stmt = db.prepare(`
+            UPDATE bookshelf_categories 
+            SET name = ?, color = ?, icon = ?, sort_order = ?
+            WHERE id = ? AND user_id = ?
+        `);
+        return stmt.run(name, color || null, icon || null, sortOrder || 0, categoryId, userId);
+    },
+    
+    // 删除分类
+    delete(categoryId, userId) {
+        // 先检查是否有书籍使用此分类
+        const countStmt = db.prepare(`
+            SELECT COUNT(*) as count FROM bookshelf 
+            WHERE category_id = ? AND user_id = ?
+        `);
+        const count = countStmt.get(categoryId, userId).count;
+        
+        if (count > 0) {
+            // 将使用此分类的书籍分类设为NULL
+            const updateStmt = db.prepare(`
+                UPDATE bookshelf 
+                SET category_id = NULL 
+                WHERE category_id = ? AND user_id = ?
+            `);
+            updateStmt.run(categoryId, userId);
+        }
+        
+        // 删除分类
+        const deleteStmt = db.prepare(`
+            DELETE FROM bookshelf_categories 
+            WHERE id = ? AND user_id = ?
+        `);
+        return deleteStmt.run(categoryId, userId);
+    },
+    
+    // 获取单个分类
+    get(categoryId, userId) {
+        const stmt = db.prepare(`
+            SELECT * FROM bookshelf_categories 
+            WHERE id = ? AND user_id = ?
+        `);
+        return stmt.get(categoryId, userId);
+    },
+    
+    // 检查分类名称是否已存在
+    exists(userId, name, excludeId = null) {
+        let stmt;
+        if (excludeId) {
+            stmt = db.prepare(`
+                SELECT COUNT(*) as count FROM bookshelf_categories 
+                WHERE user_id = ? AND name = ? AND id != ?
+            `);
+            return stmt.get(userId, name, excludeId).count > 0;
+        } else {
+            stmt = db.prepare(`
+                SELECT COUNT(*) as count FROM bookshelf_categories 
+                WHERE user_id = ? AND name = ?
+            `);
+            return stmt.get(userId, name).count > 0;
+        }
     }
 };
 
@@ -2433,6 +2597,7 @@ module.exports = {
     WebDAVConfigDB,
     ChapterCacheDB,
     BookshelfDB,
+    BookshelfCategoryDB,
     ReadingStatsDB,
     SubscriptionDB,
     BookListDB,

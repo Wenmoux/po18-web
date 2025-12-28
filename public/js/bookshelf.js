@@ -35,7 +35,7 @@
             if (response.ok) {
                 currentUser = await response.json();
                 console.log("✓ 获取到用户信息:", currentUser);
-                document.getElementById("username-display").textContent = currentUser.username;
+                // document.getElementById("username-display").textContent = currentUser.username; // 已移除用户名显示
                 document.getElementById("user-info").style.display = "flex";
             } else {
                 console.warn("⚠️ 登录验证失败，状态码:", response.status);

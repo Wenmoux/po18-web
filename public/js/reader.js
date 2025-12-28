@@ -98,7 +98,15 @@ class Reader {
             kai: { name: "楷体", value: "'KaiTi', 'STKaiti', serif" },
             hei: { name: "黑体", value: "'SimHei', 'Microsoft YaHei', sans-serif" },
             fangsong: { name: "仿宋", value: "'FangSong', 'STFangSong', serif" },
-            ming: { name: "明体", value: "'PMingLiU', 'MingLiU', serif" }
+            ming: { name: "明体", value: "'PMingLiU', 'MingLiU', serif" },
+            custom: { name: "自定义字体", value: "'CustomFont', sans-serif" }
+        };
+
+        // 自定义字体
+        this.customFont = {
+            name: null,
+            url: null,
+            fontFamily: 'CustomFont'
         };
 
         // 阅读进度
@@ -140,6 +148,7 @@ class Reader {
         this.applySettings();
         this.initTTS();
         this.initReadingProgress(); // 初始化阅读进度
+        this.loadPresetFonts(); // 加载预设字体
 
         if (this.bookId) {
             this.loadBook();
@@ -614,8 +623,8 @@ class Reader {
         document.getElementById("btn-catalog-2").addEventListener("click", () => this.openCatalog());
         document.getElementById("btn-close-catalog").addEventListener("click", () => this.closeCatalog());
 
-        // 设置按钮
-        document.getElementById("btn-settings").addEventListener("click", () => this.openSettings());
+        // 设置按钮 - 已移除
+        // document.getElementById("btn-settings")?.addEventListener("click", () => this.openSettings());
         document.getElementById("btn-close-settings").addEventListener("click", () => this.closeSettings());
 
         // 章节导航
@@ -1242,8 +1251,36 @@ class Reader {
                 const fontKey = btn.dataset.presetFont;
                 this.applyFont(fontKey);
                 this.updateActiveButton(btn, "[data-preset-font]");
+                
+                // 显示/隐藏自定义字体上传区域
+                const customFontGroup = document.getElementById("custom-font-group");
+                if (customFontGroup) {
+                    customFontGroup.style.display = fontKey === "custom" ? "block" : "none";
+                }
             });
         });
+
+        // 自定义字体上传
+        const fontFileInput = document.getElementById("font-file-input");
+        if (fontFileInput) {
+            fontFileInput.addEventListener("change", (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    this.uploadCustomFont(file);
+                }
+            });
+        }
+
+        // 移除自定义字体
+        const fontRemoveBtn = document.getElementById("font-remove-btn");
+        if (fontRemoveBtn) {
+            fontRemoveBtn.addEventListener("click", () => {
+                this.removeCustomFont();
+            });
+        }
+
+        // 加载已保存的自定义字体
+        this.loadCustomFont();
     }
 
     // 更新按钮激活状态
@@ -2206,9 +2243,334 @@ class Reader {
         if (!font) return;
 
         this.settings.font = fontKey;
-        this.applySettings();
+        
+        // 如果是自定义字体，使用自定义字体的URL
+        if (fontKey === "custom" && this.customFont.url) {
+            this.applyCustomFont();
+        } else if (fontKey.startsWith("preset_") && font.url) {
+            // 预设字体（从 data/fonts 加载的字体）
+            const root = document.documentElement;
+            root.style.setProperty("--reader-font-family", font.value);
+            this.applySettings();
+        } else {
+            // 其他预设字体
+            this.applySettings();
+        }
+        
         this.saveSettings();
         this.showToast(`已切换到 ${font.name}`, "success");
+    }
+
+    // 上传自定义字体
+    uploadCustomFont(file) {
+        // 检查文件大小（限制5MB）
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (file.size > maxSize) {
+            this.showToast("字体文件过大，请选择小于5MB的文件", "error");
+            return;
+        }
+
+        // 检查文件类型
+        const validTypes = ['font/ttf', 'font/otf', 'application/font-woff', 'application/font-woff2', 'font/woff', 'font/woff2'];
+        const validExtensions = ['.ttf', '.otf', '.woff', '.woff2'];
+        const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+        
+        if (!validExtensions.includes(fileExtension)) {
+            this.showToast("不支持的字体格式，请上传 TTF、OTF、WOFF 或 WOFF2 格式", "error");
+            return;
+        }
+
+        const statusEl = document.getElementById("font-upload-status");
+        if (statusEl) {
+            statusEl.textContent = "正在上传字体...";
+            statusEl.style.color = "#666";
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const fontDataUrl = e.target.result;
+                const fontName = file.name.replace(/\.[^/.]+$/, ""); // 移除扩展名
+                
+                // 保存字体
+                this.customFont = {
+                    name: fontName,
+                    url: fontDataUrl,
+                    fontFamily: 'CustomFont'
+                };
+
+                // 应用字体
+                this.applyCustomFont();
+                this.saveCustomFont();
+
+                // 更新UI
+                if (statusEl) {
+                    statusEl.textContent = `✓ 字体 "${fontName}" 已加载`;
+                    statusEl.style.color = "#4caf50";
+                }
+
+                const fontRemoveBtn = document.getElementById("font-remove-btn");
+                if (fontRemoveBtn) {
+                    fontRemoveBtn.style.display = "block";
+                }
+
+                this.showToast(`字体 "${fontName}" 上传成功`, "success");
+            } catch (error) {
+                console.error("字体上传失败:", error);
+                if (statusEl) {
+                    statusEl.textContent = "字体上传失败，请重试";
+                    statusEl.style.color = "#f44336";
+                }
+                this.showToast("字体上传失败", "error");
+            }
+        };
+
+        reader.onerror = () => {
+            if (statusEl) {
+                statusEl.textContent = "字体读取失败，请重试";
+                statusEl.style.color = "#f44336";
+            }
+            this.showToast("字体读取失败", "error");
+        };
+
+        reader.readAsDataURL(file);
+    }
+
+    // 应用自定义字体
+    applyCustomFont() {
+        if (!this.customFont.url) return;
+
+        // 创建或更新 @font-face
+        let styleEl = document.getElementById("custom-font-style");
+        if (!styleEl) {
+            styleEl = document.createElement("style");
+            styleEl.id = "custom-font-style";
+            document.head.appendChild(styleEl);
+        }
+
+        // 根据文件类型确定格式
+        let fontFormat = "truetype";
+        if (this.customFont.url.includes("woff2")) {
+            fontFormat = "woff2";
+        } else if (this.customFont.url.includes("woff")) {
+            fontFormat = "woff";
+        } else if (this.customFont.url.includes("opentype") || this.customFont.url.includes("otf")) {
+            fontFormat = "opentype";
+        }
+
+        styleEl.textContent = `
+            @font-face {
+                font-family: '${this.customFont.fontFamily}';
+                src: url('${this.customFont.url}') format('${fontFormat}');
+                font-display: swap;
+            }
+        `;
+
+        // 应用字体到阅读内容
+        const root = document.documentElement;
+        root.style.setProperty("--reader-font-family", `'${this.customFont.fontFamily}', sans-serif`);
+        
+        // 更新设置
+        this.applySettings();
+    }
+
+    // 移除自定义字体
+    removeCustomFont() {
+        if (confirm("确定要移除自定义字体吗？")) {
+            this.customFont = { name: null, url: null, fontFamily: 'CustomFont' };
+            
+            // 移除字体样式
+            const styleEl = document.getElementById("custom-font-style");
+            if (styleEl) {
+                styleEl.remove();
+            }
+
+            // 重置为系统默认字体
+            this.settings.font = "system";
+            this.applySettings();
+            this.saveSettings();
+
+            // 更新UI
+            const statusEl = document.getElementById("font-upload-status");
+            if (statusEl) {
+                statusEl.textContent = "";
+            }
+
+            const fontRemoveBtn = document.getElementById("font-remove-btn");
+            if (fontRemoveBtn) {
+                fontRemoveBtn.style.display = "none";
+            }
+
+            const fontFileInput = document.getElementById("font-file-input");
+            if (fontFileInput) {
+                fontFileInput.value = "";
+            }
+
+            // 更新字体按钮状态
+            document.querySelectorAll("[data-preset-font]").forEach((btn) => {
+                btn.classList.toggle("active", btn.dataset.presetFont === "system");
+            });
+
+            this.showToast("自定义字体已移除", "success");
+        }
+    }
+
+    // 保存自定义字体到localStorage
+    saveCustomFont() {
+        try {
+            localStorage.setItem("customFont", JSON.stringify(this.customFont));
+        } catch (e) {
+            console.error("保存自定义字体失败:", e);
+            // 如果localStorage空间不足，提示用户
+            if (e.name === "QuotaExceededError") {
+                this.showToast("存储空间不足，无法保存字体", "error");
+            }
+        }
+    }
+
+    // 从localStorage加载自定义字体
+    loadCustomFont() {
+        try {
+            const saved = localStorage.getItem("customFont");
+            if (saved) {
+                this.customFont = JSON.parse(saved);
+                if (this.customFont.url) {
+                    this.applyCustomFont();
+                    
+                    // 更新UI
+                    const statusEl = document.getElementById("font-upload-status");
+                    if (statusEl && this.customFont.name) {
+                        statusEl.textContent = `✓ 已加载字体 "${this.customFont.name}"`;
+                        statusEl.style.color = "#4caf50";
+                    }
+
+                    const fontRemoveBtn = document.getElementById("font-remove-btn");
+                    if (fontRemoveBtn) {
+                        fontRemoveBtn.style.display = "block";
+                    }
+
+                    // 如果当前使用的是自定义字体，确保按钮状态正确
+                    if (this.settings.font === "custom") {
+                        const customFontGroup = document.getElementById("custom-font-group");
+                        if (customFontGroup) {
+                            customFontGroup.style.display = "block";
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("加载自定义字体失败:", e);
+        }
+    }
+
+    // 加载预设字体（从 data/fonts 目录）
+    async loadPresetFonts() {
+        try {
+            const response = await fetch("/api/fonts", {
+                credentials: "include"
+            });
+
+            if (!response.ok) {
+                console.warn("获取预设字体列表失败");
+                return;
+            }
+
+            const data = await response.json();
+            const fonts = data.fonts || [];
+
+            if (fonts.length === 0) {
+                return; // 没有预设字体
+            }
+
+            // 为每个预设字体创建字体定义和应用逻辑
+            for (const font of fonts) {
+                const fontKey = `preset_${font.filename.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                
+                // 添加到预设字体列表
+                this.presetFonts[fontKey] = {
+                    name: font.name,
+                    value: `'${font.name}', sans-serif`,
+                    url: font.url,
+                    format: font.format
+                };
+
+                // 加载字体文件
+                this.loadFontFile(fontKey, font.url, font.format, font.name);
+
+                // 创建字体选择按钮
+                this.addFontButton(fontKey, font.name);
+            }
+        } catch (error) {
+            console.error("加载预设字体失败:", error);
+        }
+    }
+
+    // 加载字体文件
+    loadFontFile(fontKey, fontUrl, format, fontName) {
+        // 创建 @font-face 规则
+        let styleEl = document.getElementById(`preset-font-style-${fontKey}`);
+        if (!styleEl) {
+            styleEl = document.createElement("style");
+            styleEl.id = `preset-font-style-${fontKey}`;
+            document.head.appendChild(styleEl);
+        }
+
+        // 根据格式设置正确的 font-family 和 src
+        const formatMap = {
+            'ttf': 'truetype',
+            'otf': 'opentype',
+            'woff': 'woff',
+            'woff2': 'woff2'
+        };
+
+        const formatType = formatMap[format.toLowerCase()] || 'truetype';
+        
+        styleEl.textContent = `
+            @font-face {
+                font-family: '${fontName}';
+                src: url('${fontUrl}') format('${formatType}');
+                font-display: swap;
+            }
+        `;
+    }
+
+    // 添加字体选择按钮到UI
+    addFontButton(fontKey, fontName) {
+        const fontOptions = document.querySelector('.setting-options');
+        if (!fontOptions) {
+            console.warn("找不到字体选择容器");
+            return;
+        }
+
+        // 检查按钮是否已存在
+        if (document.querySelector(`[data-preset-font="${fontKey}"]`)) {
+            return;
+        }
+
+        // 在"自定义字体"按钮之前插入新按钮
+        const customBtn = document.querySelector('[data-preset-font="custom"]');
+        const newBtn = document.createElement('button');
+        newBtn.className = 'option-btn';
+        newBtn.setAttribute('data-preset-font', fontKey);
+        newBtn.textContent = fontName;
+
+        // 绑定点击事件
+        newBtn.addEventListener('click', () => {
+            this.applyFont(fontKey);
+            this.updateActiveButton(newBtn, "[data-preset-font]");
+            
+            // 显示/隐藏自定义字体上传区域
+            const customFontGroup = document.getElementById("custom-font-group");
+            if (customFontGroup) {
+                customFontGroup.style.display = fontKey === "custom" ? "block" : "none";
+            }
+        });
+
+        if (customBtn) {
+            fontOptions.insertBefore(newBtn, customBtn);
+        } else {
+            fontOptions.appendChild(newBtn);
+        }
     }
 }
 

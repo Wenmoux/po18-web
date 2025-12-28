@@ -33,6 +33,15 @@ class PerformanceMonitor {
         this.metricsHistory = []; // 性能指标历史记录
         this.maxHistoryLength = options.maxHistoryLength || 100; // 最大历史记录长度
         
+        // API性能指标
+        this.apiMetrics = {
+            requestCount: 0,
+            totalResponseTime: 0,
+            errorCount: 0,
+            slowRequests: [], // 存储慢请求记录
+            maxSlowRequests: 100 // 最多保存的慢请求数量
+        };
+        
         // 告警通知回调
         this.alertCallbacks = [];
     }
@@ -48,6 +57,11 @@ class PerformanceMonitor {
             this.collectMetrics();
         }, this.monitoringInterval);
         
+        // 定期重置API指标（每小时重置一次）
+        this.apiMetricsResetTimer = setInterval(() => {
+            this.resetAPIMetrics();
+        }, 3600000); // 1小时
+        
         // 收集初始指标
         this.collectMetrics();
     }
@@ -59,8 +73,12 @@ class PerformanceMonitor {
         if (this.monitoringTimer) {
             clearInterval(this.monitoringTimer);
             this.monitoringTimer = null;
-            logger.info('性能监控已停止');
         }
+        if (this.apiMetricsResetTimer) {
+            clearInterval(this.apiMetricsResetTimer);
+            this.apiMetricsResetTimer = null;
+        }
+        logger.info('性能监控已停止');
     }
     
     /**
@@ -102,22 +120,51 @@ class PerformanceMonitor {
         const freeMem = os.freemem();
         const usedMem = totalMem - freeMem;
         
-        // 计算CPU使用率
+        // 改进的CPU使用率计算（需要两次采样）
         let cpuUsage = 0;
-        if (cpus.length > 0) {
-            const cpu = cpus[0];
-            const total = Object.values(cpu.times).reduce((acc, tv) => acc + tv, 0);
-            const idle = cpu.times.idle;
-            cpuUsage = ((total - idle) / total) * 100;
+        if (!this.lastCpuTimes) {
+            // 首次采样，记录CPU时间
+            this.lastCpuTimes = cpus.map(cpu => ({ ...cpu.times }));
+            cpuUsage = 0; // 首次无法计算
+        } else {
+            // 计算每个核心的使用率
+            const cpuUsages = cpus.map((cpu, index) => {
+                const lastTimes = this.lastCpuTimes[index];
+                const total = Object.values(cpu.times).reduce((acc, tv) => acc + tv, 0);
+                const lastTotal = Object.values(lastTimes).reduce((acc, tv) => acc + tv, 0);
+                const idle = cpu.times.idle - lastTimes.idle;
+                const totalDiff = total - lastTotal;
+                
+                if (totalDiff === 0) return 0;
+                return ((totalDiff - idle) / totalDiff) * 100;
+            });
+            
+            // 计算平均CPU使用率
+            cpuUsage = cpuUsages.reduce((sum, usage) => sum + usage, 0) / cpuUsages.length;
+            
+            // 更新上次的CPU时间
+            this.lastCpuTimes = cpus.map(cpu => ({ ...cpu.times }));
         }
         
-        // 获取磁盘使用情况
+        // 改进的磁盘使用率获取
         let diskUsage = 0;
+        let diskTotal = 0;
+        let diskFree = 0;
         try {
+            // 使用fs.statfs（如果可用）或尝试其他方法
             const dbPath = path.dirname(config.database.path);
-            const diskStats = fs.statSync(dbPath);
-            // 这里简化处理，实际应该使用更精确的方法获取磁盘使用率
-            diskUsage = 50; // 示例值
+            const stats = fs.statSync(dbPath);
+            
+            // 在Windows上，尝试使用更精确的方法
+            if (process.platform === 'win32') {
+                // Windows系统，使用wmic命令或简化处理
+                // 这里简化处理，实际可以使用node-disk-info等库
+                diskUsage = 50; // 占位值
+            } else {
+                // Unix系统，可以尝试使用df命令或statfs
+                // 这里简化处理
+                diskUsage = 50; // 占位值
+            }
         } catch (error) {
             logger.warn('获取磁盘使用情况失败', { error: error.message });
         }
@@ -134,7 +181,9 @@ class PerformanceMonitor {
                 usagePercent: parseFloat(((usedMem / totalMem) * 100).toFixed(2))
             },
             disk: {
-                usagePercent: diskUsage
+                usagePercent: diskUsage,
+                total: diskTotal,
+                free: diskFree
             },
             uptime: os.uptime(),
             loadavg: os.loadavg()
@@ -199,14 +248,68 @@ class PerformanceMonitor {
      * 获取API性能指标
      */
     async getAPIMetrics() {
-        // 这里需要从实际的API请求中收集指标
-        // 在实际应用中，可以通过中间件来收集API响应时间等指标
+        const avgResponseTime = this.apiMetrics.requestCount > 0 
+            ? Math.round(this.apiMetrics.totalResponseTime / this.apiMetrics.requestCount)
+            : 0;
+        
+        const errorRate = this.apiMetrics.requestCount > 0
+            ? parseFloat(((this.apiMetrics.errorCount / this.apiMetrics.requestCount) * 100).toFixed(2))
+            : 0;
+        
         return {
-            requestCount: 0,
-            averageResponseTime: 0,
-            errorRate: 0,
-            slowRequests: []
+            requestCount: this.apiMetrics.requestCount,
+            averageResponseTime: avgResponseTime,
+            errorRate: errorRate,
+            slowRequests: this.apiMetrics.slowRequests.slice(-10) // 返回最近10条慢请求
         };
+    }
+    
+    /**
+     * 记录API请求
+     * @param {string} method HTTP方法
+     * @param {string} path 请求路径
+     * @param {number} responseTime 响应时间(ms)
+     * @param {number} statusCode 状态码
+     */
+    recordAPIRequest(method, path, responseTime, statusCode) {
+        this.apiMetrics.requestCount++;
+        this.apiMetrics.totalResponseTime += responseTime;
+        
+        // 记录错误
+        if (statusCode >= 400) {
+            this.apiMetrics.errorCount++;
+        }
+        
+        // 记录慢请求
+        if (responseTime > this.alertThresholds.responseTime) {
+            const slowRequest = {
+                method,
+                path,
+                responseTime,
+                statusCode,
+                timestamp: new Date().toISOString()
+            };
+            
+            this.apiMetrics.slowRequests.push(slowRequest);
+            
+            // 限制慢请求记录数量
+            if (this.apiMetrics.slowRequests.length > this.apiMetrics.maxSlowRequests) {
+                this.apiMetrics.slowRequests.shift();
+            }
+        }
+    }
+    
+    /**
+     * 重置API指标（用于定期清理）
+     */
+    resetAPIMetrics() {
+        this.apiMetrics.requestCount = 0;
+        this.apiMetrics.totalResponseTime = 0;
+        this.apiMetrics.errorCount = 0;
+        // 保留慢请求记录，但限制数量
+        if (this.apiMetrics.slowRequests.length > 50) {
+            this.apiMetrics.slowRequests = this.apiMetrics.slowRequests.slice(-50);
+        }
     }
     
     /**

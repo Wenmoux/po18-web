@@ -59,6 +59,52 @@ body {
     }
 }
 
+/* 导航链接触摸优化 - 防止误触 */
+.nav-link {
+    /* 防止双击缩放 */
+    touch-action: manipulation;
+    /* 移除点击高亮 */
+    -webkit-tap-highlight-color: transparent;
+    /* 确保点击区域精确 */
+    position: relative;
+    /* 防止文本选中 */
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* 导航链接点击反馈 */
+.nav-link:active {
+    opacity: 0.7;
+    transform: scale(0.98);
+    transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
+/* 导航链接触摸优化 - 防止误触 */
+.nav-link {
+    /* 防止双击缩放 */
+    touch-action: manipulation;
+    /* 移除点击高亮 */
+    -webkit-tap-highlight-color: transparent;
+    /* 确保点击区域精确 */
+    position: relative;
+    /* 防止文本选中 */
+    -webkit-user-select: none;
+    user-select: none;
+    /* 移动端最小触摸区域 */
+    min-height: 32px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 导航链接点击反馈 */
+.nav-link:active {
+    opacity: 0.7;
+    transform: scale(0.98);
+    transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
 /* 按钮触摸态 */
 @media (hover: none) {
     .btn:active {
@@ -73,10 +119,31 @@ body {
 
     .nav-link:active {
         background: var(--md-surface-container-highest);
+        opacity: 0.8;
+        transform: scale(0.97);
     }
 
     .tool-btn:active {
         transform: scale(0.9);
+    }
+}
+
+/* 移动端导航链接额外优化 */
+@media (max-width: 768px) {
+    .nav-link {
+        min-height: 36px;
+        min-width: 44px;
+        /* 增加间距，防止误触 */
+        margin: 2px;
+    }
+}
+
+@media (max-width: 480px) {
+    .nav-link {
+        min-height: 36px;
+        min-width: 40px;
+        /* 小屏设备保持足够触摸区域 */
+        margin: 1px;
     }
 }
 

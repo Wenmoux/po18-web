@@ -140,10 +140,10 @@ const App = {
             await this.logout();
         });
 
-        // 设置按钮
-        document.getElementById("btn-settings")?.addEventListener("click", () => {
-            this.showSettingsModal();
-        });
+        // 设置按钮 - 已移除
+        // document.getElementById("btn-settings")?.addEventListener("click", () => {
+        //     this.showSettingsModal();
+        // });
 
         // 认证表单 - 添加表单验证
         const authForm = document.getElementById("auth-form");
@@ -636,51 +636,130 @@ const App = {
         this.showToast("已清空搜索历史", "success");
     },
 
-    // 显示搜索历史下拉框
+    // 获取热门搜索词（预设 + 从历史中统计）
+    getPopularSearchKeywords() {
+        // 预设热门搜索词
+        const presetKeywords = [
+            "言情", "古言", "现代", "甜文", "虐文", 
+            "1V1", "高H", "BG", "BL", "甜宠"
+        ];
+        
+        // 从搜索历史中统计热门词（出现次数最多的）
+        const history = this.getSearchHistory();
+        const keywordCount = {};
+        history.forEach(keyword => {
+            keywordCount[keyword] = (keywordCount[keyword] || 0) + 1;
+        });
+        
+        // 合并预设和热门历史词，去重
+        const popularKeywords = [...new Set([
+            ...presetKeywords,
+            ...Object.keys(keywordCount).sort((a, b) => keywordCount[b] - keywordCount[a]).slice(0, 5)
+        ])].slice(0, 8); // 最多显示8个
+        
+        return popularKeywords;
+    },
+
+    // 显示搜索历史下拉框（包含历史记录和热门搜索词）
     showSearchHistory() {
         const history = this.getSearchHistory();
-        if (history.length === 0) return;
+        const popularKeywords = this.getPopularSearchKeywords();
+        
+        // 热门搜索词应该总是有值（预设关键词），如果没有则使用默认值
+        const finalPopularKeywords = popularKeywords.length > 0 ? popularKeywords : [
+            "言情", "古言", "现代", "甜文", "虐文", "1V1", "高H", "BG"
+        ];
+        
+        // 如果既没有历史也没有热门词，不显示（理论上不应该发生）
+        if (history.length === 0 && finalPopularKeywords.length === 0) {
+            console.warn("没有搜索历史和热门词可显示");
+            return;
+        }
 
         let dropdown = document.getElementById("search-history-dropdown");
+        const inputWrapper = document.querySelector(".search-input-wrapper");
+        
+        if (!inputWrapper) {
+            console.warn("搜索输入框容器未找到");
+            return;
+        }
+        
         if (!dropdown) {
             dropdown = document.createElement("div");
             dropdown.id = "search-history-dropdown";
             dropdown.className = "search-history-dropdown";
-            const inputWrapper = document.querySelector(".search-input-wrapper");
-            if (inputWrapper) {
-                inputWrapper.style.position = "relative";
-                inputWrapper.appendChild(dropdown);
-            }
+            inputWrapper.style.position = "relative";
+            inputWrapper.appendChild(dropdown);
         }
 
-        dropdown.innerHTML = `
-            <div class="search-history-header">
-                <span>🕒 搜索历史</span>
-                <button class="clear-history-btn" onclick="App.clearSearchHistory()">清空</button>
-            </div>
-            <div class="search-history-list">
-                ${history
-                    .map(
-                        (h) => `
-                    <div class="search-history-item" data-keyword="${this.escapeHtml(h)}">
-                        <span class="history-keyword">${this.escapeHtml(h)}</span>
-                        <button class="remove-history-btn" onclick="event.stopPropagation(); App.removeSearchHistory('${this.escapeHtml(h)}'); this.parentElement.remove();">×</button>
+        // 构建下拉框内容
+        let content = '';
+        
+        // 热门搜索词部分（总是显示）
+        if (finalPopularKeywords.length > 0) {
+            content += `
+                <div class="search-suggestions-section">
+                    <div class="search-suggestions-header">
+                        <span>🔥 热门搜索</span>
                     </div>
-                `
-                    )
-                    .join("")}
-            </div>
-        `;
+                    <div class="search-suggestions-list">
+                        ${finalPopularKeywords
+                            .map(
+                                (keyword) => `
+                            <div class="search-suggestion-item" data-keyword="${this.escapeHtml(keyword)}">
+                                <span class="suggestion-keyword">${this.escapeHtml(keyword)}</span>
+                            </div>
+                        `
+                            )
+                            .join("")}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 搜索历史部分
+        if (history.length > 0) {
+            content += `
+                <div class="search-history-section">
+                    <div class="search-history-header">
+                        <span>🕒 搜索历史</span>
+                        <button class="clear-history-btn" onclick="App.clearSearchHistory()">清空</button>
+                    </div>
+                    <div class="search-history-list">
+                        ${history
+                            .map(
+                                (h) => `
+                            <div class="search-history-item" data-keyword="${this.escapeHtml(h)}">
+                                <span class="history-keyword">${this.escapeHtml(h)}</span>
+                                <button class="remove-history-btn" onclick="event.stopPropagation(); App.removeSearchHistory('${this.escapeHtml(h)}'); this.parentElement.remove();">×</button>
+                            </div>
+                        `
+                            )
+                            .join("")}
+                    </div>
+                </div>
+            `;
+        }
 
+        dropdown.innerHTML = content;
         dropdown.style.display = "block";
+        
+        // 确保下拉框可见（强制显示）
+        dropdown.style.visibility = "visible";
+        dropdown.style.opacity = "1";
 
-        // 绑定点击事件
-        dropdown.querySelectorAll(".search-history-item").forEach((item) => {
-            item.addEventListener("click", () => {
+        // 绑定点击事件（历史记录和热门词）
+        dropdown.querySelectorAll(".search-history-item, .search-suggestion-item").forEach((item) => {
+            item.addEventListener("click", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 const keyword = item.dataset.keyword;
-                document.getElementById("unified-input").value = keyword;
-                this.hideSearchHistory();
-                this.handleSearch();
+                const input = document.getElementById("unified-input");
+                if (input) {
+                    input.value = keyword;
+                    this.hideSearchHistory();
+                    this.handleSearch();
+                }
             });
         });
     },
@@ -849,14 +928,14 @@ const App = {
     updateUserUI() {
         const userArea = document.getElementById("user-area");
         const userInfo = document.getElementById("user-info");
-        const usernameDisplay = document.getElementById("username-display");
+        // const usernameDisplay = document.getElementById("username-display"); // 已移除
         const adminLink = document.getElementById("admin-link");
         const globalLibraryNav = document.getElementById("nav-global-library");
 
         if (this.currentUser) {
             userArea.style.display = "none";
             userInfo.style.display = "flex";
-            usernameDisplay.textContent = this.currentUser.username;
+            // usernameDisplay.textContent = this.currentUser.username; // 已移除用户名显示
 
             // 显示管理员入口
             if (adminLink) {
@@ -2956,16 +3035,29 @@ const App = {
 
     // 加载书架
     async loadBookshelf() {
-        const container = document.getElementById("bookshelf-list");
-        if (!container) return;
+        // 检查是否有智能书架容器
+        const smartContainer = document.getElementById("bookshelf-container");
+        const oldContainer = document.getElementById("bookshelf-list");
+        
+        // 如果有智能书架容器，隐藏旧容器
+        if (smartContainer && oldContainer) {
+            oldContainer.style.display = 'none';
+        }
+        
+        // 如果没有容器，直接返回
+        if (!oldContainer && !smartContainer) return;
 
         if (!this.currentUser) {
-            container.innerHTML = '<p class="empty-message">请先登录</p>';
+            if (oldContainer) {
+                oldContainer.innerHTML = '<p class="empty-message">请先登录</p>';
+            }
             return;
         }
 
         // 显示加载中
-        container.innerHTML = '<p class="empty-message">加载中...</p>';
+        if (oldContainer) {
+            oldContainer.innerHTML = '<p class="empty-message">加载中...</p>';
+        }
 
         try {
             const response = await fetch("/api/bookshelf", {
@@ -2977,7 +3069,17 @@ const App = {
             }
 
             this.bookshelfData = await response.json();
-            this.renderBookshelf();
+            
+            // 如果有智能书架容器，让智能书架处理渲染
+            if (smartContainer) {
+                // 触发智能书架重新渲染
+                if (window.SmartBookshelf && window.SmartBookshelf.render) {
+                    window.SmartBookshelf.render();
+                }
+            } else {
+                // 否则使用旧版渲染
+                this.renderBookshelf();
+            }
 
             // 绑定排序事件
             const sortSelect = document.getElementById("bookshelf-sort-select");
@@ -2985,16 +3087,49 @@ const App = {
                 sortSelect.dataset.bound = "true";
                 sortSelect.addEventListener("change", (e) => {
                     this.currentBookshelfSort = e.target.value;
-                    this.renderBookshelf();
+                    // 如果有智能书架，触发重新渲染
+                    if (smartContainer && window.SmartBookshelf && window.SmartBookshelf.render) {
+                        window.SmartBookshelf.render();
+                    } else {
+                        this.renderBookshelf();
+                    }
                 });
             }
         } catch (error) {
-            container.innerHTML = '<p class="empty-message">加载失败，请重试</p>';
+            if (oldContainer) {
+                oldContainer.innerHTML = '<p class="empty-message">加载失败，请重试</p>';
+            }
         }
     },
 
     // 渲染书架
     renderBookshelf() {
+        // 检查是否有智能书架容器（bookshelf.html页面）
+        const smartContainer = document.getElementById("bookshelf-container");
+        if (smartContainer) {
+            // 如果有智能书架容器，强制隐藏旧的列表容器
+            const oldContainer = document.getElementById("bookshelf-list");
+            if (oldContainer) {
+                oldContainer.style.display = 'none';
+                oldContainer.style.visibility = 'hidden';
+                oldContainer.innerHTML = ''; // 清空内容
+            }
+            
+            // 等待智能书架初始化完成后再渲染
+            if (window.SmartBookshelf && window.SmartBookshelf.render) {
+                window.SmartBookshelf.render();
+            } else {
+                // 如果智能书架还没初始化，等待一下再试
+                setTimeout(() => {
+                    if (window.SmartBookshelf && window.SmartBookshelf.render) {
+                        window.SmartBookshelf.render();
+                    }
+                }, 200);
+            }
+            return;
+        }
+
+        // 旧版渲染逻辑（用于index.html等页面）
         const container = document.getElementById("bookshelf-list");
         if (!container) return;
 
@@ -3228,9 +3363,16 @@ const App = {
                 page: state.page,
                 pageSize: state.pageSize
             };
+            // 添加筛选参数
             if (tag) params.tag = tag;
-            if (minWords) params.minWords = minWords;
-            if (maxWords) params.maxWords = maxWords;
+            if (minWords && minWords.trim() !== "") {
+                const min = parseInt(minWords);
+                if (!isNaN(min) && min > 0) params.minWords = min;
+            }
+            if (maxWords && maxWords.trim() !== "") {
+                const max = parseInt(maxWords);
+                if (!isNaN(max) && max > 0) params.maxWords = max;
+            }
 
             const result = await API.globalLibrary.getList(params);
 
@@ -3243,8 +3385,12 @@ const App = {
             const stats = result.stats || {};
             const pagination = result.pagination || {};
 
-            // 更新状态
-            state.books = reset ? filteredBooks : [...state.books, ...filteredBooks];
+            // 更新状态（使用过滤后的书籍）
+            if (reset) {
+                state.books = filteredBooks;
+            } else {
+                state.books = [...state.books, ...filteredBooks];
+            }
             state.hasMore = pagination.hasMore !== undefined ? pagination.hasMore : false;
             state.page++;
 
@@ -3269,27 +3415,23 @@ const App = {
                 return;
             }
 
-            const booksHtml = (
-                reset ? [] : [container.innerHTML.replace(/<div class="load-more-trigger"[\s\S]*<\/div>$/, "")]
-            )
-                .concat(filteredBooks.map((book) => this.renderGlobalLibraryBook(book)))
-                .join("");
-
             // 添加加载更多触发器
             const loadMoreHtml = state.hasMore
                 ? '<div class="load-more-trigger" id="global-load-more"><span class="loading-dots">加载中...</span></div>'
                 : '<div class="load-more-end">已加载全部</div>';
 
-            container.innerHTML =
-                (reset
-                    ? ""
-                    : container.innerHTML
-                          .replace(/<div class="load-more-trigger"[\s\S]*$/, "")
-                          .replace(/<div class="load-more-end"[\s\S]*$/, "")) +
-                (reset
-                    ? filteredBooks.map((book) => this.renderGlobalLibraryBook(book)).join("")
-                    : filteredBooks.map((book) => this.renderGlobalLibraryBook(book)).join("")) +
-                loadMoreHtml;
+            // 渲染书籍列表
+            if (reset) {
+                // 重置时，清空并重新渲染所有书籍
+                container.innerHTML = state.books.map((book) => this.renderGlobalLibraryBook(book)).join("") + loadMoreHtml;
+            } else {
+                // 追加时，移除旧的加载触发器，添加新书籍和新的加载触发器
+                const existingContent = container.innerHTML
+                    .replace(/<div class="load-more-trigger"[\s\S]*?<\/div>/g, "")
+                    .replace(/<div class="load-more-end"[\s\S]*?<\/div>/g, "");
+                const newBooksHtml = filteredBooks.map((book) => this.renderGlobalLibraryBook(book)).join("");
+                container.innerHTML = existingContent + newBooksHtml + loadMoreHtml;
+            }
 
             // 设置无限滚动观察器
             this.setupGlobalLibraryInfiniteScroll();

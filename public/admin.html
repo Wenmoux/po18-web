@@ -727,7 +727,6 @@
                         <button class="admin-nav-btn" data-panel="backup">💾 备份管理</button>
                         <button class="admin-nav-btn" data-panel="corrections">✅ 纠错审核</button>
                         <button class="admin-nav-btn" data-panel="monitoring">📈 性能监控</button>
-                        <button class="admin-nav-btn" data-panel="analytics">👥 用户分析</button>
                         <button class="admin-nav-btn" data-panel="settings">⚙️ 系统设置</button>
                     </nav>
                 </div>
@@ -1590,58 +1589,6 @@
                     </div>
                 </div>
                 
-                <!-- 用户行为分析面板 -->
-                <div class="admin-panel" id="panel-analytics" style="display: none;">
-                    <h2>📈 用户行为分析</h2>
-                    
-                    <!-- 分析操作区 -->
-                    <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 20px">
-                        <h3 style="margin: 0 0 15px 0">🔍 分析操作</h3>
-                        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
-                            <select id="analytics-user-select" style="flex: 1; min-width: 200px;">
-                                <option value="">选择用户...</option>
-                            </select>
-                            <button class="btn btn-primary" onclick="Admin.loadUserAnalytics()">
-                                📊 加载用户分析
-                            </button>
-                            <button class="btn btn-secondary" onclick="Admin.refreshUsersList()">
-                                🔄 刷新用户列表
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- 用户画像 -->
-                    <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 20px">
-                        <h3 style="margin: 0 0 15px 0">👤 用户画像</h3>
-                        <div id="user-profile-container">
-                            <p style="text-align: center; color: #666;">请选择用户以查看画像</p>
-                        </div>
-                    </div>
-                    
-                    <!-- 阅读习惯分析 -->
-                    <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 20px">
-                        <h3 style="margin: 0 0 15px 0"> thói quen đọc sách 用户阅读习惯</h3>
-                        <div id="reading-habits-container">
-                            <p style="text-align: center; color: #666;">请选择用户以查看阅读习惯</p>
-                        </div>
-                    </div>
-                    
-                    <!-- 推荐结果 -->
-                    <div style="background: #f8f9fa; padding: 20px; border-radius: 12px;">
-                        <h3 style="margin: 0 0 15px 0">⭐ 书籍推荐</h3>
-                        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
-                            <button class="btn btn-primary" onclick="Admin.loadPopularRecommendations()">
-                                🔥 热门推荐
-                            </button>
-                            <button class="btn btn-outline" onclick="Admin.loadPersonalizedRecommendations()">
-                                💎 个性化推荐
-                            </button>
-                        </div>
-                        <div id="recommendations-container">
-                            <p style="text-align: center; color: #666;">点击按钮加载推荐结果</p>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
 

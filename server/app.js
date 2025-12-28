@@ -57,6 +57,31 @@ app.use(session(config.session));
 
 // 请求日志中间件
 app.use(logger.logRequest.bind(logger));
+
+// API性能监控中间件
+app.use((req, res, next) => {
+    const startTime = Date.now();
+    const originalEnd = res.end;
+    
+    res.end = function(...args) {
+        const responseTime = Date.now() - startTime;
+        const statusCode = res.statusCode;
+        
+        // 记录API请求（排除静态文件）
+        if (req.path.startsWith('/api/')) {
+            performanceMonitor.recordAPIRequest(
+                req.method,
+                req.path,
+                responseTime,
+                statusCode
+            );
+        }
+        
+        originalEnd.apply(res, args);
+    };
+    
+    next();
+});
 // 静态文件服务
 app.use(express.static(path.join(__dirname, "../public"), {
     // 添加缓存控制以避免缓存问题
@@ -73,6 +98,18 @@ app.use(express.static(path.join(__dirname, "../public"), {
             // 对于其他静态资源，添加版本戳以避免缓存问题
             res.setHeader('Cache-Control', 'public, max-age=86400'); // 1天
         }
+    }
+}));
+
+// 字体文件静态服务（data/fonts 目录）
+app.use("/data/fonts", express.static(path.join(__dirname, "../data/fonts"), {
+    maxAge: '30d', // 字体文件缓存30天
+    etag: true,
+    lastModified: true,
+    setHeaders: function (res, filePath) {
+        // 设置字体文件的 CORS 头，允许跨域访问
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Cache-Control', 'public, max-age=2592000'); // 30天
     }
 }));
 
