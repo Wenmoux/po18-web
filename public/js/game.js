@@ -9,6 +9,7 @@ class GameSystem {
         this.readingWords = 0;
         this.lastRewardCheck = 0;
         this.rewardCheckInterval = 1000; // 每1000字检查一次奖励
+        this.lastReadingTime = null; // 上次阅读时间（用于计算阅读时长）
     }
 
     /**
@@ -153,83 +154,147 @@ class GameSystem {
         };
 
         this.pageContainer.innerHTML = `
-            <!-- 离线收益提示 -->
-            <div id="offline-reward-section" style="margin-bottom: 16px;"></div>
-            
-            <!-- 境界信息卡片 -->
-            <div class="game-info-cards">
-                <div class="game-info-card">
-                    <div class="game-info-card-title">当前境界</div>
-                    <div class="game-info-card-value">${this.gameData.levelName} ${this.gameData.levelLayer}层</div>
-                    <div class="game-info-card-subtitle">等级 ${this.gameData.level}</div>
-                </div>
-                <div class="game-info-card">
-                    <div class="game-info-card-title">修为进度</div>
-                    <div class="game-info-card-value">${this.gameData.exp}</div>
-                    <div class="game-info-card-subtitle">还需 ${this.gameData.expToNext} 修为</div>
-                    <div class="game-progress-bar">
-                        <div class="game-progress-fill" style="width: ${expPercent}%"></div>
-                    </div>
-                </div>
+            <!-- 标签页导航 -->
+            <div class="game-tabs" style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid var(--game-border);">
+                <button class="game-tab active" data-tab="main" style="padding: 12px 24px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 14px; color: var(--md-on-surface-variant); transition: all 0.3s; margin-bottom: -2px;">
+                    修仙
+                </button>
+                <button class="game-tab" data-tab="collections" style="padding: 12px 24px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 14px; color: var(--md-on-surface-variant); transition: all 0.3s; margin-bottom: -2px;">
+                    我的藏品
+                </button>
+                <button class="game-tab" data-tab="ranking" style="padding: 12px 24px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 14px; color: var(--md-on-surface-variant); transition: all 0.3s; margin-bottom: -2px;">
+                    藏品排行
+                </button>
             </div>
-            
-            <!-- 阅读统计 -->
-            <div class="game-section">
-                <div class="game-section-title">阅读统计</div>
+
+            <!-- 修仙标签页内容 -->
+            <div class="game-tab-content active" id="game-tab-main">
+                <!-- 离线收益提示 -->
+                <div id="offline-reward-section" style="margin-bottom: 16px;"></div>
+                
+                <!-- 境界信息卡片 -->
                 <div class="game-info-cards">
                     <div class="game-info-card">
-                        <div class="game-info-card-title">今日阅读</div>
-                        <div class="game-info-card-value">${formatWords(this.gameData.todayReadWords || 0)}</div>
-                        <div class="game-info-card-subtitle">${formatTime(this.gameData.todayReadTime || 0)}</div>
+                        <div class="game-info-card-title">当前境界</div>
+                        <div class="game-info-card-value">${this.gameData.levelName} ${this.gameData.levelLayer}层</div>
+                        <div class="game-info-card-subtitle">等级 ${this.gameData.level}</div>
                     </div>
                     <div class="game-info-card">
-                        <div class="game-info-card-title">总阅读</div>
-                        <div class="game-info-card-value">${formatWords(this.gameData.totalReadWords || 0)}</div>
-                        <div class="game-info-card-subtitle">${formatTime(this.gameData.totalReadTime || 0)}</div>
+                        <div class="game-info-card-title">修为进度</div>
+                        <div class="game-info-card-value">${this.gameData.exp}</div>
+                        <div class="game-info-card-subtitle">还需 ${this.gameData.expToNext} 修为</div>
+                        <div class="game-progress-bar">
+                            <div class="game-progress-fill" style="width: ${expPercent}%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 阅读统计 -->
+                <div class="game-section">
+                    <div class="game-section-title">阅读统计</div>
+                    <div class="game-info-cards">
+                        <div class="game-info-card">
+                            <div class="game-info-card-title">今日阅读</div>
+                            <div class="game-info-card-value">${formatWords(this.gameData.todayReadWords || 0)}</div>
+                            <div class="game-info-card-subtitle">${formatTime(this.gameData.todayReadTime || 0)}</div>
+                        </div>
+                        <div class="game-info-card">
+                            <div class="game-info-card-title">总阅读</div>
+                            <div class="game-info-card-value">${formatWords(this.gameData.totalReadWords || 0)}</div>
+                            <div class="game-info-card-subtitle">${formatTime(this.gameData.totalReadTime || 0)}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 修仙子标签页 -->
+                <div class="game-sub-tabs" style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 2px solid var(--game-border);">
+                    <button class="game-sub-tab active" data-subtab="fragments" style="padding: 10px 20px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 13px; color: var(--md-on-surface-variant); transition: all 0.3s; margin-bottom: -2px;">
+                        碎片背包
+                    </button>
+                    <button class="game-sub-tab" data-subtab="items" style="padding: 10px 20px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 13px; color: var(--md-on-surface-variant); transition: all 0.3s; margin-bottom: -2px;">
+                        道具背包
+                    </button>
+                    <button class="game-sub-tab" data-subtab="techniques" style="padding: 10px 20px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 13px; color: var(--md-on-surface-variant); transition: all 0.3s; margin-bottom: -2px;">
+                        功法列表
+                    </button>
+                    <button class="game-sub-tab" data-subtab="achievements" style="padding: 10px 20px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 13px; color: var(--md-on-surface-variant); transition: all 0.3s; margin-bottom: -2px;">
+                        成就系统
+                    </button>
+                    <button class="game-sub-tab" data-subtab="daily" style="padding: 10px 20px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 13px; color: var(--md-on-surface-variant); transition: all 0.3s; margin-bottom: -2px;">
+                        每日任务
+                    </button>
+                    <button class="game-sub-tab" data-subtab="signin" style="padding: 10px 20px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 13px; color: var(--md-on-surface-variant); transition: all 0.3s; margin-bottom: -2px;">
+                        每日签到
+                    </button>
+                </div>
+
+                <!-- 碎片背包子标签页 -->
+                <div class="game-sub-tab-content active" id="game-subtab-fragments">
+                    <div class="game-section">
+                        <div class="game-section-title">碎片背包</div>
+                        <div class="game-fragments-grid">
+                            ${this.renderFragments()}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 道具背包子标签页 -->
+                <div class="game-sub-tab-content" id="game-subtab-items" style="display: none;">
+                    <div class="game-section">
+                        <div class="game-section-title">道具背包</div>
+                        <div class="game-items-list">
+                            ${this.renderItems()}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 功法列表子标签页 -->
+                <div class="game-sub-tab-content" id="game-subtab-techniques" style="display: none;">
+                    <div class="game-section">
+                        <div class="game-section-title">功法列表</div>
+                        <div class="game-techniques-list">
+                            ${this.renderTechniques()}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 成就系统子标签页 -->
+                <div class="game-sub-tab-content" id="game-subtab-achievements" style="display: none;">
+                    <div class="game-section">
+                        <div class="game-section-title">成就系统</div>
+                        <div id="achievements-section"></div>
+                    </div>
+                </div>
+
+                <!-- 每日任务子标签页 -->
+                <div class="game-sub-tab-content" id="game-subtab-daily" style="display: none;">
+                    <div class="game-section">
+                        <div class="game-section-title">每日任务</div>
+                        <div id="tasks-section"></div>
+                    </div>
+                </div>
+
+                <!-- 每日签到这个标签页 -->
+                <div class="game-sub-tab-content" id="game-subtab-signin" style="display: none;">
+                    <div class="game-section">
+                        <div class="game-section-title">每日签到</div>
+                        <div id="signin-section"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- 碎片背包 -->
-            <div class="game-section">
-                <div class="game-section-title">碎片背包</div>
-                <div class="game-fragments-grid">
-                    ${this.renderFragments()}
+            <!-- 我的藏品标签页内容 -->
+            <div class="game-tab-content" id="game-tab-collections" style="display: none;">
+                <div id="collections-content">
+                    <div class="game-loading">加载中...</div>
                 </div>
             </div>
 
-            <!-- 道具背包 -->
-            <div class="game-section">
-                <div class="game-section-title">道具背包</div>
-                <div class="game-items-list">
-                    ${this.renderItems()}
+            <!-- 藏品排行标签页内容 -->
+            <div class="game-tab-content" id="game-tab-ranking" style="display: none;">
+                <div id="ranking-content">
+                    <div class="game-loading">加载中...</div>
                 </div>
-            </div>
-
-            <!-- 功法列表 -->
-            <div class="game-section">
-                <div class="game-section-title">功法列表</div>
-                <div class="game-techniques-list">
-                    ${this.renderTechniques()}
-                </div>
-            </div>
-
-            <!-- 每日签到 -->
-            <div class="game-section">
-                <div class="game-section-title">每日签到</div>
-                <div id="signin-section"></div>
-            </div>
-
-            <!-- 每日任务 -->
-            <div class="game-section">
-                <div class="game-section-title">每日任务</div>
-                <div id="tasks-section"></div>
-            </div>
-
-            <!-- 成就系统 -->
-            <div class="game-section">
-                <div class="game-section-title">成就系统</div>
-                <div id="achievements-section"></div>
             </div>
         `;
 
@@ -804,6 +869,22 @@ class GameSystem {
     bindEvents() {
         if (!this.pageContainer) return;
         
+        // 主标签页切换
+        this.pageContainer.querySelectorAll(".game-tab").forEach(tab => {
+            tab.addEventListener("click", (e) => {
+                const tabName = e.target.dataset.tab;
+                this.switchTab(tabName);
+            });
+        });
+
+        // 子标签页切换（修仙标签页内的）
+        this.pageContainer.querySelectorAll(".game-sub-tab").forEach(tab => {
+            tab.addEventListener("click", (e) => {
+                const subtabName = e.target.dataset.subtab;
+                this.switchSubTab(subtabName);
+            });
+        });
+        
         // 道具使用
         this.pageContainer.querySelectorAll(".game-item-action").forEach(btn => {
             btn.addEventListener("click", async (e) => {
@@ -837,6 +918,295 @@ class GameSystem {
                 await this.claimAchievement(achievementId);
             }
         });
+    }
+
+    /**
+     * 切换标签页
+     */
+    switchTab(tabName) {
+        // 更新标签状态
+        this.pageContainer.querySelectorAll(".game-tab").forEach(tab => {
+            tab.classList.remove("active");
+            tab.style.color = "var(--md-on-surface-variant)";
+            tab.style.borderBottomColor = "transparent";
+        });
+        const activeTab = this.pageContainer.querySelector(`.game-tab[data-tab="${tabName}"]`);
+        if (activeTab) {
+            activeTab.classList.add("active");
+            activeTab.style.color = "var(--md-primary)";
+            activeTab.style.borderBottomColor = "var(--md-primary)";
+        }
+
+        // 更新内容显示
+        this.pageContainer.querySelectorAll(".game-tab-content").forEach(content => {
+            content.style.display = "none";
+            content.classList.remove("active");
+        });
+        const activeContent = this.pageContainer.querySelector(`#game-tab-${tabName}`);
+        if (activeContent) {
+            activeContent.style.display = "block";
+            activeContent.classList.add("active");
+        }
+
+        // 加载对应数据
+        if (tabName === "collections") {
+            this.loadCollections();
+        } else if (tabName === "ranking") {
+            this.loadRanking();
+        } else if (tabName === "main") {
+            // 切换到修仙标签页时，默认显示第一个子标签页
+            this.switchSubTab("fragments");
+        }
+    }
+
+    /**
+     * 切换子标签页（修仙标签页内的）
+     */
+    switchSubTab(subtabName) {
+        // 更新子标签状态
+        this.pageContainer.querySelectorAll(".game-sub-tab").forEach(tab => {
+            tab.classList.remove("active");
+            tab.style.color = "var(--md-on-surface-variant)";
+            tab.style.borderBottomColor = "transparent";
+        });
+        const activeSubTab = this.pageContainer.querySelector(`.game-sub-tab[data-subtab="${subtabName}"]`);
+        if (activeSubTab) {
+            activeSubTab.classList.add("active");
+            activeSubTab.style.color = "var(--md-primary)";
+            activeSubTab.style.borderBottomColor = "var(--md-primary)";
+        }
+
+        // 更新子内容显示
+        this.pageContainer.querySelectorAll(".game-sub-tab-content").forEach(content => {
+            content.style.display = "none";
+            content.classList.remove("active");
+        });
+        const activeSubContent = this.pageContainer.querySelector(`#game-subtab-${subtabName}`);
+        if (activeSubContent) {
+            activeSubContent.style.display = "block";
+            activeSubContent.classList.add("active");
+        }
+
+        // 加载对应数据
+        if (subtabName === "achievements") {
+            this.loadAchievements();
+        } else if (subtabName === "daily") {
+            this.loadTasks();
+        } else if (subtabName === "signin") {
+            this.loadSignin();
+        }
+    }
+
+    /**
+     * 加载我的藏品
+     */
+    async loadCollections() {
+        const container = document.getElementById("collections-content");
+        if (!container) return;
+
+        try {
+            container.innerHTML = '<div class="game-loading">加载中...</div>';
+            const response = await fetch("/api/game/collections", {
+                credentials: "include"
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                const { collections, stats } = result.data;
+                
+                let html = `
+                    <div class="game-section">
+                        <div class="game-section-title">藏品统计</div>
+                        <div class="game-info-cards">
+                            <div class="game-info-card">
+                                <div class="game-info-card-title">总藏品数</div>
+                                <div class="game-info-card-value">${stats.total || 0}</div>
+                            </div>
+                            <div class="game-info-card">
+                                <div class="game-info-card-title">独特类型</div>
+                                <div class="game-info-card-value">${stats.unique_types || 0}</div>
+                            </div>
+                            <div class="game-info-card">
+                                <div class="game-info-card-title">传说级</div>
+                                <div class="game-info-card-value">${stats.legendary_count || 0}</div>
+                            </div>
+                            <div class="game-info-card">
+                                <div class="game-info-card-title">史诗级</div>
+                                <div class="game-info-card-value">${stats.epic_count || 0}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="game-section">
+                        <div class="game-section-title">我的藏品</div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px;">
+                `;
+
+                if (collections.length === 0) {
+                    html += `
+                        <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--md-on-surface-variant);">
+                            <div style="font-size: 64px; margin-bottom: 20px; opacity: 0.5;">📚</div>
+                            <p>暂无藏品</p>
+                            <p style="font-size: 14px; margin-top: 10px;">继续阅读以获得藏品</p>
+                        </div>
+                    `;
+                } else {
+                    const qualityNames = {
+                        'common': '普通', 'uncommon': '不凡', 'rare': '稀有',
+                        'epic': '史诗', 'legendary': '传说', 'mythic': '神话'
+                    };
+                    const qualityColors = {
+                        'common': '#9e9e9e', 'uncommon': '#4caf50', 'rare': '#2196f3',
+                        'epic': '#9c27b0', 'legendary': '#ff9800', 'mythic': '#f44336'
+                    };
+
+                    collections.forEach(collection => {
+                        const qualityName = qualityNames[collection.quality] || '普通';
+                        const color = collection.color || qualityColors[collection.quality] || '#9e9e9e';
+                        const icon = collection.icon || '📚';
+                        const date = new Date(collection.obtained_at).toLocaleString('zh-CN', {
+                            year: 'numeric', month: '2-digit', day: '2-digit',
+                            hour: '2-digit', minute: '2-digit'
+                        });
+
+                        html += `
+                            <div class="game-info-card" style="position: relative; overflow: hidden;">
+                                <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: ${color};"></div>
+                                <div style="text-align: center; padding-top: 8px;">
+                                    <div style="font-size: 48px; margin-bottom: 10px;">${icon}</div>
+                                    <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">${collection.name || '未知'}</div>
+                                    <div style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; background: ${color}; color: white; margin-bottom: 8px;">${qualityName}</div>
+                                    <div style="font-size: 11px; color: var(--md-on-surface-variant); font-family: monospace; margin-top: 8px; word-break: break-all;">${collection.collection_id}</div>
+                                    <div style="font-size: 11px; color: var(--md-on-surface-variant); margin-top: 4px;">${date}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+
+                html += `
+                        </div>
+                    </div>
+                `;
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: var(--md-error);">
+                        <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
+                        <p>加载失败，请刷新重试</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error("加载藏品失败:", error);
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: var(--md-error);">
+                    <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
+                    <p>加载失败，请刷新重试</p>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * 加载藏品排行
+     */
+    async loadRanking() {
+        const container = document.getElementById("ranking-content");
+        if (!container) return;
+
+        try {
+            container.innerHTML = '<div class="game-loading">加载中...</div>';
+            const response = await fetch("/api/game/collections/ranking?limit=100", {
+                credentials: "include"
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                const qualityNames = {
+                    'common': '普通', 'uncommon': '不凡', 'rare': '稀有',
+                    'epic': '史诗', 'legendary': '传说', 'mythic': '神话'
+                };
+                const qualityColors = {
+                    'common': '#9e9e9e', 'uncommon': '#4caf50', 'rare': '#2196f3',
+                    'epic': '#9c27b0', 'legendary': '#ff9800', 'mythic': '#f44336'
+                };
+
+                let html = `
+                    <div class="game-section">
+                        <div class="game-section-title">藏品排行</div>
+                        <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse; background: var(--md-surface-container-low); border-radius: 12px; overflow: hidden;">
+                                <thead>
+                                    <tr style="background: var(--md-surface-container);">
+                                        <th style="padding: 12px; text-align: left; font-weight: 600; width: 60px;">排名</th>
+                                        <th style="padding: 12px; text-align: left; font-weight: 600;">藏品ID</th>
+                                        <th style="padding: 12px; text-align: left; font-weight: 600;">名称</th>
+                                        <th style="padding: 12px; text-align: left; font-weight: 600;">品质</th>
+                                        <th style="padding: 12px; text-align: left; font-weight: 600;">稀有度</th>
+                                        <th style="padding: 12px; text-align: left; font-weight: 600;">持有人</th>
+                                        <th style="padding: 12px; text-align: left; font-weight: 600;">获得时间</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+
+                if (result.data.length === 0) {
+                    html += `
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 40px; color: var(--md-on-surface-variant);">
+                                暂无排行数据
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    result.data.forEach(item => {
+                        const qualityName = qualityNames[item.quality] || '普通';
+                        const color = qualityColors[item.quality] || '#9e9e9e';
+                        const date = new Date(item.obtained_at).toLocaleString('zh-CN', {
+                            year: 'numeric', month: '2-digit', day: '2-digit',
+                            hour: '2-digit', minute: '2-digit'
+                        });
+
+                        html += `
+                            <tr style="border-bottom: 1px solid var(--game-border);">
+                                <td style="padding: 12px; font-weight: 600; color: var(--md-primary);">#${item.rank}</td>
+                                <td style="padding: 12px; font-family: monospace; font-size: 11px;">${item.collection_id}</td>
+                                <td style="padding: 12px;">${item.name || '未知'}</td>
+                                <td style="padding: 12px;">
+                                    <span style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; background: ${color}; color: white;">${qualityName}</span>
+                                </td>
+                                <td style="padding: 12px;">${item.rarity || 1}</td>
+                                <td style="padding: 12px;">${item.username || '未知'}</td>
+                                <td style="padding: 12px; font-size: 12px; color: var(--md-on-surface-variant);">${date}</td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: var(--md-error);">
+                        <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
+                        <p>加载失败，请刷新重试</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error("加载排行失败:", error);
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: var(--md-error);">
+                    <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
+                    <p>加载失败，请刷新重试</p>
+                </div>
+            `;
+        }
     }
 
     /**
@@ -936,6 +1306,10 @@ class GameSystem {
     async recordReading(wordsRead, readingTime = 0, bookId = null, chapterId = null) {
         if (wordsRead <= 0) return;
 
+        // 生成会话哈希（防重复提交）
+        const timestamp = Date.now();
+        const sessionHash = this.generateSessionHash(bookId, chapterId, wordsRead, timestamp);
+
         try {
             const response = await fetch("/api/game/reading", {
                 method: "POST",
@@ -945,11 +1319,19 @@ class GameSystem {
                     wordsRead,
                     readingTime,
                     bookId,
-                    chapterId
+                    chapterId,
+                    sessionHash,
+                    timestamp
                 })
             });
+            
             const result = await response.json();
             if (result.success && result.data) {
+                // 检查是否获得藏品
+                if (result.data.collection) {
+                    this.showCollectionNotification(result.data.collection);
+                }
+                
                 // 检查是否升级
                 if (result.data.leveledUp) {
                     this.showLevelUpNotification(result.data.oldLevel, result.data.level);
@@ -979,14 +1361,143 @@ class GameSystem {
      * 添加阅读字数（供阅读器调用）
      */
     addReadingWords(words, bookId = null, chapterId = null) {
-        this.readingWords += words;
-        this.lastRewardCheck += words;
+        // 防止快速翻页：限制单次添加的字数
+        const maxWordsPerCheck = 5000;
+        const actualWords = Math.min(words, maxWordsPerCheck);
+        
+        this.readingWords += actualWords;
+        this.lastRewardCheck += actualWords;
 
         // 每1000字检查一次奖励
         if (this.lastRewardCheck >= this.rewardCheckInterval) {
-            this.recordReading(this.lastRewardCheck, 0, bookId, chapterId);
+            // 计算实际阅读时间（防止刷新刷修为）
+            const now = Date.now();
+            if (!this.lastReadingTime) {
+                this.lastReadingTime = now;
+            }
+            const timeElapsed = Math.floor((now - this.lastReadingTime) / 1000); // 秒
+            this.lastReadingTime = now;
+            
+            // 确保有最小阅读时间
+            const minTime = Math.max(timeElapsed, Math.floor(this.lastRewardCheck / 1000 * 0.3)); // 至少0.3秒/千字
+            
+            this.recordReading(this.lastRewardCheck, minTime, bookId, chapterId);
             this.lastRewardCheck = 0;
         }
+    }
+
+    /**
+     * 生成会话哈希（防重复提交）
+     */
+    generateSessionHash(bookId, chapterId, wordsRead, timestamp) {
+        // 简单的哈希生成（前端版本）
+        const hashString = `${bookId || ''}_${chapterId || ''}_${wordsRead}_${timestamp}_${Math.random()}`;
+        let hash = 0;
+        for (let i = 0; i < hashString.length; i++) {
+            const char = hashString.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return Math.abs(hash).toString(36);
+    }
+
+    /**
+     * 显示藏品获得通知
+     */
+    showCollectionNotification(collection) {
+        const qualityColors = {
+            'common': '#9e9e9e',
+            'uncommon': '#4caf50',
+            'rare': '#2196f3',
+            'epic': '#9c27b0',
+            'legendary': '#ff9800',
+            'mythic': '#f44336'
+        };
+        
+        const qualityNames = {
+            'common': '普通',
+            'uncommon': '不凡',
+            'rare': '稀有',
+            'epic': '史诗',
+            'legendary': '传说',
+            'mythic': '神话'
+        };
+        
+        const color = collection.color || qualityColors[collection.quality] || '#9e9e9e';
+        const qualityName = qualityNames[collection.quality] || '普通';
+        const icon = collection.icon || '📚';
+        
+        // 创建藏品获得弹窗
+        const popup = document.createElement("div");
+        popup.className = "game-collection-popup";
+        popup.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            z-index: 10000;
+            text-align: center;
+            min-width: 280px;
+            border: 3px solid ${color};
+        `;
+        
+        popup.innerHTML = `
+            <div style="font-size: 48px; margin-bottom: 15px;">✨</div>
+            <div style="font-size: 20px; font-weight: 600; margin-bottom: 10px; color: #333;">
+                获得藏品！
+            </div>
+            <div style="font-size: 48px; margin: 15px 0;">${icon}</div>
+            <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px; color: ${color};">
+                ${collection.name || '未知藏品'}
+            </div>
+            <div style="display: inline-block; padding: 4px 12px; border-radius: 12px; background: ${color}; color: white; font-size: 12px; margin-bottom: 15px;">
+                ${qualityName}
+            </div>
+            <div style="font-size: 11px; color: #999; font-family: monospace; word-break: break-all; margin-top: 10px;">
+                ID: ${collection.collection_id}
+            </div>
+            <button style="margin-top: 20px; padding: 10px 24px; background: ${color}; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
+                确定
+            </button>
+        `;
+        
+        document.body.appendChild(popup);
+        
+        // 添加动画
+        setTimeout(() => {
+            popup.style.opacity = '0';
+            popup.style.transform = 'translate(-50%, -50%) scale(0.9)';
+            popup.style.transition = 'all 0.3s ease';
+        }, 100);
+        
+        // 点击关闭
+        const closeBtn = popup.querySelector('button');
+        closeBtn.addEventListener('click', () => {
+            popup.style.opacity = '0';
+            popup.style.transform = 'translate(-50%, -50%) scale(0.9)';
+            setTimeout(() => {
+                if (popup.parentNode) {
+                    popup.remove();
+                }
+            }, 300);
+        });
+        
+        // 3秒后自动关闭
+        setTimeout(() => {
+            if (popup.parentNode) {
+                popup.style.opacity = '0';
+                popup.style.transform = 'translate(-50%, -50%) scale(0.9)';
+                setTimeout(() => {
+                    if (popup.parentNode) {
+                        popup.remove();
+                    }
+                }, 300);
+            }
+        }, 3000);
     }
 
     /**

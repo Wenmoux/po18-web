@@ -501,6 +501,20 @@ const App = {
         }
     },
 
+    // 检查输入是否是书籍ID或URL
+    isBookIdOrUrl(value) {
+        if (!value) return false;
+        // 检查是否是纯数字（书籍ID）
+        if (/^\d+$/.test(value)) {
+            return true;
+        }
+        // 检查是否是URL
+        if (/^https?:\/\//.test(value)) {
+            return true;
+        }
+        return false;
+    },
+
     // 处理解析书籍
     async handleParseBook() {
         const input = document.getElementById("unified-input")?.value.trim();

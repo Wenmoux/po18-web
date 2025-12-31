@@ -36,7 +36,8 @@ const {
     SubscriptionDB,
     BookListDB,
     BookListCommentDB,
-    GameDB
+    GameDB,
+    CollectionDB
 } = require("./database");
 const { NovelCrawler, ContentFormatter, EpubGenerator } = require("./crawler");
 const WebDAVClient = require("./webdav");
@@ -2006,6 +2007,15 @@ router.post("/share/upload", requireLogin, async (req, res) => {
 
         // 增加用户共享计数
         UserDB.incrementSharedBooks(req.session.userId);
+        
+        // 更新共享相关成就
+        const user = UserDB.findById(req.session.userId);
+        if (user) {
+            GameDB.updateAchievementProgress(req.session.userId, "share_1", user.shared_books_count);
+            GameDB.updateAchievementProgress(req.session.userId, "share_10", user.shared_books_count);
+            GameDB.updateAchievementProgress(req.session.userId, "share_50", user.shared_books_count);
+            GameDB.updateAchievementProgress(req.session.userId, "share_100", user.shared_books_count);
+        }
 
         res.json({ success: true, message: "上传成功" });
     } catch (error) {
@@ -5557,6 +5567,15 @@ router.post("/corrections", requireLogin, (req, res) => {
             VALUES (?, ?, ?, ?, ?)
         `).run(req.session.userId, bookId, chapterId, originalText, correctedText);
         
+        // 更新纠错相关成就
+        const correctionCount = db.prepare(`
+            SELECT COUNT(*) as count FROM corrections WHERE user_id = ?
+        `).get(req.session.userId).count;
+        GameDB.updateAchievementProgress(req.session.userId, "correction_1", correctionCount);
+        GameDB.updateAchievementProgress(req.session.userId, "correction_10", correctionCount);
+        GameDB.updateAchievementProgress(req.session.userId, "correction_50", correctionCount);
+        GameDB.updateAchievementProgress(req.session.userId, "correction_100", correctionCount);
+        
         logger.info("提交纠错", { userId: req.session.userId, bookId, chapterId });
         res.json({ success: true, message: "纠错已提交，等待审核" });
     } catch (error) {
@@ -5949,10 +5968,35 @@ router.get("/game/data", requireLogin, (req, res) => {
 router.post("/game/reading", requireLogin, async (req, res) => {
     try {
         const userId = req.session.userId;
-        const { wordsRead, readingTime, bookId, chapterId } = req.body;
+        const { wordsRead, readingTime, bookId, chapterId, sessionHash, timestamp } = req.body;
 
         if (!wordsRead || wordsRead <= 0) {
             return res.json({ success: true, data: { expGained: 0, fragments: [] } });
+        }
+
+        // 防刷机制：检查会话哈希
+        const actualHash = sessionHash || GameDB.generateSessionHash(userId, bookId, chapterId, wordsRead, timestamp || Date.now());
+        if (GameDB.checkSessionExists(actualHash)) {
+            return res.json({ success: false, error: "重复提交，请勿刷新页面" });
+        }
+
+        // 验证阅读时间合理性（防止快速翻页）
+        const minReadingTime = GameDB.getGameConfig("min_reading_time_per_1000_words", 30);
+        const minReadingTimeRatio = GameDB.getGameConfig("min_reading_time_ratio", 0.5);
+        const expectedMinTime = Math.floor((wordsRead / 1000) * minReadingTime * minReadingTimeRatio);
+        
+        if (readingTime && readingTime < expectedMinTime) {
+            // 阅读时间过短，可能是快速翻页，减少奖励但不完全拒绝
+            const timeRatio = readingTime / expectedMinTime;
+            if (timeRatio < 0.3) {
+                return res.json({ success: false, error: "阅读时间过短，请认真阅读" });
+            }
+        }
+
+        // 限制单次请求最大字数
+        const maxWordsPerRequest = GameDB.getGameConfig("max_words_per_request", 5000);
+        if (wordsRead > maxWordsPerRequest) {
+            return res.json({ success: false, error: `单次阅读字数不能超过${maxWordsPerRequest}字` });
         }
 
         // 计算修为（每1000字 = 10-20修为，根据境界调整）
@@ -5964,6 +6008,7 @@ router.post("/game/reading", requireLogin, async (req, res) => {
         const equippedTechniques = techniques.filter(t => t.is_equipped);
         let expMultiplier = 1.0;
         
+        // 功法加成
         equippedTechniques.forEach(tech => {
             // 根据功法名称计算加成
             if (tech.technique_id === "清心诀") expMultiplier += 0.10;
@@ -5971,6 +6016,19 @@ router.post("/game/reading", requireLogin, async (req, res) => {
             else if (tech.technique_id === "悟道诀") expMultiplier += 0.20;
             else if (tech.technique_id === "静心诀") expMultiplier += 0.12;
         });
+        
+        // 藏品效果加成
+        try {
+            const collections = CollectionDB.getUserCollections(userId);
+            collections.forEach(collection => {
+                if (collection.effect_type === "exp_multiplier" && collection.effect_value) {
+                    const effectValue = parseFloat(collection.effect_value) || 0;
+                    expMultiplier += effectValue; // 例如：0.2 表示 +20%
+                }
+            });
+        } catch (error) {
+            logger.error("获取藏品效果失败", { error: error.message });
+        }
         
         const expGained = Math.floor((wordsRead / 1000) * expPerThousand * expMultiplier);
 
@@ -5990,6 +6048,13 @@ router.post("/game/reading", requireLogin, async (req, res) => {
         GameDB.updateAchievementProgress(userId, "read_10m", totalWords);
         GameDB.updateAchievementProgress(userId, "read_50k_day", wordsRead);
         
+        // 更新等级相关成就
+        GameDB.updateAchievementProgress(userId, "level_10", level);
+        GameDB.updateAchievementProgress(userId, "level_20", level);
+        GameDB.updateAchievementProgress(userId, "level_30", level);
+        GameDB.updateAchievementProgress(userId, "level_50", level);
+        GameDB.updateAchievementProgress(userId, "level_80", level);
+        
         // 检查境界成就
         const levelNames = ["炼气期", "筑基期", "金丹期", "元婴期", "化神期"];
         const realmIndex = Math.min(Math.floor((level - 1) / 10), levelNames.length - 1);
@@ -5998,6 +6063,18 @@ router.post("/game/reading", requireLogin, async (req, res) => {
             for (let i = 0; i <= realmIndex; i++) {
                 GameDB.updateAchievementProgress(userId, realmIds[i], 1);
             }
+        }
+
+        // 更新藏品相关成就
+        try {
+            const collections = CollectionDB.getUserCollections(userId);
+            const collectionCount = collections.length;
+            GameDB.updateAchievementProgress(userId, "collection_1", collectionCount);
+            GameDB.updateAchievementProgress(userId, "collection_5", collectionCount);
+            GameDB.updateAchievementProgress(userId, "collection_10", collectionCount);
+            GameDB.updateAchievementProgress(userId, "collection_20", collectionCount);
+        } catch (error) {
+            logger.error("更新藏品成就失败", { error: error.message });
         }
         
         // 碎片掉落（每章有概率掉落1-3个碎片）
@@ -6010,12 +6087,12 @@ router.post("/game/reading", requireLogin, async (req, res) => {
             beast: ["灵狐", "仙鹤", "神龙", "凤凰"]
         };
 
-        // 计算碎片掉落率（基础30%，装备悟道丹可提升）
-        let fragmentDropRate = 0.3;
+        // 计算碎片掉落率（从配置读取）
+        let fragmentDropRate = GameDB.getGameConfig("fragment_drop_rate", 0.3);
         const items = GameDB.getUserItems(userId);
         const hasWudaoPill = items.some(item => item.item_type === "pill" && item.item_id === "悟道丹");
         if (hasWudaoPill) {
-            fragmentDropRate = 0.5; // 悟道丹提升到50%
+            fragmentDropRate = GameDB.getGameConfig("fragment_drop_rate_with_pill", 0.5);
         }
 
         // 每阅读一章，有概率掉落碎片
@@ -6031,7 +6108,46 @@ router.post("/game/reading", requireLogin, async (req, res) => {
             }
         }
 
-        // 记录阅读会话
+        // 尝试掉落藏品（通过阅读获得）
+        let collectionObtained = null;
+        try {
+            // 获取书籍分类信息
+            let bookCategories = [];
+            if (bookId) {
+                const bookMeta = BookMetadataDB.getBookMetadata(bookId);
+                if (bookMeta && bookMeta.tags) {
+                    bookCategories = bookMeta.tags.split(/[·,，]/).map(t => t.trim()).filter(t => t);
+                }
+            }
+
+            const dropResult = CollectionDB.tryDropCollection(userId, bookId, chapterId, wordsRead, bookCategories);
+            if (dropResult.dropped && dropResult.collection) {
+                collectionObtained = {
+                    collection_id: dropResult.collection.collection_id,
+                    name: dropResult.collection.name,
+                    quality: dropResult.collection.quality,
+                    rarity: dropResult.collection.rarity,
+                    color: dropResult.collection.color,
+                    icon: dropResult.collection.icon
+                };
+                
+                // 更新藏品相关成就
+                const collections = CollectionDB.getUserCollections(userId);
+                const collectionCount = collections.length;
+                GameDB.updateAchievementProgress(userId, "collection_1", collectionCount);
+                GameDB.updateAchievementProgress(userId, "collection_5", collectionCount);
+                GameDB.updateAchievementProgress(userId, "collection_10", collectionCount);
+                GameDB.updateAchievementProgress(userId, "collection_20", collectionCount);
+            }
+        } catch (error) {
+            logger.error("藏品掉落失败", { error: error.message, userId, bookId });
+            // 藏品掉落失败不影响阅读奖励
+        }
+
+        // 记录阅读会话（防刷）
+        GameDB.logReadingSession(userId, bookId, chapterId, wordsRead, readingTime || 0, actualHash);
+
+        // 记录阅读会话（用于统计）
         GameDB.recordReadingSession(userId, {
             bookId,
             chapterId,
@@ -6060,7 +6176,8 @@ router.post("/game/reading", requireLogin, async (req, res) => {
                 level,
                 leveledUp: leveledUp || false,
                 oldLevel: oldLevel || level,
-                fragments: fragmentsObtained
+                fragments: fragmentsObtained,
+                collection: collectionObtained
             }
         });
     } catch (error) {
@@ -6302,6 +6419,165 @@ router.post("/game/tasks/update", requireLogin, (req, res) => {
     } catch (error) {
         logger.error("更新任务进度失败", { error: error.message });
         res.status(500).json({ error: "更新失败" });
+    }
+});
+
+// ==================== 藏品系统 ====================
+
+// 获取用户的所有藏品
+router.get("/game/collections", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const collections = CollectionDB.getUserCollections(userId);
+        const stats = CollectionDB.getUserCollectionStats(userId);
+        res.json({ success: true, data: { collections, stats } });
+    } catch (error) {
+        logger.error("获取藏品失败", { error: error.message });
+        res.status(500).json({ error: "获取失败" });
+    }
+});
+
+// 获取藏品排行（必须在 /:collectionId 之前，避免路由冲突）
+router.get("/game/collections/ranking", (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 100;
+        const ranking = CollectionDB.getCollectionRanking(limit);
+        res.json({ success: true, data: ranking });
+    } catch (error) {
+        logger.error("获取藏品排行失败", { error: error.message });
+        res.status(500).json({ error: "获取失败" });
+    }
+});
+
+// 获取藏品详情（必须在 /ranking 之后）
+router.get("/game/collections/:collectionId", requireLogin, (req, res) => {
+    try {
+        const { collectionId } = req.params;
+        const collection = CollectionDB.getCollectionById(collectionId);
+        if (!collection) {
+            return res.status(404).json({ error: "藏品不存在" });
+        }
+        // 检查是否是自己的藏品
+        if (collection.user_id !== req.session.userId) {
+            return res.status(403).json({ error: "无权访问" });
+        }
+        res.json({ success: true, data: collection });
+    } catch (error) {
+        logger.error("获取藏品详情失败", { error: error.message });
+        res.status(500).json({ error: "获取失败" });
+    }
+});
+
+// ==================== 藏品管理（后台） ====================
+
+// 获取所有藏品模板
+router.get("/admin/collections/templates", requireAdmin, (req, res) => {
+    try {
+        const includeInactive = req.query.includeInactive === 'true';
+        const templates = CollectionDB.getAllTemplates(includeInactive);
+        res.json({ success: true, data: templates });
+    } catch (error) {
+        logger.error("获取藏品模板失败", { error: error.message });
+        res.status(500).json({ error: "获取失败" });
+    }
+});
+
+// 获取单个藏品模板
+router.get("/admin/collections/templates/:id", requireAdmin, (req, res) => {
+    try {
+        const template = CollectionDB.getTemplateById(parseInt(req.params.id));
+        if (!template) {
+            return res.status(404).json({ error: "模板不存在" });
+        }
+        res.json({ success: true, data: template });
+    } catch (error) {
+        logger.error("获取藏品模板失败", { error: error.message });
+        res.status(500).json({ error: "获取失败" });
+    }
+});
+
+// 创建藏品模板
+router.post("/admin/collections/templates", requireAdmin, (req, res) => {
+    try {
+        const result = CollectionDB.createTemplate(req.body);
+        if (result.success) {
+            res.json({ success: true, data: result });
+        } else {
+            res.status(400).json({ error: result.message || "创建失败" });
+        }
+    } catch (error) {
+        logger.error("创建藏品模板失败", { error: error.message });
+        res.status(500).json({ error: "创建失败" });
+    }
+});
+
+// 更新藏品模板
+router.put("/admin/collections/templates/:id", requireAdmin, (req, res) => {
+    try {
+        const templateId = parseInt(req.params.id);
+        const result = CollectionDB.updateTemplate(templateId, req.body);
+        if (result.success) {
+            res.json({ success: true });
+        } else {
+            res.status(400).json({ error: result.message || "更新失败" });
+        }
+    } catch (error) {
+        logger.error("更新藏品模板失败", { error: error.message });
+        res.status(500).json({ error: "更新失败" });
+    }
+});
+
+// 删除藏品模板（软删除）
+router.delete("/admin/collections/templates/:id", requireAdmin, (req, res) => {
+    try {
+        const templateId = parseInt(req.params.id);
+        CollectionDB.deleteTemplate(templateId);
+        res.json({ success: true });
+    } catch (error) {
+        logger.error("删除藏品模板失败", { error: error.message });
+        res.status(500).json({ error: "删除失败" });
+    }
+});
+
+// ==================== 游戏配置管理（后台） ====================
+
+// 获取所有游戏配置
+router.get("/admin/game/config", requireLogin, (req, res) => {
+    try {
+        // TODO: 添加管理员权限检查
+        const configs = GameDB.getAllGameConfigs();
+        res.json({ success: true, data: configs });
+    } catch (error) {
+        logger.error("获取游戏配置失败", { error: error.message });
+        res.status(500).json({ error: "获取失败" });
+    }
+});
+
+// 更新游戏配置
+router.post("/admin/game/config", requireLogin, (req, res) => {
+    try {
+        // TODO: 添加管理员权限检查
+        const { configKey, configValue, configDesc } = req.body;
+        if (!configKey || configValue === undefined) {
+            return res.status(400).json({ error: "参数不完整" });
+        }
+        const result = GameDB.updateGameConfig(configKey, configValue, configDesc);
+        res.json(result);
+    } catch (error) {
+        logger.error("更新游戏配置失败", { error: error.message });
+        res.status(500).json({ error: "更新失败" });
+    }
+});
+
+// 清理旧的会话记录
+router.post("/admin/game/clean-sessions", requireLogin, (req, res) => {
+    try {
+        // TODO: 添加管理员权限检查
+        GameDB.cleanOldSessionLogs();
+        res.json({ success: true, message: "清理完成" });
+    } catch (error) {
+        logger.error("清理会话记录失败", { error: error.message });
+        res.status(500).json({ error: "清理失败" });
     }
 });
 

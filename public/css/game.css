@@ -47,6 +47,82 @@
     padding: var(--game-spacing);
 }
 
+/* ===== 标签页 ===== */
+.game-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--game-border);
+}
+
+.game-tab {
+    padding: 12px 24px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--md-on-surface-variant);
+    transition: all 0.3s;
+    margin-bottom: -2px;
+}
+
+.game-tab:hover {
+    color: var(--md-primary);
+}
+
+.game-tab.active {
+    color: var(--md-primary);
+    border-bottom-color: var(--md-primary);
+}
+
+.game-tab-content {
+    display: none;
+}
+
+.game-tab-content.active {
+    display: block;
+}
+
+/* ===== 子标签页 ===== */
+.game-sub-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    border-bottom: 2px solid var(--game-border);
+    overflow-x: auto;
+}
+
+.game-sub-tab {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--md-on-surface-variant);
+    transition: all 0.3s;
+    margin-bottom: -2px;
+    white-space: nowrap;
+}
+
+.game-sub-tab:hover {
+    color: var(--md-primary);
+}
+
+.game-sub-tab.active {
+    color: var(--md-primary);
+    border-bottom-color: var(--md-primary);
+}
+
+.game-sub-tab-content {
+    display: none;
+}
+
+.game-sub-tab-content.active {
+    display: block;
+}
+
 /* ===== 信息卡片 ===== */
 .game-info-cards {
     display: grid;

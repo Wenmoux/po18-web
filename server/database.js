@@ -707,6 +707,93 @@ function initDatabase() {
         )
     `);
 
+    // 游戏配置表（后台可修改）
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS game_config (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            config_key TEXT NOT NULL UNIQUE,
+            config_value TEXT NOT NULL,
+            config_desc TEXT,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    // 阅读会话记录表（防刷机制）
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS reading_session_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            book_id TEXT,
+            chapter_id TEXT,
+            words_read INTEGER DEFAULT 0,
+            reading_time INTEGER DEFAULT 0,
+            session_hash TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            UNIQUE(session_hash)
+        )
+    `);
+
+    // 藏品模板表（后台配置，定义所有可获得的藏品）
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS collection_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT,
+            quality TEXT NOT NULL DEFAULT 'common',
+            rarity INTEGER NOT NULL DEFAULT 1,
+            max_quantity INTEGER NOT NULL DEFAULT 0,
+            current_quantity INTEGER DEFAULT 0,
+            drop_rate REAL NOT NULL DEFAULT 0.01,
+            effect_type TEXT,
+            effect_value TEXT,
+            effect_description TEXT,
+            allowed_book_ids TEXT,
+            allowed_categories TEXT,
+            icon TEXT,
+            color TEXT,
+            is_active INTEGER DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    // 用户藏品表（每个藏品有唯一ID，服务器生成）
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS user_collections (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            collection_id TEXT NOT NULL UNIQUE,
+            template_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            obtained_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            obtained_from_book_id TEXT,
+            obtained_from_chapter_id TEXT,
+            is_tradable INTEGER DEFAULT 1,
+            transaction_id TEXT,
+            FOREIGN KEY (template_id) REFERENCES collection_templates(id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    `);
+
+    // 藏品交易记录表（为后期交易功能准备）
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS collection_transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            transaction_id TEXT NOT NULL UNIQUE,
+            collection_id TEXT NOT NULL,
+            from_user_id INTEGER,
+            to_user_id INTEGER NOT NULL,
+            transaction_type TEXT NOT NULL,
+            price INTEGER,
+            status TEXT DEFAULT 'pending',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            completed_at DATETIME,
+            FOREIGN KEY (collection_id) REFERENCES user_collections(collection_id),
+            FOREIGN KEY (from_user_id) REFERENCES users(id),
+            FOREIGN KEY (to_user_id) REFERENCES users(id)
+        )
+    `);
+
     // 游戏系统索引
     db.exec(`
         CREATE INDEX IF NOT EXISTS idx_fragments_user ON user_fragments(user_id);
@@ -717,7 +804,33 @@ function initDatabase() {
         CREATE INDEX IF NOT EXISTS idx_signin_user_date ON user_daily_signin(user_id, signin_date);
         CREATE INDEX IF NOT EXISTS idx_achievements_user ON user_achievements(user_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_user_date ON user_daily_tasks(user_id, task_date);
+        CREATE INDEX IF NOT EXISTS idx_session_logs_hash ON reading_session_logs(session_hash);
+        CREATE INDEX IF NOT EXISTS idx_session_logs_user_time ON reading_session_logs(user_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_collections_user ON user_collections(user_id);
+        CREATE INDEX IF NOT EXISTS idx_collections_template ON user_collections(template_id);
+        CREATE INDEX IF NOT EXISTS idx_collections_id ON user_collections(collection_id);
+        CREATE INDEX IF NOT EXISTS idx_collection_templates_active ON collection_templates(is_active);
+        CREATE INDEX IF NOT EXISTS idx_collection_transactions_id ON collection_transactions(transaction_id);
     `);
+
+    // 初始化游戏配置默认值
+    const defaultConfigs = [
+        { key: "fragment_drop_rate", value: "0.3", desc: "碎片基础掉落率（0-1）" },
+        { key: "fragment_drop_rate_with_pill", value: "0.5", desc: "使用悟道丹后的碎片掉落率" },
+        { key: "min_reading_time_per_1000_words", value: "30", desc: "每1000字最少阅读时间（秒）" },
+        { key: "max_words_per_request", value: "5000", desc: "单次请求最大字数" },
+        { key: "min_reading_time_ratio", value: "0.5", desc: "最小阅读时间比例（阅读时间/字数*1000，秒/千字）" },
+        { key: "collection_drop_rate_base", value: "0.05", desc: "藏品基础掉落率（0-1），每1000字" },
+        { key: "collection_drop_interval_words", value: "1000", desc: "藏品掉落检查间隔（字数）" }
+    ];
+    
+    defaultConfigs.forEach(config => {
+        const existing = db.prepare("SELECT * FROM game_config WHERE config_key = ?").get(config.key);
+        if (!existing) {
+            db.prepare("INSERT INTO game_config (config_key, config_value, config_desc) VALUES (?, ?, ?)")
+                .run(config.key, config.value, config.desc);
+        }
+    });
 
     console.log("数据库初始化完成");
 
@@ -3160,6 +3273,7 @@ const GameDB = {
     updateAchievementProgress(userId, achievementId, progress) {
         // 根据成就ID确定类型和目标值
         const achievementConfig = {
+            // 阅读相关成就
             "read_10k": { type: "reading", target: 10000 },
             "read_100k": { type: "reading", target: 100000 },
             "read_1m": { type: "reading", target: 1000000 },
@@ -3167,14 +3281,37 @@ const GameDB = {
             "read_7days": { type: "reading", target: 7 },
             "read_30days": { type: "reading", target: 30 },
             "read_50k_day": { type: "reading", target: 50000 },
+            // 境界相关成就
             "realm_qi": { type: "realm", target: 1 },
             "realm_zhu": { type: "realm", target: 1 },
             "realm_jin": { type: "realm", target: 1 },
             "realm_yuan": { type: "realm", target: 1 },
             "realm_hua": { type: "realm", target: 1 },
+            "level_10": { type: "level", target: 10 },
+            "level_20": { type: "level", target: 20 },
+            "level_30": { type: "level", target: 30 },
+            "level_50": { type: "level", target: 50 },
+            "level_80": { type: "level", target: 80 },
+            // 碎片道具相关成就
             "fragments_100": { type: "collection", target: 100 },
             "techniques_10": { type: "collection", target: 10 },
             "items_50": { type: "collection", target: 50 },
+            // 共享相关成就
+            "share_1": { type: "sharing", target: 1 },
+            "share_10": { type: "sharing", target: 10 },
+            "share_50": { type: "sharing", target: 50 },
+            "share_100": { type: "sharing", target: 100 },
+            // 纠错相关成就
+            "correction_1": { type: "correction", target: 1 },
+            "correction_10": { type: "correction", target: 10 },
+            "correction_50": { type: "correction", target: 50 },
+            "correction_100": { type: "correction", target: 100 },
+            // 藏品相关成就
+            "collection_1": { type: "collection", target: 1 },
+            "collection_5": { type: "collection", target: 5 },
+            "collection_10": { type: "collection", target: 10 },
+            "collection_20": { type: "collection", target: 20 },
+            // 特殊成就
             "realm_5_day": { type: "special", target: 5 },
             "exp_1000": { type: "special", target: 1000 },
             "fragments_3": { type: "special", target: 3 }
@@ -3239,6 +3376,7 @@ const GameDB = {
     // 获取成就奖励配置
     getAchievementReward(achievementId) {
         const rewards = {
+            // 阅读相关成就奖励
             "read_10k": { exp: 100, items: [] },
             "read_100k": { exp: 500, items: [{ type: "pill", id: "聚灵丹", quantity: 1 }] },
             "read_1m": { exp: 2000, items: [{ type: "pill", id: "回神丹", quantity: 3 }] },
@@ -3246,14 +3384,37 @@ const GameDB = {
             "read_7days": { exp: 300, items: [] },
             "read_30days": { exp: 1000, items: [{ type: "pill", id: "清心丹", quantity: 2 }] },
             "read_50k_day": { exp: 500, items: [] },
+            // 境界相关成就奖励
             "realm_qi": { exp: 200, items: [] },
             "realm_zhu": { exp: 500, items: [] },
             "realm_jin": { exp: 1000, items: [] },
             "realm_yuan": { exp: 2000, items: [] },
             "realm_hua": { exp: 5000, items: [] },
+            "level_10": { exp: 300, items: [] },
+            "level_20": { exp: 800, items: [{ type: "pill", id: "聚灵丹", quantity: 2 }] },
+            "level_30": { exp: 1500, items: [{ type: "pill", id: "回神丹", quantity: 2 }] },
+            "level_50": { exp: 3000, items: [{ type: "pill", id: "悟道丹", quantity: 3 }] },
+            "level_80": { exp: 8000, items: [{ type: "pill", id: "悟道丹", quantity: 10 }] },
+            // 碎片道具相关成就奖励
             "fragments_100": { exp: 800, items: [] },
             "techniques_10": { exp: 1000, items: [] },
             "items_50": { exp: 1500, items: [] },
+            // 共享相关成就奖励
+            "share_1": { exp: 50, items: [] },
+            "share_10": { exp: 200, items: [] },
+            "share_50": { exp: 500, items: [{ type: "pill", id: "聚灵丹", quantity: 1 }] },
+            "share_100": { exp: 1000, items: [{ type: "pill", id: "回神丹", quantity: 2 }] },
+            // 纠错相关成就奖励
+            "correction_1": { exp: 30, items: [] },
+            "correction_10": { exp: 150, items: [] },
+            "correction_50": { exp: 400, items: [] },
+            "correction_100": { exp: 800, items: [{ type: "pill", id: "清心丹", quantity: 1 }] },
+            // 藏品相关成就奖励
+            "collection_1": { exp: 100, items: [] },
+            "collection_5": { exp: 300, items: [] },
+            "collection_10": { exp: 600, items: [{ type: "pill", id: "聚灵丹", quantity: 1 }] },
+            "collection_20": { exp: 1200, items: [{ type: "pill", id: "回神丹", quantity: 2 }] },
+            // 特殊成就奖励
             "realm_5_day": { exp: 2000, items: [] },
             "exp_1000": { exp: 500, items: [] },
             "fragments_3": { exp: 200, items: [] }
@@ -3424,6 +3585,516 @@ const GameDB = {
         
         // 奖励已在完成时发放，这里只是标记
         return { success: true, reward: task.reward_exp };
+    },
+
+    // ==================== 游戏配置管理 ====================
+    
+    // 获取游戏配置
+    getGameConfig(configKey, defaultValue = null) {
+        const config = db.prepare("SELECT * FROM game_config WHERE config_key = ?").get(configKey);
+        if (!config) return defaultValue;
+        
+        // 尝试转换为数字
+        const numValue = parseFloat(config.config_value);
+        if (!isNaN(numValue) && isFinite(numValue)) {
+            return numValue;
+        }
+        return config.config_value;
+    },
+
+    // 获取所有游戏配置
+    getAllGameConfigs() {
+        return db.prepare("SELECT * FROM game_config ORDER BY config_key").all();
+    },
+
+    // 更新游戏配置
+    updateGameConfig(configKey, configValue, configDesc = null) {
+        const existing = db.prepare("SELECT * FROM game_config WHERE config_key = ?").get(configKey);
+        if (existing) {
+            if (configDesc) {
+                db.prepare(`
+                    UPDATE game_config 
+                    SET config_value = ?, config_desc = ?, updated_at = CURRENT_TIMESTAMP 
+                    WHERE config_key = ?
+                `).run(configValue, configDesc, configKey);
+            } else {
+                db.prepare(`
+                    UPDATE game_config 
+                    SET config_value = ?, updated_at = CURRENT_TIMESTAMP 
+                    WHERE config_key = ?
+                `).run(configValue, configKey);
+            }
+        } else {
+            db.prepare(`
+                INSERT INTO game_config (config_key, config_value, config_desc) 
+                VALUES (?, ?, ?)
+            `).run(configKey, configValue, configDesc || "");
+        }
+        return { success: true };
+    },
+
+    // ==================== 防刷机制 ====================
+    
+    // 生成会话哈希（用于防重复提交）
+    generateSessionHash(userId, bookId, chapterId, wordsRead, timestamp) {
+        const crypto = require('crypto');
+        const hashString = `${userId}_${bookId}_${chapterId}_${wordsRead}_${timestamp}`;
+        return crypto.createHash('md5').update(hashString).digest('hex');
+    },
+
+    // 检查会话是否已存在（防重复提交）
+    checkSessionExists(sessionHash) {
+        const existing = db.prepare("SELECT * FROM reading_session_logs WHERE session_hash = ?").get(sessionHash);
+        return !!existing;
+    },
+
+    // 记录阅读会话（防刷）
+    logReadingSession(userId, bookId, chapterId, wordsRead, readingTime, sessionHash) {
+        try {
+            db.prepare(`
+                INSERT INTO reading_session_logs 
+                (user_id, book_id, chapter_id, words_read, reading_time, session_hash)
+                VALUES (?, ?, ?, ?, ?, ?)
+            `).run(userId, bookId, chapterId, wordsRead, readingTime, sessionHash);
+            return true;
+        } catch (error) {
+            // 如果插入失败（可能是重复），返回false
+            return false;
+        }
+    },
+
+    // 清理旧的会话记录（保留最近7天）
+    cleanOldSessionLogs() {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        db.prepare(`
+            DELETE FROM reading_session_logs 
+            WHERE created_at < ?
+        `).run(sevenDaysAgo.toISOString());
+    }
+};
+
+// ==================== 藏品系统 ====================
+const CollectionDB = {
+    // 生成唯一藏品ID（参考区块链，不可增发）
+    generateCollectionId() {
+        const crypto = require('crypto');
+        const timestamp = Date.now();
+        const random = crypto.randomBytes(16).toString('hex');
+        return `COL-${timestamp}-${random}`.toUpperCase();
+    },
+
+    // ==================== 藏品模板管理 ====================
+    
+    // 获取所有藏品模板
+    getAllTemplates(includeInactive = false) {
+        if (includeInactive) {
+            return db.prepare("SELECT * FROM collection_templates ORDER BY rarity DESC, id ASC").all();
+        }
+        return db.prepare("SELECT * FROM collection_templates WHERE is_active = 1 ORDER BY rarity DESC, id ASC").all();
+    },
+
+    // 根据ID获取模板
+    getTemplateById(templateId) {
+        return db.prepare("SELECT * FROM collection_templates WHERE id = ?").get(templateId);
+    },
+
+    // 创建藏品模板
+    createTemplate(templateData) {
+        const {
+            name, description, quality, rarity, max_quantity, drop_rate,
+            effect_type, effect_value, effect_description,
+            allowed_book_ids, allowed_categories, icon, color
+        } = templateData;
+
+        const result = db.prepare(`
+            INSERT INTO collection_templates (
+                name, description, quality, rarity, max_quantity, drop_rate,
+                effect_type, effect_value, effect_description,
+                allowed_book_ids, allowed_categories, icon, color
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+            name, description || '', quality || 'common', rarity || 1, max_quantity || 0, drop_rate || 0.01,
+            effect_type || null, effect_value || null, effect_description || null,
+            allowed_book_ids || null, allowed_categories || null, icon || null, color || null
+        );
+
+        return { success: true, id: result.lastInsertRowid };
+    },
+
+    // 更新藏品模板
+    updateTemplate(templateId, templateData) {
+        const fields = [];
+        const values = [];
+        
+        const allowedFields = [
+            'name', 'description', 'quality', 'rarity', 'max_quantity', 'drop_rate',
+            'effect_type', 'effect_value', 'effect_description',
+            'allowed_book_ids', 'allowed_categories', 'icon', 'color', 'is_active'
+        ];
+
+        for (const [key, value] of Object.entries(templateData)) {
+            if (allowedFields.includes(key)) {
+                fields.push(`${key} = ?`);
+                values.push(value);
+            }
+        }
+
+        if (fields.length === 0) {
+            return { success: false, message: "没有可更新的字段" };
+        }
+
+        fields.push('updated_at = CURRENT_TIMESTAMP');
+        values.push(templateId);
+
+        db.prepare(`
+            UPDATE collection_templates 
+            SET ${fields.join(', ')} 
+            WHERE id = ?
+        `).run(...values);
+
+        return { success: true };
+    },
+
+    // 删除藏品模板（软删除）
+    deleteTemplate(templateId) {
+        db.prepare("UPDATE collection_templates SET is_active = 0 WHERE id = ?").run(templateId);
+        return { success: true };
+    },
+
+    // ==================== 用户藏品管理 ====================
+    
+    // 获取用户的所有藏品
+    getUserCollections(userId) {
+        return db.prepare(`
+            SELECT 
+                uc.*,
+                ct.name, ct.description, ct.quality, ct.rarity,
+                ct.effect_type, ct.effect_value, ct.effect_description,
+                ct.icon, ct.color
+            FROM user_collections uc
+            JOIN collection_templates ct ON uc.template_id = ct.id
+            WHERE uc.user_id = ?
+            ORDER BY ct.rarity DESC, uc.obtained_at DESC
+        `).all(userId);
+    },
+
+    // 根据藏品ID获取藏品信息
+    getCollectionById(collectionId) {
+        return db.prepare(`
+            SELECT 
+                uc.*,
+                ct.name, ct.description, ct.quality, ct.rarity,
+                ct.effect_type, ct.effect_value, ct.effect_description,
+                ct.icon, ct.color
+            FROM user_collections uc
+            JOIN collection_templates ct ON uc.template_id = ct.id
+            WHERE uc.collection_id = ?
+        `).get(collectionId);
+    },
+
+    // 检查模板是否已达到最大数量
+    checkTemplateQuantity(templateId) {
+        const template = db.prepare("SELECT max_quantity, current_quantity FROM collection_templates WHERE id = ?").get(templateId);
+        if (!template) return { available: false, reason: "模板不存在" };
+        
+        if (template.max_quantity > 0 && template.current_quantity >= template.max_quantity) {
+            return { available: false, reason: "已达到最大数量" };
+        }
+        
+        return { available: true };
+    },
+
+    // 创建用户藏品（服务器端生成唯一ID）
+    createUserCollection(userId, templateId, bookId = null, chapterId = null) {
+        // 检查用户是否已经拥有该模板的藏品（防止重复获得）
+        const existing = db.prepare(`
+            SELECT * FROM user_collections 
+            WHERE user_id = ? AND template_id = ?
+        `).get(userId, templateId);
+        
+        if (existing) {
+            return { 
+                success: false, 
+                message: "您已经拥有该藏品，无法重复获得" 
+            };
+        }
+
+        // 检查数量限制
+        const quantityCheck = this.checkTemplateQuantity(templateId);
+        if (!quantityCheck.available) {
+            return { success: false, message: quantityCheck.reason };
+        }
+
+        // 生成唯一ID
+        const collectionId = this.generateCollectionId();
+
+        // 创建藏品
+        db.prepare(`
+            INSERT INTO user_collections (
+                collection_id, template_id, user_id,
+                obtained_from_book_id, obtained_from_chapter_id
+            ) VALUES (?, ?, ?, ?, ?)
+        `).run(collectionId, templateId, userId, bookId, chapterId);
+
+        // 更新模板当前数量
+        db.prepare(`
+            UPDATE collection_templates 
+            SET current_quantity = current_quantity + 1 
+            WHERE id = ?
+        `).run(templateId);
+
+        // 获取完整信息
+        const collection = this.getCollectionById(collectionId);
+        return { success: true, collection };
+    },
+
+    // 检查书籍是否符合掉落条件
+    checkBookEligibility(template, bookId, bookCategories = []) {
+        // 如果没有任何限制，所有书都可以
+        if (!template.allowed_book_ids && !template.allowed_categories) {
+            return true;
+        }
+
+        let bookIdMatch = false;
+        let categoryMatch = false;
+
+        // 检查书籍ID限制
+        if (template.allowed_book_ids) {
+            const allowedIds = template.allowed_book_ids.split(',').map(id => id.trim());
+            bookIdMatch = allowedIds.includes(bookId);
+        } else {
+            // 如果没有书籍ID限制，视为匹配
+            bookIdMatch = true;
+        }
+
+        // 检查分类限制
+        if (template.allowed_categories) {
+            if (bookCategories.length === 0) {
+                // 没有分类信息，无法匹配
+                categoryMatch = false;
+            } else {
+                const allowedCategories = template.allowed_categories.split(',').map(cat => cat.trim());
+                // 创建繁简体映射表（常见分类）
+                const tradSimpMap = {
+                    '仙俠': '仙侠', '仙侠': '仙俠',
+                    '武俠': '武侠', '武侠': '武俠',
+                    '玄幻': '玄幻',
+                    '都市': '都市',
+                    '言情': '言情',
+                    '歷史': '历史', '历史': '歷史',
+                    '軍事': '军事', '军事': '軍事',
+                    '科幻': '科幻',
+                    '遊戲': '游戏', '游戏': '遊戲',
+                    '競技': '竞技', '竞技': '競技',
+                    '輕小說': '轻小说', '轻小说': '輕小說'
+                };
+                
+                // 检查是否有匹配（包括繁简体转换）
+                categoryMatch = bookCategories.some(bookCat => {
+                    // 直接匹配
+                    if (allowedCategories.includes(bookCat)) {
+                        return true;
+                    }
+                    // 繁简体转换匹配
+                    const converted = tradSimpMap[bookCat] || bookCat;
+                    if (allowedCategories.includes(converted)) {
+                        return true;
+                    }
+                    // 反向匹配（模板中的分类转换为书籍分类）
+                    return allowedCategories.some(allowedCat => {
+                        const allowedConverted = tradSimpMap[allowedCat] || allowedCat;
+                        return allowedConverted === bookCat || allowedConverted === converted;
+                    });
+                });
+            }
+        } else {
+            // 如果没有分类限制，视为匹配
+            categoryMatch = true;
+        }
+
+        // 如果同时指定了书籍ID和分类，需要同时满足（AND关系）
+        // 如果只指定了其中一个，只需要满足那一个即可
+        return bookIdMatch && categoryMatch;
+
+        // 检查分类（支持繁简体匹配）
+        if (template.allowed_categories && bookCategories.length > 0) {
+            const allowedCategories = template.allowed_categories.split(',').map(cat => cat.trim());
+            // 创建繁简体映射表（常见分类）
+            const tradSimpMap = {
+                '仙俠': '仙侠', '仙侠': '仙俠',
+                '武俠': '武侠', '武侠': '武俠',
+                '玄幻': '玄幻',
+                '都市': '都市',
+                '言情': '言情',
+                '歷史': '历史', '历史': '歷史',
+                '軍事': '军事', '军事': '軍事',
+                '科幻': '科幻',
+                '遊戲': '游戏', '游戏': '遊戲',
+                '競技': '竞技', '竞技': '競技',
+                '輕小說': '轻小说', '轻小说': '輕小說'
+            };
+            
+            // 检查是否有匹配（包括繁简体转换）
+            const hasMatch = bookCategories.some(bookCat => {
+                // 直接匹配
+                if (allowedCategories.includes(bookCat)) {
+                    return true;
+                }
+                // 繁简体转换匹配
+                const converted = tradSimpMap[bookCat] || bookCat;
+                if (allowedCategories.includes(converted)) {
+                    return true;
+                }
+                // 反向匹配（模板中的分类转换为书籍分类）
+                return allowedCategories.some(allowedCat => {
+                    const allowedConverted = tradSimpMap[allowedCat] || allowedCat;
+                    return allowedConverted === bookCat || allowedConverted === converted;
+                });
+            });
+            
+            if (hasMatch) {
+                return true;
+            }
+        }
+
+        return false;
+    },
+
+    // 尝试掉落藏品（阅读时调用）
+    tryDropCollection(userId, bookId, chapterId, wordsRead, bookCategories = []) {
+        // 获取基础掉落率配置
+        const baseDropRate = GameDB.getGameConfig("collection_drop_rate_base", 0.05);
+        const dropInterval = GameDB.getGameConfig("collection_drop_interval_words", 1000);
+        
+        // 计算本次阅读的掉落检查次数（每1000字检查一次）
+        const checkCount = Math.floor(wordsRead / dropInterval);
+        if (checkCount <= 0) {
+            return { dropped: false };
+        }
+
+        // 获取用户已拥有的模板ID（防止重复获得）
+        const userOwnedTemplates = db.prepare(`
+            SELECT DISTINCT template_id FROM user_collections WHERE user_id = ?
+        `).all(userId).map(row => row.template_id);
+
+        // 获取所有活跃的模板
+        const templates = db.prepare(`
+            SELECT * FROM collection_templates 
+            WHERE is_active = 1 AND (max_quantity = 0 OR current_quantity < max_quantity)
+            ORDER BY rarity DESC
+        `).all();
+
+        if (templates.length === 0) {
+            return { dropped: false };
+        }
+
+        // 筛选符合条件的模板（排除用户已拥有的）
+        const eligibleTemplates = templates.filter(template => {
+            // 排除用户已拥有的模板
+            if (userOwnedTemplates.includes(template.id)) {
+                return false;
+            }
+            // 检查书籍是否符合条件
+            return this.checkBookEligibility(template, bookId, bookCategories);
+        });
+
+        if (eligibleTemplates.length === 0) {
+            return { dropped: false };
+        }
+
+        // 每次检查都有概率掉落
+        for (let i = 0; i < checkCount; i++) {
+            // 计算总掉落率（所有符合条件的模板）
+            const totalDropRate = eligibleTemplates.reduce((sum, t) => sum + (t.drop_rate || 0), 0);
+            const shouldDrop = Math.random() < (baseDropRate * totalDropRate);
+
+            if (shouldDrop) {
+                // 根据掉落率权重随机选择一个模板
+                const random = Math.random() * totalDropRate;
+                let cumulative = 0;
+                let selectedTemplate = null;
+
+                for (const template of eligibleTemplates) {
+                    cumulative += (template.drop_rate || 0);
+                    if (random <= cumulative) {
+                        selectedTemplate = template;
+                        break;
+                    }
+                }
+
+                if (selectedTemplate) {
+                    const result = this.createUserCollection(userId, selectedTemplate.id, bookId, chapterId);
+                    if (result.success) {
+                        return { dropped: true, collection: result.collection };
+                    }
+                }
+            }
+        }
+
+        return { dropped: false };
+    },
+
+    // ==================== 藏品排行 ====================
+    
+    // 获取藏品排行（按稀有度和顺序）
+    getCollectionRanking(limit = 100) {
+        const results = db.prepare(`
+            SELECT 
+                uc.collection_id,
+                uc.user_id,
+                u.username,
+                ct.name,
+                ct.quality,
+                ct.rarity,
+                ct.color,
+                uc.obtained_at
+            FROM user_collections uc
+            JOIN collection_templates ct ON uc.template_id = ct.id
+            JOIN users u ON uc.user_id = u.id
+            ORDER BY ct.rarity DESC, uc.obtained_at ASC
+            LIMIT ?
+        `).all(limit);
+        
+        // 手动添加排名（因为SQLite版本可能不支持ROW_NUMBER）
+        return results.map((item, index) => ({
+            ...item,
+            rank: index + 1
+        }));
+    },
+
+    // 获取用户藏品统计
+    getUserCollectionStats(userId) {
+        const stats = db.prepare(`
+            SELECT 
+                COUNT(*) as total,
+                COUNT(DISTINCT template_id) as unique_types,
+                SUM(CASE WHEN ct.rarity >= 5 THEN 1 ELSE 0 END) as legendary_count,
+                SUM(CASE WHEN ct.rarity >= 4 THEN 1 ELSE 0 END) as epic_count,
+                SUM(CASE WHEN ct.rarity >= 3 THEN 1 ELSE 0 END) as rare_count
+            FROM user_collections uc
+            JOIN collection_templates ct ON uc.template_id = ct.id
+            WHERE uc.user_id = ?
+        `).get(userId);
+
+        return stats || { total: 0, unique_types: 0, legendary_count: 0, epic_count: 0, rare_count: 0 };
+    },
+
+    // ==================== 交易系统（预留） ====================
+    
+    // 创建交易记录
+    createTransaction(collectionId, fromUserId, toUserId, transactionType, price = null) {
+        const crypto = require('crypto');
+        const transactionId = `TXN-${Date.now()}-${crypto.randomBytes(8).toString('hex')}`.toUpperCase();
+
+        db.prepare(`
+            INSERT INTO collection_transactions (
+                transaction_id, collection_id, from_user_id, to_user_id,
+                transaction_type, price, status
+            ) VALUES (?, ?, ?, ?, ?, ?, 'pending')
+        `).run(transactionId, collectionId, fromUserId, toUserId, transactionType, price);
+
+        return { success: true, transaction_id: transactionId };
     }
 };
 
@@ -3444,5 +4115,6 @@ module.exports = {
     SubscriptionDB,
     BookListDB,
     BookListCommentDB,
-    GameDB
+    GameDB,
+    CollectionDB
 };

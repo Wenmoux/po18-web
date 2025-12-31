@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <title>藏品系统 - 荼蘼辞</title>
+        <link rel="stylesheet" href="css/style.css?v=20251224d" />
+        <link rel="stylesheet" href="css/game.css?v=20251224d" />
+        <style>
+            .collections-container {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+
+            .collections-header {
+                text-align: center;
+                margin-bottom: 30px;
+            }
+
+            .collections-header h1 {
+                font-size: 28px;
+                color: var(--md-primary);
+                margin-bottom: 10px;
+            }
+
+            .collections-stats {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 15px;
+                margin-bottom: 30px;
+            }
+
+            .stat-card {
+                background: var(--md-surface-container-low);
+                padding: 20px;
+                border-radius: 12px;
+                text-align: center;
+                border: 1px solid var(--game-border);
+            }
+
+            .stat-card .stat-value {
+                font-size: 24px;
+                font-weight: 600;
+                color: var(--md-primary);
+                margin: 10px 0;
+            }
+
+            .stat-card .stat-label {
+                font-size: 14px;
+                color: var(--md-on-surface-variant);
+            }
+
+            .collections-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                gap: 20px;
+                margin-bottom: 30px;
+            }
+
+            .collection-card {
+                background: var(--md-surface-container-low);
+                border: 1px solid var(--game-border);
+                border-radius: 12px;
+                padding: 20px;
+                text-align: center;
+                transition: all 0.3s;
+                position: relative;
+                overflow: hidden;
+            }
+
+            .collection-card:hover {
+                border-color: var(--game-border-hover);
+                transform: translateY(-4px);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            }
+
+            .collection-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 4px;
+                background: var(--collection-color, var(--md-primary));
+            }
+
+            .collection-icon {
+                font-size: 48px;
+                margin-bottom: 10px;
+            }
+
+            .collection-name {
+                font-size: 16px;
+                font-weight: 600;
+                color: var(--md-on-surface);
+                margin-bottom: 8px;
+            }
+
+            .collection-quality {
+                display: inline-block;
+                padding: 4px 12px;
+                border-radius: 12px;
+                font-size: 12px;
+                font-weight: 500;
+                margin-bottom: 8px;
+            }
+
+            .collection-id {
+                font-size: 11px;
+                color: var(--md-on-surface-variant);
+                font-family: monospace;
+                margin-top: 8px;
+                word-break: break-all;
+            }
+
+            .collection-obtained {
+                font-size: 12px;
+                color: var(--md-on-surface-variant);
+                margin-top: 8px;
+            }
+
+            /* 品质颜色 */
+            .quality-common { background: #9e9e9e; color: white; }
+            .quality-uncommon { background: #4caf50; color: white; }
+            .quality-rare { background: #2196f3; color: white; }
+            .quality-epic { background: #9c27b0; color: white; }
+            .quality-legendary { background: #ff9800; color: white; }
+            .quality-mythic { background: #f44336; color: white; }
+
+            .empty-state {
+                text-align: center;
+                padding: 60px 20px;
+                color: var(--md-on-surface-variant);
+            }
+
+            .empty-state-icon {
+                font-size: 64px;
+                margin-bottom: 20px;
+                opacity: 0.5;
+            }
+
+            .nav-tabs {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 20px;
+                border-bottom: 2px solid var(--game-border);
+            }
+
+            .nav-tab {
+                padding: 12px 24px;
+                background: none;
+                border: none;
+                border-bottom: 2px solid transparent;
+                cursor: pointer;
+                font-size: 14px;
+                color: var(--md-on-surface-variant);
+                transition: all 0.3s;
+                margin-bottom: -2px;
+            }
+
+            .nav-tab.active {
+                color: var(--md-primary);
+                border-bottom-color: var(--md-primary);
+            }
+
+            .tab-content {
+                display: none;
+            }
+
+            .tab-content.active {
+                display: block;
+            }
+
+            .ranking-table {
+                width: 100%;
+                border-collapse: collapse;
+                background: var(--md-surface-container-low);
+                border-radius: 12px;
+                overflow: hidden;
+            }
+
+            .ranking-table th,
+            .ranking-table td {
+                padding: 12px;
+                text-align: left;
+                border-bottom: 1px solid var(--game-border);
+            }
+
+            .ranking-table th {
+                background: var(--md-surface-container);
+                font-weight: 600;
+                color: var(--md-on-surface);
+            }
+
+            .ranking-table tr:hover {
+                background: var(--md-surface-container-highest);
+            }
+
+            .ranking-rank {
+                font-weight: 600;
+                color: var(--md-primary);
+                width: 60px;
+            }
+
+            @media (max-width: 768px) {
+                .collections-grid {
+                    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                    gap: 15px;
+                }
+
+                .collections-stats {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="collections-container">
+            <div class="collections-header">
+                <h1>📚 藏品系统</h1>
+                <p style="color: var(--md-on-surface-variant);">通过阅读获得，每个藏品都有唯一ID</p>
+            </div>
+
+            <div class="nav-tabs">
+                <button class="nav-tab active" data-tab="my-collections">我的藏品</button>
+                <button class="nav-tab" data-tab="ranking">藏品排行</button>
+            </div>
+
+            <!-- 我的藏品 -->
+            <div class="tab-content active" id="tab-my-collections">
+                <div class="collections-stats" id="collections-stats">
+                    <div class="stat-card">
+                        <div class="stat-label">总藏品数</div>
+                        <div class="stat-value" id="stat-total">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">独特类型</div>
+                        <div class="stat-value" id="stat-unique">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">传说级</div>
+                        <div class="stat-value" id="stat-legendary">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">史诗级</div>
+                        <div class="stat-value" id="stat-epic">0</div>
+                    </div>
+                </div>
+
+                <div class="collections-grid" id="collections-grid">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📚</div>
+                        <p>加载中...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 藏品排行 -->
+            <div class="tab-content" id="tab-ranking">
+                <div style="overflow-x: auto;">
+                    <table class="ranking-table">
+                        <thead>
+                            <tr>
+                                <th class="ranking-rank">排名</th>
+                                <th>藏品ID</th>
+                                <th>名称</th>
+                                <th>品质</th>
+                                <th>稀有度</th>
+                                <th>持有人</th>
+                                <th>获得时间</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ranking-tbody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 40px; color: var(--md-on-surface-variant);">
+                                    加载中...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // 标签切换
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabName = tab.dataset.tab;
+                    
+                    // 更新标签状态
+                    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    // 更新内容显示
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    document.getElementById(`tab-${tabName}`).classList.add('active');
+                    
+                    // 加载对应数据
+                    if (tabName === 'ranking') {
+                        loadRanking();
+                    } else {
+                        loadMyCollections();
+                    }
+                });
+            });
+
+            // 加载我的藏品
+            async function loadMyCollections() {
+                try {
+                    const response = await fetch('/api/game/collections', {
+                        credentials: 'include'
+                    });
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        const { collections, stats } = result.data;
+                        
+                        // 更新统计
+                        document.getElementById('stat-total').textContent = stats.total || 0;
+                        document.getElementById('stat-unique').textContent = stats.unique_types || 0;
+                        document.getElementById('stat-legendary').textContent = stats.legendary_count || 0;
+                        document.getElementById('stat-epic').textContent = stats.epic_count || 0;
+                        
+                        // 更新藏品列表
+                        const grid = document.getElementById('collections-grid');
+                        if (collections.length === 0) {
+                            grid.innerHTML = `
+                                <div class="empty-state" style="grid-column: 1 / -1;">
+                                    <div class="empty-state-icon">📚</div>
+                                    <p>暂无藏品</p>
+                                    <p style="font-size: 14px; margin-top: 10px;">继续阅读以获得藏品</p>
+                                </div>
+                            `;
+                        } else {
+                            grid.innerHTML = collections.map(collection => {
+                                const qualityClass = `quality-${collection.quality || 'common'}`;
+                                const color = collection.color || '#9e9e9e';
+                                const icon = collection.icon || '📚';
+                                
+                                return `
+                                    <div class="collection-card" style="--collection-color: ${color}">
+                                        <div class="collection-icon">${icon}</div>
+                                        <div class="collection-name">${collection.name || '未知'}</div>
+                                        <div class="collection-quality ${qualityClass}">${getQualityName(collection.quality)}</div>
+                                        <div class="collection-id">${collection.collection_id}</div>
+                                        <div class="collection-obtained">获得时间: ${formatDate(collection.obtained_at)}</div>
+                                    </div>
+                                `;
+                            }).join('');
+                        }
+                    }
+                } catch (error) {
+                    console.error('加载藏品失败:', error);
+                    document.getElementById('collections-grid').innerHTML = `
+                        <div class="empty-state" style="grid-column: 1 / -1;">
+                            <div class="empty-state-icon">❌</div>
+                            <p>加载失败，请刷新重试</p>
+                        </div>
+                    `;
+                }
+            }
+
+            // 加载排行
+            async function loadRanking() {
+                try {
+                    const response = await fetch('/api/game/collections/ranking?limit=100', {
+                        credentials: 'include'
+                    });
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        const tbody = document.getElementById('ranking-tbody');
+                        if (result.data.length === 0) {
+                            tbody.innerHTML = `
+                                <tr>
+                                    <td colspan="7" style="text-align: center; padding: 40px; color: var(--md-on-surface-variant);">
+                                        暂无排行数据
+                                    </td>
+                                </tr>
+                            `;
+                        } else {
+                            tbody.innerHTML = result.data.map(item => {
+                                const qualityClass = `quality-${item.quality || 'common'}`;
+                                return `
+                                    <tr>
+                                        <td class="ranking-rank">#${item.rank}</td>
+                                        <td style="font-family: monospace; font-size: 11px;">${item.collection_id}</td>
+                                        <td>${item.name || '未知'}</td>
+                                        <td><span class="collection-quality ${qualityClass}">${getQualityName(item.quality)}</span></td>
+                                        <td>${item.rarity || 1}</td>
+                                        <td>${item.username || '未知'}</td>
+                                        <td>${formatDate(item.obtained_at)}</td>
+                                    </tr>
+                                `;
+                            }).join('');
+                        }
+                    }
+                } catch (error) {
+                    console.error('加载排行失败:', error);
+                    document.getElementById('ranking-tbody').innerHTML = `
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 40px; color: var(--md-error);">
+                                加载失败，请刷新重试
+                            </td>
+                        </tr>
+                    `;
+                }
+            }
+
+            // 获取品质名称
+            function getQualityName(quality) {
+                const names = {
+                    'common': '普通',
+                    'uncommon': '不凡',
+                    'rare': '稀有',
+                    'epic': '史诗',
+                    'legendary': '传说',
+                    'mythic': '神话'
+                };
+                return names[quality] || '普通';
+            }
+
+            // 格式化日期
+            function formatDate(dateString) {
+                if (!dateString) return '未知';
+                const date = new Date(dateString);
+                return date.toLocaleString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+
+            // 初始加载
+            loadMyCollections();
+        </script>
+    </body>
+</html>
+

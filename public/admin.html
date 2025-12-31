@@ -73,6 +73,42 @@
                 display: block;
             }
 
+            .admin-sub-tabs {
+                display: flex;
+                gap: 8px;
+                margin-bottom: 20px;
+                border-bottom: 2px solid #e0e0e0;
+            }
+
+            .admin-sub-tab {
+                padding: 10px 20px;
+                background: none;
+                border: none;
+                border-bottom: 2px solid transparent;
+                cursor: pointer;
+                font-size: 14px;
+                color: #666;
+                transition: all 0.3s;
+                margin-bottom: -2px;
+            }
+
+            .admin-sub-tab:hover {
+                color: #9d8bd6;
+            }
+
+            .admin-sub-tab.active {
+                color: #9d8bd6;
+                border-bottom-color: #9d8bd6;
+            }
+
+            .admin-sub-tab-content {
+                display: none;
+            }
+
+            .admin-sub-tab-content.active {
+                display: block;
+            }
+
             .admin-panel h2 {
                 margin: 0 0 20px 0;
                 padding-bottom: 10px;
@@ -727,6 +763,7 @@
                         <button class="admin-nav-btn" data-panel="backup">💾 备份管理</button>
                         <button class="admin-nav-btn" data-panel="corrections">✅ 纠错审核</button>
                         <button class="admin-nav-btn" data-panel="monitoring">📈 性能监控</button>
+                        <button class="admin-nav-btn" data-panel="game-config">🎮 游戏管理</button>
                         <button class="admin-nav-btn" data-panel="settings">⚙️ 系统设置</button>
                     </nav>
                 </div>
@@ -1482,6 +1519,95 @@
                     <div class="pagination" id="corrections-pagination"></div>
                 </div>
                 
+                <!-- 游戏管理面板（合并游戏配置和藏品管理） -->
+                <div class="admin-panel" id="panel-game-config" style="display: none;">
+                    <h2>🎮 游戏管理</h2>
+                    
+                    <!-- 子标签页导航 -->
+                    <div class="admin-sub-tabs" style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0;">
+                        <button class="admin-sub-tab active" data-subtab="config" style="padding: 10px 20px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 14px; color: #666; transition: all 0.3s; margin-bottom: -2px;">
+                            ⚙️ 游戏配置
+                        </button>
+                        <button class="admin-sub-tab" data-subtab="collections" style="padding: 10px 20px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 14px; color: #666; transition: all 0.3s; margin-bottom: -2px;">
+                            📚 藏品管理
+                        </button>
+                    </div>
+
+                    <!-- 游戏配置子标签页 -->
+                    <div class="admin-sub-tab-content active" id="admin-subtab-config">
+                        <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 20px">
+                            <p style="color: #666; margin-bottom: 15px">
+                                修改游戏系统参数，配置实时生效，无需重启服务器
+                            </p>
+                            <button class="btn btn-primary" onclick="Admin.loadGameConfigs()">🔄 刷新配置</button>
+                        </div>
+                        
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>配置键</th>
+                                        <th>配置值</th>
+                                        <th>说明</th>
+                                        <th>最后更新</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="game-config-table-body">
+                                    <tr>
+                                        <td colspan="5" style="text-align: center; color: #999;">加载中...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107">
+                            <strong>💡 提示：</strong>
+                            <ul style="margin: 10px 0 0 20px; color: #856404">
+                                <li>碎片掉落率：0-1之间的数值，例如0.3表示30%</li>
+                                <li>阅读时间：单位为秒，例如30表示每1000字最少需要30秒</li>
+                                <li>单次请求最大字数：防止一次性提交过多字数刷修为</li>
+                                <li>修改后立即生效，无需重启服务器</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- 藏品管理子标签页 -->
+                    <div class="admin-sub-tab-content" id="admin-subtab-collections" style="display: none;">
+                        <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 20px">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <p style="color: #666; margin: 0;">管理藏品模板，设置掉落率、数量限制、效果等</p>
+                                <button class="btn btn-primary" id="btn-add-collection-template">➕ 新增藏品模板</button>
+                            </div>
+                        </div>
+                        
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>名称</th>
+                                        <th>品质</th>
+                                        <th>稀有度</th>
+                                        <th>最大数量</th>
+                                        <th>当前数量</th>
+                                        <th>掉落率</th>
+                                        <th>效果</th>
+                                        <th>限制</th>
+                                        <th>状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="collections-table-body">
+                                    <tr>
+                                        <td colspan="11" style="text-align: center; color: #999;">加载中...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 性能监控面板 -->
                 <div class="admin-panel" id="panel-monitoring" style="display: none;">
                     <h2>📈 性能监控与告警</h2>
@@ -1709,6 +1835,119 @@
                     </div>
                     <div class="modal-actions">
                         <button type="button" class="btn btn-outline" onclick="Admin.closeModal('book-edit-modal')">
+                            取消
+                        </button>
+                        <button type="submit" class="btn btn-primary">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 编辑游戏配置弹窗 -->
+        <div class="edit-modal" id="game-config-edit-modal">
+            <div class="edit-modal-content">
+                <h3>编辑游戏配置</h3>
+                <form id="game-config-edit-form">
+                    <input type="hidden" id="edit-config-key" />
+                    <div class="form-group">
+                        <label>配置键</label>
+                        <input type="text" id="edit-config-key-display" readonly />
+                    </div>
+                    <div class="form-group">
+                        <label>配置值</label>
+                        <input type="text" id="edit-config-value" required />
+                    </div>
+                    <div class="form-group">
+                        <label>说明</label>
+                        <textarea id="edit-config-desc" rows="3"></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-outline" onclick="Admin.closeModal('game-config-edit-modal')">
+                            取消
+                        </button>
+                        <button type="submit" class="btn btn-primary">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 编辑藏品模板弹窗 -->
+        <div class="edit-modal" id="collection-template-edit-modal">
+            <div class="edit-modal-content" style="max-width: 600px; max-height: 90vh; overflow-y: auto;">
+                <h3 id="collection-template-modal-title">新增藏品模板</h3>
+                <form id="collection-template-edit-form">
+                    <input type="hidden" id="edit-collection-template-id" />
+                    <div class="form-group">
+                        <label>名称 *</label>
+                        <input type="text" id="edit-collection-name" required />
+                    </div>
+                    <div class="form-group">
+                        <label>描述</label>
+                        <textarea id="edit-collection-description" rows="2"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>品质 *</label>
+                        <select id="edit-collection-quality" required>
+                            <option value="common">普通</option>
+                            <option value="uncommon">不凡</option>
+                            <option value="rare">稀有</option>
+                            <option value="epic">史诗</option>
+                            <option value="legendary">传说</option>
+                            <option value="mythic">神话</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>稀有度 *</label>
+                        <input type="number" id="edit-collection-rarity" min="1" max="10" value="1" required />
+                    </div>
+                    <div class="form-group">
+                        <label>最大数量（0表示无限制）</label>
+                        <input type="number" id="edit-collection-max-quantity" min="0" value="0" />
+                    </div>
+                    <div class="form-group">
+                        <label>掉落率（0.01-1.0）</label>
+                        <input type="number" id="edit-collection-drop-rate" min="0.01" max="1" step="0.01" value="0.01" />
+                    </div>
+                    <div class="form-group">
+                        <label>效果类型</label>
+                        <select id="edit-collection-effect-type">
+                            <option value="">无</option>
+                            <option value="exp_multiplier">修为获取加成</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>效果数值（如：0.2表示+20%）</label>
+                        <input type="text" id="edit-collection-effect-value" placeholder="0.2" />
+                    </div>
+                    <div class="form-group">
+                        <label>效果描述</label>
+                        <input type="text" id="edit-collection-effect-description" placeholder="修为获取加成20%" />
+                    </div>
+                    <div class="form-group">
+                        <label>允许的书籍ID（逗号分隔，留空表示所有书籍）</label>
+                        <input type="text" id="edit-collection-allowed-book-ids" placeholder="607871,123456" />
+                    </div>
+                    <div class="form-group">
+                        <label>允许的分类（逗号分隔，留空表示所有分类）</label>
+                        <input type="text" id="edit-collection-allowed-categories" placeholder="仙侠,武侠" />
+                    </div>
+                    <div class="form-group">
+                        <label>图标（emoji或图标代码）</label>
+                        <input type="text" id="edit-collection-icon" placeholder="🌊" />
+                    </div>
+                    <div class="form-group">
+                        <label>颜色（十六进制）</label>
+                        <input type="color" id="edit-collection-color" value="#9e9e9e" />
+                    </div>
+                    <div class="form-group">
+                        <label>状态</label>
+                        <select id="edit-collection-is-active">
+                            <option value="1">启用</option>
+                            <option value="0">禁用</option>
+                        </select>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-outline" onclick="Admin.closeModal('collection-template-edit-modal')">
                             取消
                         </button>
                         <button type="submit" class="btn btn-primary">保存</button>

@@ -110,6 +110,56 @@ const Admin = {
         });
         document.getElementById('panel-dashboard').style.display = 'block';
         document.querySelector('.admin-nav-btn[data-panel="dashboard"]').classList.add('active');
+
+        // 绑定新增藏品模板按钮
+        const addCollectionTemplateBtn = document.getElementById('btn-add-collection-template');
+        if (addCollectionTemplateBtn) {
+            addCollectionTemplateBtn.addEventListener('click', () => {
+                this.showCollectionTemplateModal();
+            });
+        }
+
+        // 绑定子标签页切换（游戏管理面板内）
+        document.querySelectorAll('.admin-sub-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                const subtabName = e.target.dataset.subtab;
+                this.switchAdminSubTab(subtabName);
+            });
+        });
+    },
+
+    // 切换子标签页（游戏管理面板内）
+    switchAdminSubTab(subtabName) {
+        // 更新子标签状态
+        document.querySelectorAll('.admin-sub-tab').forEach(tab => {
+            tab.classList.remove('active');
+            tab.style.color = '#666';
+            tab.style.borderBottomColor = 'transparent';
+        });
+        const activeSubTab = document.querySelector(`.admin-sub-tab[data-subtab="${subtabName}"]`);
+        if (activeSubTab) {
+            activeSubTab.classList.add('active');
+            activeSubTab.style.color = '#9d8bd6';
+            activeSubTab.style.borderBottomColor = '#9d8bd6';
+        }
+
+        // 更新子内容显示
+        document.querySelectorAll('.admin-sub-tab-content').forEach(content => {
+            content.style.display = 'none';
+            content.classList.remove('active');
+        });
+        const activeSubContent = document.querySelector(`#admin-subtab-${subtabName}`);
+        if (activeSubContent) {
+            activeSubContent.style.display = 'block';
+            activeSubContent.classList.add('active');
+        }
+
+        // 加载对应数据
+        if (subtabName === 'collections') {
+            this.loadCollectionTemplates();
+        } else if (subtabName === 'config') {
+            this.loadGameConfigs();
+        }
     },
 
     // 切换面板
@@ -161,6 +211,11 @@ const Admin = {
                 break;
             case 'corrections':
                 this.loadCorrections();
+                break;
+            case 'game-config':
+                this.loadGameConfigs();
+                // 默认显示游戏配置子标签页
+                this.switchAdminSubTab('config');
                 break;
         }
     },
@@ -1657,7 +1712,337 @@ const Admin = {
     // 筛选纠错状态
     filterCorrections() {
         this.loadCorrections();
+    },
+
+    // ==================== 游戏配置管理 ====================
+
+    // 加载游戏配置
+    async loadGameConfigs() {
+        try {
+            const response = await fetch('/api/admin/game/config', {
+                credentials: 'include'
+            });
+            
+            if (!response.ok) {
+                throw new Error('获取游戏配置失败');
+            }
+            
+            const result = await response.json();
+            if (result.success) {
+                this.renderGameConfigsTable(result.data || []);
+            } else {
+                throw new Error(result.error || '获取失败');
+            }
+        } catch (error) {
+            console.error('加载游戏配置失败:', error);
+            this.showToast('加载游戏配置失败: ' + error.message, 'error');
+            document.getElementById('game-config-table-body').innerHTML = 
+                '<tr><td colspan="5" style="text-align: center; color: #f44336;">加载失败</td></tr>';
+        }
+    },
+
+    // 渲染游戏配置表格
+    renderGameConfigsTable(configs) {
+        const tbody = document.getElementById('game-config-table-body');
+        
+        if (!configs || configs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #999;">暂无配置</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = configs.map(config => {
+            const updatedAt = config.updated_at ? new Date(config.updated_at).toLocaleString('zh-CN') : '-';
+            return `
+                <tr>
+                    <td><strong>${this.escapeHtml(config.config_key)}</strong></td>
+                    <td><code style="background: #f5f5f5; padding: 4px 8px; border-radius: 4px;">${this.escapeHtml(config.config_value)}</code></td>
+                    <td style="color: #666; font-size: 12px;">${this.escapeHtml(config.config_desc || '无说明')}</td>
+                    <td style="color: #999; font-size: 12px;">${updatedAt}</td>
+                    <td class="actions">
+                        <button class="btn-sm btn-edit" onclick="Admin.editGameConfig('${config.config_key}')">编辑</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    },
+
+    // 编辑游戏配置
+    async editGameConfig(configKey) {
+        try {
+            const response = await fetch('/api/admin/game/config', {
+                credentials: 'include'
+            });
+            
+            if (!response.ok) {
+                throw new Error('获取配置失败');
+            }
+            
+            const result = await response.json();
+            if (result.success) {
+                const config = result.data.find(c => c.config_key === configKey);
+                if (config) {
+                    document.getElementById('edit-config-key').value = config.config_key;
+                    document.getElementById('edit-config-key-display').value = config.config_key;
+                    document.getElementById('edit-config-value').value = config.config_value;
+                    document.getElementById('edit-config-desc').value = config.config_desc || '';
+                    
+                    document.getElementById('game-config-edit-modal').classList.add('active');
+                } else {
+                    this.showToast('配置不存在', 'error');
+                }
+            }
+        } catch (error) {
+            this.showToast('获取配置失败: ' + error.message, 'error');
+        }
+    },
+
+    // 保存游戏配置
+    async saveGameConfig() {
+        try {
+            const configKey = document.getElementById('edit-config-key').value;
+            const configValue = document.getElementById('edit-config-value').value;
+            const configDesc = document.getElementById('edit-config-desc').value;
+            
+            if (!configValue) {
+                this.showToast('配置值不能为空', 'error');
+                return;
+            }
+            
+            const response = await fetch('/api/admin/game/config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    configKey,
+                    configValue,
+                    configDesc: configDesc || null
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.closeModal('game-config-edit-modal');
+                this.showToast('配置保存成功', 'success');
+                await this.loadGameConfigs();
+            } else {
+                this.showToast('保存失败: ' + (result.error || '未知错误'), 'error');
+            }
+        } catch (error) {
+            this.showToast('保存失败: ' + error.message, 'error');
+        }
     }
 };
 // 页面加载完成后初始化
-document.addEventListener("DOMContentLoaded", () => Admin.init());
+// ==================== 藏品管理 ====================
+
+Admin.loadCollectionTemplates = async function() {
+    try {
+        const result = await this.request('/collections/templates');
+        if (result.success) {
+            this.renderCollectionTemplates(result.data);
+        }
+    } catch (error) {
+        console.error('加载藏品模板失败:', error);
+        const tbody = document.getElementById('collections-table-body');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: #f44336;">加载失败</td></tr>';
+        }
+    }
+};
+
+Admin.renderCollectionTemplates = function(templates) {
+    const tbody = document.getElementById('collections-table-body');
+    if (!tbody) return;
+    
+    if (!templates || templates.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align: center; color: #999;">暂无模板</td></tr>';
+        return;
+    }
+    
+    const qualityNames = {
+        'common': '普通', 'uncommon': '不凡', 'rare': '稀有',
+        'epic': '史诗', 'legendary': '传说', 'mythic': '神话'
+    };
+    
+    tbody.innerHTML = templates.map(template => {
+        const qualityName = qualityNames[template.quality] || '普通';
+        const maxQty = template.max_quantity > 0 ? template.max_quantity : '∞';
+        const effect = template.effect_description || (template.effect_type ? `${template.effect_type}: ${template.effect_value || ''}` : '无');
+        const status = template.is_active ? '<span style="color: #4caf50;">启用</span>' : '<span style="color: #999;">禁用</span>';
+        
+        // 限制信息
+        let restrictions = [];
+        if (template.allowed_book_ids) {
+            restrictions.push(`书籍: ${template.allowed_book_ids}`);
+        }
+        if (template.allowed_categories) {
+            restrictions.push(`分类: ${template.allowed_categories}`);
+        }
+        const restrictionText = restrictions.length > 0 ? restrictions.join('<br>') : '无限制';
+        
+        return `
+            <tr>
+                <td>${template.id}</td>
+                <td>${template.name || '未知'}</td>
+                <td>${qualityName}</td>
+                <td>${template.rarity || 1}</td>
+                <td>${maxQty}</td>
+                <td>${template.current_quantity || 0}</td>
+                <td>${(template.drop_rate * 100).toFixed(2)}%</td>
+                <td style="font-size: 12px;">${effect}</td>
+                <td style="font-size: 11px; color: #666;">${restrictionText}</td>
+                <td>${status}</td>
+                <td class="actions">
+                    <button class="btn-sm btn-edit" onclick="Admin.editCollectionTemplate(${template.id})">编辑</button>
+                    <button class="btn-sm btn-delete" onclick="Admin.deleteCollectionTemplate(${template.id})">删除</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+};
+
+Admin.showCollectionTemplateModal = function(templateId = null) {
+    const modal = document.getElementById('collection-template-edit-modal');
+    const title = document.getElementById('collection-template-modal-title');
+    
+    if (templateId) {
+        title.textContent = '编辑藏品模板';
+        Admin.loadCollectionTemplateForEdit(templateId);
+    } else {
+        title.textContent = '新增藏品模板';
+        const form = document.getElementById('collection-template-edit-form');
+        if (form) form.reset();
+        const idInput = document.getElementById('edit-collection-template-id');
+        if (idInput) idInput.value = '';
+    }
+    
+    if (modal) modal.classList.add('active');
+};
+
+Admin.loadCollectionTemplateForEdit = async function(templateId) {
+    try {
+        const result = await this.request(`/collections/templates/${templateId}`);
+        if (result.success) {
+            const t = result.data;
+            const setValue = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) el.value = val || '';
+            };
+            setValue('edit-collection-template-id', t.id);
+            setValue('edit-collection-name', t.name);
+            setValue('edit-collection-description', t.description);
+            setValue('edit-collection-quality', t.quality || 'common');
+            setValue('edit-collection-rarity', t.rarity || 1);
+            setValue('edit-collection-max-quantity', t.max_quantity || 0);
+            setValue('edit-collection-drop-rate', t.drop_rate || 0.01);
+            setValue('edit-collection-effect-type', t.effect_type);
+            setValue('edit-collection-effect-value', t.effect_value);
+            setValue('edit-collection-effect-description', t.effect_description);
+            setValue('edit-collection-allowed-book-ids', t.allowed_book_ids);
+            setValue('edit-collection-allowed-categories', t.allowed_categories);
+            setValue('edit-collection-icon', t.icon);
+            setValue('edit-collection-color', t.color || '#9e9e9e');
+            setValue('edit-collection-is-active', t.is_active !== undefined ? t.is_active : 1);
+        }
+    } catch (error) {
+        console.error('加载模板失败:', error);
+        this.showToast('加载失败', 'error');
+    }
+};
+
+Admin.editCollectionTemplate = function(templateId) {
+    this.showCollectionTemplateModal(templateId);
+};
+
+Admin.saveCollectionTemplate = async function() {
+    try {
+        const templateId = document.getElementById('edit-collection-template-id')?.value;
+        const getValue = (id) => document.getElementById(id)?.value || '';
+        
+        const data = {
+            name: getValue('edit-collection-name'),
+            description: getValue('edit-collection-description'),
+            quality: getValue('edit-collection-quality'),
+            rarity: parseInt(getValue('edit-collection-rarity')) || 1,
+            max_quantity: parseInt(getValue('edit-collection-max-quantity')) || 0,
+            drop_rate: parseFloat(getValue('edit-collection-drop-rate')) || 0.01,
+            effect_type: getValue('edit-collection-effect-type') || null,
+            effect_value: getValue('edit-collection-effect-value') || null,
+            effect_description: getValue('edit-collection-effect-description') || null,
+            allowed_book_ids: getValue('edit-collection-allowed-book-ids') || null,
+            allowed_categories: getValue('edit-collection-allowed-categories') || null,
+            icon: getValue('edit-collection-icon') || null,
+            color: getValue('edit-collection-color') || '#9e9e9e',
+            is_active: parseInt(getValue('edit-collection-is-active')) || 1
+        };
+        
+        let result;
+        if (templateId) {
+            result = await this.request(`/collections/templates/${templateId}`, {
+                method: 'PUT',
+                body: JSON.stringify(data)
+            });
+        } else {
+            result = await this.request('/collections/templates', {
+                method: 'POST',
+                body: JSON.stringify(data)
+            });
+        }
+        
+        if (result.success) {
+            this.closeModal('collection-template-edit-modal');
+            this.showToast('保存成功', 'success');
+            await this.loadCollectionTemplates();
+        } else {
+            this.showToast('保存失败: ' + (result.error || '未知错误'), 'error');
+        }
+    } catch (error) {
+        console.error('保存失败:', error);
+        this.showToast('保存失败', 'error');
+    }
+};
+
+Admin.deleteCollectionTemplate = async function(templateId) {
+    if (!confirm('确定要删除这个藏品模板吗？')) return;
+    
+    try {
+        const result = await this.request(`/collections/templates/${templateId}`, {
+            method: 'DELETE'
+        });
+        
+        if (result.success) {
+            this.showToast('删除成功', 'success');
+            await this.loadCollectionTemplates();
+        } else {
+            this.showToast('删除失败: ' + (result.error || '未知错误'), 'error');
+        }
+    } catch (error) {
+        console.error('删除失败:', error);
+        this.showToast('删除失败', 'error');
+    }
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+    Admin.init();
+    
+    // 绑定游戏配置表单提交事件
+    const gameConfigForm = document.getElementById('game-config-edit-form');
+    if (gameConfigForm) {
+        gameConfigForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            Admin.saveGameConfig();
+        });
+    }
+
+    // 绑定藏品模板表单提交事件
+    const collectionTemplateForm = document.getElementById('collection-template-edit-form');
+    if (collectionTemplateForm) {
+        collectionTemplateForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            Admin.saveCollectionTemplate();
+        });
+    }
+});
