@@ -111,6 +111,7 @@ class Reader {
 
         // 阅读进度
         this.scrollPosition = {}; // 记录每章滚动位置
+        this.trackedChapters = new Set(); // 记录已计算过字数的章节（防止重复获得奖励）
         this.autoScrollTimer = null;
 
         // 书签系统
@@ -182,6 +183,9 @@ class Reader {
             this.bookTitle = bookData.title;
             document.getElementById("book-title").textContent = this.bookTitle;
             document.title = `${this.bookTitle} - 阅读`;
+
+            // 清空已跟踪的章节记录（切换书籍时重置）
+            this.trackedChapters.clear();
 
             // 加载章节列表
             await this.loadChapters();
@@ -354,13 +358,26 @@ class Reader {
         const contentEl = document.getElementById("chapter-content");
         if (!contentEl) return;
 
+        const chapter = this.chapters[this.currentChapterIndex];
+        if (!chapter) return;
+
+        // 生成章节唯一标识
+        const chapterKey = `${this.bookId}_${chapter.chapterId}`;
+        
+        // 检查该章节是否已经计算过字数（防止重复获得奖励）
+        if (this.trackedChapters.has(chapterKey)) {
+            console.log(`[防刷] 章节 ${chapterKey} 已计算过字数，跳过`);
+            return;
+        }
+
         // 计算文本字数（去除HTML标签）
         const text = contentEl.innerText || contentEl.textContent || "";
         const wordCount = text.replace(/\s+/g, "").length; // 中文字数统计
 
         // 传递给游戏系统
         if (typeof gameSystem !== "undefined" && wordCount > 0) {
-            const chapter = this.chapters[this.currentChapterIndex];
+            // 标记该章节已计算
+            this.trackedChapters.add(chapterKey);
             gameSystem.addReadingWords(wordCount, this.bookId, chapter?.chapterId);
         }
     }
@@ -654,12 +671,6 @@ class Reader {
         // 书签
         document.getElementById("btn-bookmark").addEventListener("click", () => {
             this.addBookmark();
-        });
-
-        // 游戏系统
-        document.getElementById("btn-game")?.addEventListener("click", () => {
-            // 跳转到游戏页面
-            window.location.href = "/?page=game";
         });
 
         // 日夜切换

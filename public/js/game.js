@@ -1699,25 +1699,25 @@ class GameSystem {
             
             const result = await response.json();
             if (result.success && result.data) {
-                // 检查是否获得玄藏
+                // 只保留藏品获得提醒
                 if (result.data.collection) {
                     this.showCollectionNotification(result.data.collection);
                 }
                 
-                // 检查是否升级
-                if (result.data.leveledUp) {
-                    this.showLevelUpNotification(result.data.oldLevel, result.data.level);
-                }
+                // 移除其他奖励提醒弹窗，避免影响阅读体验
+                // 奖励仍然会正常发放，只是不显示弹窗
+                // if (result.data.leveledUp) {
+                //     this.showLevelUpNotification(result.data.oldLevel, result.data.level);
+                // }
+                // if (result.data.expGained > 0) {
+                //     this.showNotification(`+${result.data.expGained} 修为`, "exp");
+                // }
+                // if (result.data.fragments && result.data.fragments.length > 0) {
+                //     result.data.fragments.forEach(fragment => {
+                //         this.showRewardPopup(fragment.name, fragment.type);
+                //     });
+                // }
                 
-                // 显示奖励提示
-                if (result.data.expGained > 0) {
-                    this.showNotification(`+${result.data.expGained} 修为`, "exp");
-                }
-                if (result.data.fragments && result.data.fragments.length > 0) {
-                    result.data.fragments.forEach(fragment => {
-                        this.showRewardPopup(fragment.name, fragment.type);
-                    });
-                }
                 // 更新游戏数据（如果游戏页面正在显示）
                 const gamePage = document.getElementById("page-game");
                 if (gamePage && gamePage.classList.contains("active")) {
@@ -1760,10 +1760,13 @@ class GameSystem {
 
     /**
      * 生成会话哈希（防重复提交）
+     * 基于bookId+chapterId+wordsRead生成，不包含随机数，确保相同章节相同字数生成相同hash
      */
     generateSessionHash(bookId, chapterId, wordsRead, timestamp) {
-        // 简单的哈希生成（前端版本）
-        const hashString = `${bookId || ''}_${chapterId || ''}_${wordsRead}_${timestamp}_${Math.random()}`;
+        // 基于固定参数生成哈希，确保相同章节相同字数不会重复获得奖励
+        // 使用时间戳的分钟级别，允许同一章节在不同时间段获得奖励
+        const timeMinute = Math.floor(timestamp / 60000); // 精确到分钟
+        const hashString = `${bookId || ''}_${chapterId || ''}_${wordsRead}_${timeMinute}`;
         let hash = 0;
         for (let i = 0; i < hashString.length; i++) {
             const char = hashString.charCodeAt(i);

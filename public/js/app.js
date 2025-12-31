@@ -4097,6 +4097,9 @@ const App = {
 
             // 渲染列表
             this.renderSubscriptionList(listEl, subscriptions, "all");
+            
+            // 刷新提醒数量
+            await this.checkSubscriptionUpdates();
         } catch (error) {
             console.error('[订阅] 加载失败:', error);
             const listEl = document.getElementById("subscription-list");
@@ -4138,6 +4141,11 @@ const App = {
         let html = "";
         filteredList.forEach((sub) => {
             const hasUpdate = sub.has_update === 1;
+            const newChapters = sub.new_chapters || 0;
+            let updateBadgeText = '🔔 有更新';
+            if (hasUpdate && newChapters > 0) {
+                updateBadgeText = `🔔 +${newChapters}章`;
+            }
             html += `
                 <div class="subscription-card ${hasUpdate ? "has-update" : ""}" data-book-id="${sub.book_id}">
                     <img class="book-cover" src="${sub.cover || this.defaultCover}" alt="${sub.title}" 
@@ -4145,7 +4153,7 @@ const App = {
                     <div class="book-info">
                         <div class="book-title">${sub.title}</div>
                         <div class="book-author">${sub.author || "未知作者"}</div>
-                        ${hasUpdate ? '<span class="update-badge">🔔 有更新</span>' : ""}
+                        ${hasUpdate ? `<span class="update-badge">${updateBadgeText}</span>` : ""}
                     </div>
                     <div class="sub-actions">
                         <button class="btn-view" onclick="App.viewSubscribedBook('${sub.book_id}')">查看</button>
@@ -4156,6 +4164,29 @@ const App = {
         });
 
         container.innerHTML = html;
+        
+        // 为有更新的订阅卡片添加点击事件，点击时清除更新标记
+        container.querySelectorAll('.subscription-card.has-update').forEach(card => {
+            const bookId = card.dataset.bookId;
+            // 只给卡片本身添加点击事件，不包括按钮区域
+            card.addEventListener('click', async (e) => {
+                // 如果点击的是按钮，不处理
+                if (e.target.closest('.btn-view, .btn-unsubscribe')) {
+                    return;
+                }
+                
+                try {
+                    // 清除更新标记
+                    await API.subscriptions.clearUpdate(bookId);
+                    // 刷新提醒数量
+                    await this.checkSubscriptionUpdates();
+                    // 重新加载订阅列表
+                    await this.loadSubscriptions();
+                } catch (error) {
+                    console.error('清除更新标记失败:', error);
+                }
+            });
+        });
     },
 
     // 取消订阅
@@ -4173,7 +4204,18 @@ const App = {
     },
 
     // 查看订阅的书籍（打开详情页）
-    viewSubscribedBook(bookId) {
+    async viewSubscribedBook(bookId) {
+        try {
+            // 先清除该书籍的更新标记
+            await API.subscriptions.clearUpdate(bookId);
+            // 刷新提醒数量
+            await this.checkSubscriptionUpdates();
+            // 刷新订阅列表（更新UI中的更新标记）
+            await this.loadSubscriptions();
+        } catch (error) {
+            console.error('清除更新标记失败:', error);
+            // 即使失败也继续跳转
+        }
         // 打开书籍详情页
         window.location.href = `/book-detail.html?id=${bookId}`;
     },

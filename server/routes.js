@@ -4410,9 +4410,33 @@ router.get("/subscriptions", requireLogin, (req, res) => {
         const userId = req.session.userId;
         const subscriptions = SubscriptionDB.getByUser(userId);
         const updateCount = SubscriptionDB.getUpdateCount(userId);
+        
+        // 为每个订阅添加当前章节数和更新章节数
+        const { BookMetadataDB } = require('./database');
+        const enrichedSubscriptions = subscriptions.map(sub => {
+            const bookMetaList = BookMetadataDB.getBookMetadata(sub.book_id);
+            const bookMeta = bookMetaList && bookMetaList.length > 0 ? bookMetaList[0] : null;
+            if (bookMeta) {
+                const currentChapterCount = bookMeta.total_chapters || bookMeta.subscribed_chapters || 0;
+                const lastChapterCount = sub.last_chapter_count || 0;
+                const newChapters = currentChapterCount > lastChapterCount 
+                    ? currentChapterCount - lastChapterCount 
+                    : 0;
+                return {
+                    ...sub,
+                    current_chapter_count: currentChapterCount,
+                    new_chapters: newChapters
+                };
+            }
+            return {
+                ...sub,
+                current_chapter_count: sub.last_chapter_count || 0,
+                new_chapters: 0
+            };
+        });
 
         res.json({
-            subscriptions,
+            subscriptions: enrichedSubscriptions,
             updateCount
         });
     } catch (error) {
