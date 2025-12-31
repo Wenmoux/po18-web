@@ -35,7 +35,8 @@ const {
     ReadingStatsDB,
     SubscriptionDB,
     BookListDB,
-    BookListCommentDB
+    BookListCommentDB,
+    GameDB
 } = require("./database");
 const { NovelCrawler, ContentFormatter, EpubGenerator } = require("./crawler");
 const WebDAVClient = require("./webdav");
@@ -5878,6 +5879,429 @@ router.delete("/reviews/:id", requireLogin, (req, res) => {
     } catch (error) {
         logger.error("删除书评失败", { error: error.message });
         res.status(500).json({ error: "删除失败" });
+    }
+});
+
+// ==================== 游戏系统API ====================
+
+// 获取用户游戏数据
+router.get("/game/data", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const gameData = GameDB.getUserGameData(userId);
+        const fragments = GameDB.getUserFragments(userId);
+        const items = GameDB.getUserItems(userId);
+        const techniques = GameDB.getUserTechniques(userId);
+
+        // 境界名称映射
+        const levelNames = [
+            "炼气期", "筑基期", "金丹期", "元婴期", "化神期", 
+            "合体期", "大乘期", "渡劫期"
+        ];
+        const levelIndex = Math.min(Math.floor((gameData.level - 1) / 10), levelNames.length - 1);
+        const levelName = levelNames[levelIndex];
+        const levelLayer = ((gameData.level - 1) % 10) + 1;
+
+        // 计算今日阅读统计
+        const today = new Date().toISOString().split('T')[0];
+        const todaySessions = db.prepare(`
+            SELECT SUM(words_read) as words, SUM(reading_time) as time
+            FROM reading_sessions
+            WHERE user_id = ? AND DATE(session_start) = ?
+        `).get(userId, today);
+        
+        const todayWords = todaySessions?.words || 0;
+        const todayTime = todaySessions?.time || 0;
+
+        // 使用动态算法计算到下一级所需修为
+        const expForCurrentLevel = GameDB.getExpRequiredForLevel(gameData.level);
+        const expForNextLevel = GameDB.getExpRequiredForLevel(gameData.level + 1);
+        const expToNextLevel = expForNextLevel - expForCurrentLevel; // 当前层所需的总修为
+        const currentLevelExp = gameData.exp - expForCurrentLevel; // 当前层已获得的修为
+        const expToNext = Math.max(0, expToNextLevel - currentLevelExp); // 当前层还需的修为
+
+        res.json({
+            success: true,
+            data: {
+                level: gameData.level,
+                levelName,
+                levelLayer,
+                exp: gameData.exp,
+                expToNext, // 当前层还需的修为
+                expForCurrentLevel, // 达到当前等级所需的总修为（累计）
+                expToNextLevel, // 当前层所需的总修为（用于进度条计算）
+                totalReadWords: gameData.total_read_words,
+                totalReadTime: gameData.total_read_time,
+                todayReadWords: todayWords,
+                todayReadTime: todayTime,
+                fragments,
+                items,
+                techniques
+            }
+        });
+    } catch (error) {
+        logger.error("获取游戏数据失败", { error: error.message });
+        res.status(500).json({ error: "获取游戏数据失败" });
+    }
+});
+
+// 记录阅读并计算奖励
+router.post("/game/reading", requireLogin, async (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const { wordsRead, readingTime, bookId, chapterId } = req.body;
+
+        if (!wordsRead || wordsRead <= 0) {
+            return res.json({ success: true, data: { expGained: 0, fragments: [] } });
+        }
+
+        // 计算修为（每1000字 = 10-20修为，根据境界调整）
+        const gameData = GameDB.getUserGameData(userId);
+        let expPerThousand = 10 + Math.floor(gameData.level / 5); // 境界越高，每千字获得的修为越多
+        
+        // 应用装备功法的加成
+        const techniques = GameDB.getUserTechniques(userId);
+        const equippedTechniques = techniques.filter(t => t.is_equipped);
+        let expMultiplier = 1.0;
+        
+        equippedTechniques.forEach(tech => {
+            // 根据功法名称计算加成
+            if (tech.technique_id === "清心诀") expMultiplier += 0.10;
+            else if (tech.technique_id === "凝神诀") expMultiplier += 0.15;
+            else if (tech.technique_id === "悟道诀") expMultiplier += 0.20;
+            else if (tech.technique_id === "静心诀") expMultiplier += 0.12;
+        });
+        
+        const expGained = Math.floor((wordsRead / 1000) * expPerThousand * expMultiplier);
+
+        // 增加修为和阅读数据
+        const { exp, level, leveledUp, oldLevel } = GameDB.addExp(userId, expGained);
+        GameDB.addReadWords(userId, wordsRead);
+        if (readingTime) {
+            GameDB.addReadTime(userId, readingTime);
+        }
+
+        // 更新成就进度（需要重新获取更新后的数据）
+        const updatedGameData = GameDB.getUserGameData(userId);
+        const totalWords = updatedGameData.total_read_words;
+        GameDB.updateAchievementProgress(userId, "read_10k", totalWords);
+        GameDB.updateAchievementProgress(userId, "read_100k", totalWords);
+        GameDB.updateAchievementProgress(userId, "read_1m", totalWords);
+        GameDB.updateAchievementProgress(userId, "read_10m", totalWords);
+        GameDB.updateAchievementProgress(userId, "read_50k_day", wordsRead);
+        
+        // 检查境界成就
+        const levelNames = ["炼气期", "筑基期", "金丹期", "元婴期", "化神期"];
+        const realmIndex = Math.min(Math.floor((level - 1) / 10), levelNames.length - 1);
+        if (realmIndex >= 0) {
+            const realmIds = ["realm_qi", "realm_zhu", "realm_jin", "realm_yuan", "realm_hua"];
+            for (let i = 0; i <= realmIndex; i++) {
+                GameDB.updateAchievementProgress(userId, realmIds[i], 1);
+            }
+        }
+        
+        // 碎片掉落（每章有概率掉落1-3个碎片）
+        const fragmentsObtained = [];
+        const fragmentTypes = ["technique", "pill", "artifact", "beast"];
+        const fragmentNames = {
+            technique: ["清心诀", "凝神诀", "悟道诀", "静心诀"],
+            pill: ["回神丹", "悟道丹", "清心丹", "聚灵丹"],
+            artifact: ["书签法宝", "护眼法宝", "记忆法宝", "专注法宝"],
+            beast: ["灵狐", "仙鹤", "神龙", "凤凰"]
+        };
+
+        // 计算碎片掉落率（基础30%，装备悟道丹可提升）
+        let fragmentDropRate = 0.3;
+        const items = GameDB.getUserItems(userId);
+        const hasWudaoPill = items.some(item => item.item_type === "pill" && item.item_id === "悟道丹");
+        if (hasWudaoPill) {
+            fragmentDropRate = 0.5; // 悟道丹提升到50%
+        }
+
+        // 每阅读一章，有概率掉落碎片
+        if (chapterId && Math.random() < fragmentDropRate) {
+            const fragmentCount = Math.floor(Math.random() * 3) + 1; // 1-3个
+            for (let i = 0; i < fragmentCount; i++) {
+                const type = fragmentTypes[Math.floor(Math.random() * fragmentTypes.length)];
+                const names = fragmentNames[type];
+                const fragmentId = names[Math.floor(Math.random() * names.length)];
+                
+                GameDB.addFragment(userId, type, fragmentId, 1);
+                fragmentsObtained.push({ type, id: fragmentId, name: fragmentId });
+            }
+        }
+
+        // 记录阅读会话
+        GameDB.recordReadingSession(userId, {
+            bookId,
+            chapterId,
+            wordsRead,
+            readingTime: readingTime || 0,
+            fragmentsObtained,
+            expGained,
+            sessionStart: new Date().toISOString(),
+            sessionEnd: new Date().toISOString()
+        });
+
+        // 更新任务进度
+        GameDB.updateTaskProgress(userId, "reading", {
+            wordsRead,
+            readingTime: readingTime || 0,
+            chaptersRead: chapterId ? 1 : 0,
+            leveledUp: leveledUp || false,
+            fragmentsObtained: fragmentsObtained.length
+        });
+
+        res.json({
+            success: true,
+            data: {
+                expGained,
+                exp,
+                level,
+                leveledUp: leveledUp || false,
+                oldLevel: oldLevel || level,
+                fragments: fragmentsObtained
+            }
+        });
+    } catch (error) {
+        logger.error("记录阅读失败", { error: error.message });
+        res.status(500).json({ error: "记录阅读失败" });
+    }
+});
+
+// 使用道具
+router.post("/game/items/use", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const { itemType, itemId, quantity = 1 } = req.body;
+
+        const success = GameDB.useItem(userId, itemType, itemId, quantity);
+        if (!success) {
+            return res.status(400).json({ error: "道具不足" });
+        }
+
+        // 更新任务进度
+        GameDB.updateTaskProgress(userId, "cultivation", {
+            itemsUsed: 1
+        });
+
+        // 道具效果（暂时只记录使用，效果在阅读时计算）
+        let effect = "";
+        if (itemId === "回神丹") {
+            effect = "下次阅读时修为+50%";
+        } else if (itemId === "悟道丹") {
+            effect = "碎片掉落率提升至50%（持续1小时）";
+        } else if (itemId === "清心丹") {
+            effect = "阅读时专注度提升";
+        } else if (itemId === "聚灵丹") {
+            effect = "立即获得100修为";
+            GameDB.addExp(userId, 100);
+        }
+
+        res.json({ success: true, message: "使用成功", effect });
+    } catch (error) {
+        logger.error("使用道具失败", { error: error.message });
+        res.status(500).json({ error: "使用道具失败" });
+    }
+});
+
+// 装备/卸下功法
+router.post("/game/techniques/toggle", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const { techniqueId } = req.body;
+
+        const isEquipped = GameDB.toggleTechniqueEquip(userId, techniqueId);
+        
+        // 如果装备新功法，更新任务进度
+        if (isEquipped) {
+            GameDB.updateTaskProgress(userId, "cultivation", {
+                techniqueEquipped: true
+            });
+        }
+        
+        res.json({ success: true, isEquipped });
+    } catch (error) {
+        logger.error("切换功法装备状态失败", { error: error.message });
+        res.status(500).json({ error: "操作失败" });
+    }
+});
+
+// 合成碎片
+router.post("/game/fragments/synthesize", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const { fragmentType, fragmentId } = req.body;
+
+        const result = GameDB.synthesizeFragment(userId, fragmentType, fragmentId);
+        if (!result.success) {
+            return res.status(400).json({ error: result.message });
+        }
+
+        // 更新任务进度
+        GameDB.updateTaskProgress(userId, "cultivation", {
+            fragmentsSynthesized: 1
+        });
+
+        res.json({ success: true, data: result });
+    } catch (error) {
+        logger.error("合成碎片失败", { error: error.message });
+        res.status(500).json({ error: "合成失败" });
+    }
+});
+
+// 获取离线收益
+router.get("/game/offline-reward", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const gameData = GameDB.getUserGameData(userId);
+        
+        if (!gameData.last_read_time) {
+            return res.json({ success: true, data: { offlineTime: 0, expGained: 0 } });
+        }
+
+        const lastReadTime = new Date(gameData.last_read_time);
+        const now = new Date();
+        const offlineSeconds = Math.floor((now - lastReadTime) / 1000);
+        
+        // 最多计算24小时的离线收益
+        const maxOfflineSeconds = 24 * 60 * 60;
+        const actualOfflineSeconds = Math.min(offlineSeconds, maxOfflineSeconds);
+        
+        // 离线收益：每分钟1修为（根据境界调整）
+        const expPerMinute = 1 + Math.floor(gameData.level / 10);
+        const expGained = Math.floor((actualOfflineSeconds / 60) * expPerMinute);
+        
+        if (expGained > 0) {
+            GameDB.addExp(userId, expGained);
+            GameDB.updateUserGameData(userId, { last_read_time: now.toISOString() });
+        }
+
+        res.json({
+            success: true,
+            data: {
+                offlineTime: actualOfflineSeconds,
+                offlineHours: Math.floor(actualOfflineSeconds / 3600),
+                offlineMinutes: Math.floor((actualOfflineSeconds % 3600) / 60),
+                expGained
+            }
+        });
+    } catch (error) {
+        logger.error("计算离线收益失败", { error: error.message });
+        res.status(500).json({ error: "计算失败" });
+    }
+});
+
+// ==================== 签到系统 ====================
+
+// 获取签到信息
+router.get("/game/signin/info", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const signinInfo = GameDB.getSigninInfo(userId);
+        res.json({ success: true, data: signinInfo });
+    } catch (error) {
+        logger.error("获取签到信息失败", { error: error.message });
+        res.status(500).json({ error: "获取失败" });
+    }
+});
+
+// 签到
+router.post("/game/signin", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const result = GameDB.signin(userId);
+        if (result.success) {
+            res.json({ success: true, data: result });
+        } else {
+            res.status(400).json({ success: false, message: result.message });
+        }
+    } catch (error) {
+        logger.error("签到失败", { error: error.message });
+        res.status(500).json({ error: "签到失败" });
+    }
+});
+
+// ==================== 成就系统 ====================
+
+// 获取所有成就
+router.get("/game/achievements", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const achievements = GameDB.getAllAchievements(userId);
+        
+        // 获取成就配置
+        const achievementConfig = {
+            "read_10k": { name: "初入仙途", desc: "累计阅读1万字", type: "reading" },
+            "read_100k": { name: "书山有路", desc: "累计阅读10万字", type: "reading" },
+            "read_1m": { name: "博览群书", desc: "累计阅读100万字", type: "reading" },
+            "read_10m": { name: "阅读达人", desc: "累计阅读1000万字", type: "reading" },
+            "read_7days": { name: "夜读仙君", desc: "连续7天阅读", type: "reading" },
+            "read_30days": { name: "持之以恒", desc: "连续30天阅读", type: "reading" },
+            "read_50k_day": { name: "一日千里", desc: "单日阅读5万字", type: "reading" },
+            "realm_qi": { name: "初窥门径", desc: "达到炼气期", type: "realm" },
+            "realm_zhu": { name: "筑基成功", desc: "达到筑基期", type: "realm" },
+            "realm_jin": { name: "金丹大道", desc: "达到金丹期", type: "realm" },
+            "realm_yuan": { name: "元婴老祖", desc: "达到元婴期", type: "realm" },
+            "realm_hua": { name: "化神大能", desc: "达到化神期", type: "realm" },
+            "fragments_100": { name: "碎片收集者", desc: "收集100个碎片", type: "collection" },
+            "techniques_10": { name: "功法大师", desc: "解锁10种功法", type: "collection" },
+            "items_50": { name: "道具收藏家", desc: "拥有50种道具", type: "collection" },
+            "realm_5_day": { name: "破境如喝水", desc: "一天内提升5个境界", type: "special" },
+            "exp_1000": { name: "修为暴涨", desc: "单次获得1000修为", type: "special" },
+            "fragments_3": { name: "欧皇附体", desc: "连续3次掉落碎片", type: "special" }
+        };
+        
+        const achievementsWithConfig = achievements.map(ach => ({
+            ...ach,
+            ...achievementConfig[ach.achievement_id],
+            reward: GameDB.getAchievementReward(ach.achievement_id)
+        }));
+        
+        res.json({ success: true, data: achievementsWithConfig });
+    } catch (error) {
+        logger.error("获取成就失败", { error: error.message });
+        res.status(500).json({ error: "获取失败" });
+    }
+});
+
+// 领取成就奖励
+router.post("/game/achievements/claim", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const { achievementId } = req.body;
+        const result = GameDB.claimAchievementReward(userId, achievementId);
+        res.json(result);
+    } catch (error) {
+        logger.error("领取成就奖励失败", { error: error.message });
+        res.status(500).json({ error: "领取失败" });
+    }
+});
+
+// ==================== 每日任务系统 ====================
+
+// 获取每日任务
+router.get("/game/tasks", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const tasks = GameDB.getDailyTasks(userId);
+        res.json({ success: true, data: tasks });
+    } catch (error) {
+        logger.error("获取任务失败", { error: error.message });
+        res.status(500).json({ error: "获取失败" });
+    }
+});
+
+// 更新任务进度（内部调用，阅读时自动更新）
+router.post("/game/tasks/update", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const { taskType, progress } = req.body;
+        const completedTasks = GameDB.updateTaskProgress(userId, taskType, progress);
+        res.json({ success: true, data: { completedTasks } });
+    } catch (error) {
+        logger.error("更新任务进度失败", { error: error.message });
+        res.status(500).json({ error: "更新失败" });
     }
 });
 

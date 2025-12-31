@@ -575,6 +575,150 @@ function initDatabase() {
         CREATE INDEX IF NOT EXISTS idx_user_actions_created_at ON user_actions(created_at);
     `);
 
+    // ==================== 游戏系统表 ====================
+    // 用户游戏数据表
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS user_game_data (
+            user_id INTEGER PRIMARY KEY,
+            level INTEGER DEFAULT 1,
+            exp INTEGER DEFAULT 0,
+            total_read_words INTEGER DEFAULT 0,
+            total_read_time INTEGER DEFAULT 0,
+            last_read_time DATETIME,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    `);
+
+    // 碎片背包表
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS user_fragments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            fragment_type TEXT NOT NULL,
+            fragment_id TEXT NOT NULL,
+            quantity INTEGER DEFAULT 1,
+            obtained_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            UNIQUE(user_id, fragment_type, fragment_id)
+        )
+    `);
+
+    // 道具背包表
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS user_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            item_type TEXT NOT NULL,
+            item_id TEXT NOT NULL,
+            quantity INTEGER DEFAULT 1,
+            obtained_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            UNIQUE(user_id, item_type, item_id)
+        )
+    `);
+
+    // 功法表
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS user_techniques (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            technique_id TEXT NOT NULL,
+            level INTEGER DEFAULT 1,
+            exp INTEGER DEFAULT 0,
+            is_equipped INTEGER DEFAULT 0,
+            unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            UNIQUE(user_id, technique_id)
+        )
+    `);
+
+    // 阅读记录表（用于计算奖励）
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS reading_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            book_id TEXT,
+            chapter_id TEXT,
+            words_read INTEGER DEFAULT 0,
+            reading_time INTEGER DEFAULT 0,
+            fragments_obtained TEXT,
+            exp_gained INTEGER DEFAULT 0,
+            session_start DATETIME,
+            session_end DATETIME,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    `);
+
+    // 签到表
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS user_daily_signin (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            signin_date DATE NOT NULL,
+            consecutive_days INTEGER DEFAULT 1,
+            reward_exp INTEGER DEFAULT 0,
+            reward_items TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            UNIQUE(user_id, signin_date)
+        )
+    `);
+
+    // 成就表
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS user_achievements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            achievement_id TEXT NOT NULL,
+            achievement_type TEXT NOT NULL,
+            progress INTEGER DEFAULT 0,
+            target INTEGER DEFAULT 1,
+            completed INTEGER DEFAULT 0,
+            completed_at DATETIME,
+            reward_claimed INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            UNIQUE(user_id, achievement_id)
+        )
+    `);
+
+    // 每日任务表
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS user_daily_tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            task_id TEXT NOT NULL,
+            task_type TEXT NOT NULL,
+            task_name TEXT NOT NULL,
+            task_desc TEXT,
+            progress INTEGER DEFAULT 0,
+            target INTEGER DEFAULT 1,
+            reward_exp INTEGER DEFAULT 0,
+            reward_items TEXT,
+            difficulty TEXT DEFAULT 'easy',
+            completed INTEGER DEFAULT 0,
+            completed_at DATETIME,
+            task_date DATE NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            UNIQUE(user_id, task_id, task_date)
+        )
+    `);
+
+    // 游戏系统索引
+    db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_fragments_user ON user_fragments(user_id);
+        CREATE INDEX IF NOT EXISTS idx_items_user ON user_items(user_id);
+        CREATE INDEX IF NOT EXISTS idx_techniques_user ON user_techniques(user_id);
+        CREATE INDEX IF NOT EXISTS idx_reading_sessions_user ON reading_sessions(user_id);
+        CREATE INDEX IF NOT EXISTS idx_reading_sessions_time ON reading_sessions(session_start);
+        CREATE INDEX IF NOT EXISTS idx_signin_user_date ON user_daily_signin(user_id, signin_date);
+        CREATE INDEX IF NOT EXISTS idx_achievements_user ON user_achievements(user_id);
+        CREATE INDEX IF NOT EXISTS idx_tasks_user_date ON user_daily_tasks(user_id, task_date);
+    `);
+
     console.log("数据库初始化完成");
 
     // 数据库迁移 - 添加缺少的列
@@ -2585,6 +2729,704 @@ const BookListCommentDB = {
 // 初始化书单评论表
 BookListCommentDB.init();
 
+// ==================== 游戏系统数据库操作 ====================
+const GameDB = {
+    // 获取或创建用户游戏数据
+    getUserGameData(userId) {
+        let data = db.prepare("SELECT * FROM user_game_data WHERE user_id = ?").get(userId);
+        if (!data) {
+            // 创建初始数据
+            db.prepare("INSERT INTO user_game_data (user_id, level, exp) VALUES (?, 1, 0)").run(userId);
+            data = db.prepare("SELECT * FROM user_game_data WHERE user_id = ?").get(userId);
+        }
+        return data;
+    },
+
+    // 更新用户游戏数据
+    updateUserGameData(userId, updates) {
+        const fields = [];
+        const values = [];
+        for (const [key, value] of Object.entries(updates)) {
+            if (key !== "user_id") {
+                fields.push(`${key} = ?`);
+                values.push(value);
+            }
+        }
+        values.push(userId);
+        const sql = `UPDATE user_game_data SET ${fields.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?`;
+        return db.prepare(sql).run(...values);
+    },
+
+    /**
+     * 计算达到指定等级所需的总修为（动态算法）
+     * @param {number} level - 目标等级（1-80，每个境界10层）
+     * @returns {number} 所需总修为
+     */
+    getExpRequiredForLevel(level) {
+        if (level <= 1) return 0;
+        
+        let totalExp = 0;
+        // 每个境界有10层，共8个境界（80级）
+        for (let l = 1; l < level; l++) {
+            const realmIndex = Math.floor((l - 1) / 10); // 境界索引（0-7）
+            const layerInRealm = ((l - 1) % 10) + 1; // 境界内的层数（1-10）
+            
+            // 每个境界的基础修为需求（指数增长）
+            // 炼气期: 1000, 筑基期: 2000, 金丹期: 4000, 元婴期: 8000...
+            const baseExp = 1000 * Math.pow(2, realmIndex);
+            
+            // 每层递增：第1层=1.0倍，第2层=1.1倍，第3层=1.2倍...第10层=1.9倍
+            const layerMultiplier = 1 + (layerInRealm - 1) * 0.1;
+            
+            // 当前层所需修为
+            const expForThisLevel = Math.floor(baseExp * layerMultiplier);
+            totalExp += expForThisLevel;
+        }
+        
+        return totalExp;
+    },
+
+    /**
+     * 根据总修为计算当前等级
+     * @param {number} totalExp - 总修为
+     * @returns {number} 当前等级
+     */
+    getLevelFromExp(totalExp) {
+        if (totalExp <= 0) return 1;
+        
+        // 使用二分查找提高效率
+        let left = 1;
+        let right = 80;
+        let level = 1;
+        
+        while (left <= right) {
+            const mid = Math.floor((left + right) / 2);
+            const expRequired = this.getExpRequiredForLevel(mid + 1);
+            
+            if (totalExp < expRequired) {
+                level = mid;
+                right = mid - 1;
+            } else {
+                left = mid + 1;
+            }
+        }
+        
+        return Math.min(level, 80); // 最高等级80
+    },
+
+    /**
+     * 获取当前等级到下一级所需修为
+     * @param {number} level - 当前等级
+     * @returns {number} 所需修为
+     */
+    getExpToNextLevel(level) {
+        if (level >= 80) return 0; // 已满级
+        
+        const expForCurrent = this.getExpRequiredForLevel(level);
+        const expForNext = this.getExpRequiredForLevel(level + 1);
+        return expForNext - expForCurrent;
+    },
+
+    // 增加修为
+    addExp(userId, exp) {
+        const data = this.getUserGameData(userId);
+        const newExp = data.exp + exp;
+        const oldLevel = data.level;
+        
+        // 使用动态算法计算新等级
+        const newLevel = this.getLevelFromExp(newExp);
+        
+        // 检查是否升级
+        const leveledUp = newLevel > oldLevel;
+        
+        this.updateUserGameData(userId, { exp: newExp, level: newLevel });
+        return { 
+            exp: newExp, 
+            level: newLevel, 
+            leveledUp, 
+            oldLevel 
+        };
+    },
+
+    // 增加阅读字数
+    addReadWords(userId, words) {
+        const data = this.getUserGameData(userId);
+        const newWords = data.total_read_words + words;
+        this.updateUserGameData(userId, { total_read_words: newWords });
+        return newWords;
+    },
+
+    // 增加阅读时长
+    addReadTime(userId, seconds) {
+        const data = this.getUserGameData(userId);
+        const newTime = data.total_read_time + seconds;
+        this.updateUserGameData(userId, { total_read_time: newTime, last_read_time: new Date().toISOString() });
+        return newTime;
+    },
+
+    // 添加碎片
+    addFragment(userId, fragmentType, fragmentId, quantity = 1) {
+        const existing = db
+            .prepare("SELECT * FROM user_fragments WHERE user_id = ? AND fragment_type = ? AND fragment_id = ?")
+            .get(userId, fragmentType, fragmentId);
+        if (existing) {
+            const stmt = db.prepare(
+                "UPDATE user_fragments SET quantity = quantity + ? WHERE user_id = ? AND fragment_type = ? AND fragment_id = ?"
+            );
+            return stmt.run(quantity, userId, fragmentType, fragmentId);
+        } else {
+            const stmt = db.prepare(
+                "INSERT INTO user_fragments (user_id, fragment_type, fragment_id, quantity) VALUES (?, ?, ?, ?)"
+            );
+            return stmt.run(userId, fragmentType, fragmentId, quantity);
+        }
+    },
+
+    // 获取用户所有碎片
+    getUserFragments(userId) {
+        return db.prepare("SELECT * FROM user_fragments WHERE user_id = ? ORDER BY fragment_type, fragment_id").all(userId);
+    },
+
+    // 合成碎片（收集10个解锁对应物品）
+    synthesizeFragment(userId, fragmentType, fragmentId) {
+        const fragment = db
+            .prepare("SELECT * FROM user_fragments WHERE user_id = ? AND fragment_type = ? AND fragment_id = ?")
+            .get(userId, fragmentType, fragmentId);
+        
+        if (!fragment || fragment.quantity < 10) {
+            return { success: false, message: "碎片不足，需要10个" };
+        }
+
+        // 扣除10个碎片
+        const newQuantity = fragment.quantity - 10;
+        if (newQuantity === 0) {
+            db.prepare("DELETE FROM user_fragments WHERE user_id = ? AND fragment_type = ? AND fragment_id = ?").run(userId, fragmentType, fragmentId);
+        } else {
+            db.prepare("UPDATE user_fragments SET quantity = ? WHERE user_id = ? AND fragment_type = ? AND fragment_id = ?").run(newQuantity, userId, fragmentType, fragmentId);
+        }
+
+        // 根据碎片类型解锁对应物品
+        if (fragmentType === "technique") {
+            // 解锁功法
+            this.unlockTechnique(userId, fragmentId);
+            return { success: true, type: "technique", itemId: fragmentId, message: `成功解锁功法：${fragmentId}` };
+        } else if (fragmentType === "pill") {
+            // 获得对应丹药
+            this.addItem(userId, "pill", fragmentId, 5); // 合成获得5个丹药
+            return { success: true, type: "pill", itemId: fragmentId, message: `成功合成丹药：${fragmentId} ×5` };
+        } else if (fragmentType === "artifact") {
+            // 获得对应法宝
+            this.addItem(userId, "artifact", fragmentId, 1);
+            return { success: true, type: "artifact", itemId: fragmentId, message: `成功合成法宝：${fragmentId}` };
+        } else if (fragmentType === "beast") {
+            // 解锁灵兽（暂时作为道具）
+            this.addItem(userId, "beast", fragmentId, 1);
+            return { success: true, type: "beast", itemId: fragmentId, message: `成功解锁灵兽：${fragmentId}` };
+        }
+
+        return { success: false, message: "未知的碎片类型" };
+    },
+
+    // 添加道具
+    addItem(userId, itemType, itemId, quantity = 1) {
+        const existing = db.prepare("SELECT * FROM user_items WHERE user_id = ? AND item_type = ? AND item_id = ?").get(userId, itemType, itemId);
+        if (existing) {
+            const stmt = db.prepare("UPDATE user_items SET quantity = quantity + ? WHERE user_id = ? AND item_type = ? AND item_id = ?");
+            return stmt.run(quantity, userId, itemType, itemId);
+        } else {
+            const stmt = db.prepare("INSERT INTO user_items (user_id, item_type, item_id, quantity) VALUES (?, ?, ?, ?)");
+            return stmt.run(userId, itemType, itemId, quantity);
+        }
+    },
+
+    // 使用道具
+    useItem(userId, itemType, itemId, quantity = 1) {
+        const existing = db.prepare("SELECT * FROM user_items WHERE user_id = ? AND item_type = ? AND item_id = ?").get(userId, itemType, itemId);
+        if (!existing || existing.quantity < quantity) {
+            return false;
+        }
+        if (existing.quantity === quantity) {
+            db.prepare("DELETE FROM user_items WHERE user_id = ? AND item_type = ? AND item_id = ?").run(userId, itemType, itemId);
+        } else {
+            db.prepare("UPDATE user_items SET quantity = quantity - ? WHERE user_id = ? AND item_type = ? AND item_id = ?").run(quantity, userId, itemType, itemId);
+        }
+        return true;
+    },
+
+    // 获取用户所有道具
+    getUserItems(userId) {
+        return db.prepare("SELECT * FROM user_items WHERE user_id = ? ORDER BY item_type, item_id").all(userId);
+    },
+
+    // 解锁功法
+    unlockTechnique(userId, techniqueId) {
+        const existing = db.prepare("SELECT * FROM user_techniques WHERE user_id = ? AND technique_id = ?").get(userId, techniqueId);
+        if (!existing) {
+            const stmt = db.prepare("INSERT INTO user_techniques (user_id, technique_id, level, exp) VALUES (?, ?, 1, 0)");
+            return stmt.run(userId, techniqueId);
+        }
+        return null;
+    },
+
+    // 装备/卸下功法（只能装备一个，装备新功法时自动卸下其他）
+    toggleTechniqueEquip(userId, techniqueId) {
+        const technique = db.prepare("SELECT * FROM user_techniques WHERE user_id = ? AND technique_id = ?").get(userId, techniqueId);
+        if (!technique) return false;
+        
+        const newEquip = technique.is_equipped ? 0 : 1;
+        
+        // 如果装备新功法，先卸下所有其他功法
+        if (newEquip === 1) {
+            db.prepare("UPDATE user_techniques SET is_equipped = 0 WHERE user_id = ?").run(userId);
+        }
+        
+        // 设置当前功法状态
+        db.prepare("UPDATE user_techniques SET is_equipped = ? WHERE user_id = ? AND technique_id = ?").run(newEquip, userId, techniqueId);
+        return newEquip === 1;
+    },
+
+    // 获取用户所有功法
+    getUserTechniques(userId) {
+        return db.prepare("SELECT * FROM user_techniques WHERE user_id = ? ORDER BY is_equipped DESC, unlocked_at DESC").all(userId);
+    },
+
+    // 记录阅读会话
+    recordReadingSession(userId, sessionData) {
+        const stmt = db.prepare(`
+            INSERT INTO reading_sessions 
+            (user_id, book_id, chapter_id, words_read, reading_time, fragments_obtained, exp_gained, session_start, session_end)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        return stmt.run(
+            userId,
+            sessionData.bookId || null,
+            sessionData.chapterId || null,
+            sessionData.wordsRead || 0,
+            sessionData.readingTime || 0,
+            JSON.stringify(sessionData.fragmentsObtained || []),
+            sessionData.expGained || 0,
+            sessionData.sessionStart || new Date().toISOString(),
+            sessionData.sessionEnd || new Date().toISOString()
+        );
+    },
+
+    // ==================== 签到系统 ====================
+    
+    // 获取签到信息
+    getSigninInfo(userId) {
+        const today = new Date().toISOString().split('T')[0];
+        const todaySignin = db.prepare("SELECT * FROM user_daily_signin WHERE user_id = ? AND signin_date = ?").get(userId, today);
+        
+        // 获取最近一次签到
+        const lastSignin = db.prepare(`
+            SELECT * FROM user_daily_signin 
+            WHERE user_id = ? 
+            ORDER BY signin_date DESC 
+            LIMIT 1
+        `).get(userId);
+        
+        // 获取本月签到记录
+        const thisMonth = new Date().toISOString().substring(0, 7);
+        const monthSignins = db.prepare(`
+            SELECT signin_date, consecutive_days, reward_exp 
+            FROM user_daily_signin 
+            WHERE user_id = ? AND signin_date LIKE ?
+            ORDER BY signin_date
+        `).all(userId, `${thisMonth}%`);
+        
+        return {
+            todaySigned: !!todaySignin,
+            consecutiveDays: lastSignin ? lastSignin.consecutive_days : 0,
+            monthSignins: monthSignins.map(s => s.signin_date),
+            lastSigninDate: lastSignin ? lastSignin.signin_date : null
+        };
+    },
+
+    // 签到
+    signin(userId) {
+        const today = new Date().toISOString().split('T')[0];
+        
+        // 检查今天是否已签到
+        const todaySignin = db.prepare("SELECT * FROM user_daily_signin WHERE user_id = ? AND signin_date = ?").get(userId, today);
+        if (todaySignin) {
+            return { success: false, message: "今天已经签到过了" };
+        }
+        
+        // 获取最近一次签到
+        const lastSignin = db.prepare(`
+            SELECT * FROM user_daily_signin 
+            WHERE user_id = ? 
+            ORDER BY signin_date DESC 
+            LIMIT 1
+        `).get(userId);
+        
+        // 计算连续天数
+        let consecutiveDays = 1;
+        if (lastSignin) {
+            const lastDate = new Date(lastSignin.signin_date);
+            const todayDate = new Date(today);
+            const diffDays = Math.floor((todayDate - lastDate) / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 1) {
+                // 连续签到
+                consecutiveDays = lastSignin.consecutive_days + 1;
+            } else if (diffDays > 1) {
+                // 中断了，重新开始
+                consecutiveDays = 1;
+            }
+        }
+        
+        // 计算奖励
+        let rewardExp = 50;
+        const rewardItems = [];
+        
+        if (consecutiveDays >= 3) {
+            rewardExp = 100;
+            rewardItems.push({ type: "fragment", id: "随机碎片", quantity: 1 });
+        }
+        if (consecutiveDays >= 7) {
+            rewardExp = 200;
+            rewardItems.push({ type: "item", id: "聚灵丹", quantity: 1 });
+        }
+        if (consecutiveDays >= 15) {
+            rewardExp = 500;
+            rewardItems.push({ type: "item", id: "回神丹", quantity: 1 });
+        }
+        if (consecutiveDays >= 30) {
+            rewardExp = 1000;
+            rewardItems.push({ type: "title", id: "签到达人", quantity: 1 });
+        }
+        
+        // 插入签到记录
+        const stmt = db.prepare(`
+            INSERT INTO user_daily_signin 
+            (user_id, signin_date, consecutive_days, reward_exp, reward_items)
+            VALUES (?, ?, ?, ?, ?)
+        `);
+        stmt.run(userId, today, consecutiveDays, rewardExp, JSON.stringify(rewardItems));
+        
+        // 发放奖励
+        this.addExp(userId, rewardExp);
+        rewardItems.forEach(item => {
+            if (item.type === "fragment") {
+                const types = ["technique", "pill", "artifact", "beast"];
+                const type = types[Math.floor(Math.random() * types.length)];
+                const names = {
+                    technique: ["清心诀", "凝神诀", "悟道诀", "静心诀"],
+                    pill: ["回神丹", "悟道丹", "清心丹", "聚灵丹"],
+                    artifact: ["书签法宝", "护眼法宝", "记忆法宝", "专注法宝"],
+                    beast: ["灵狐", "仙鹤", "神龙", "凤凰"]
+                };
+                const id = names[type][Math.floor(Math.random() * names[type].length)];
+                this.addFragment(userId, type, id, item.quantity);
+            } else if (item.type === "item") {
+                this.addItem(userId, "pill", item.id, item.quantity);
+            }
+        });
+        
+        return {
+            success: true,
+            consecutiveDays,
+            rewardExp,
+            rewardItems
+        };
+    },
+
+    // ==================== 成就系统 ====================
+    
+    // 获取或初始化成就
+    getOrInitAchievement(userId, achievementId, achievementType, target) {
+        let achievement = db.prepare(`
+            SELECT * FROM user_achievements 
+            WHERE user_id = ? AND achievement_id = ?
+        `).get(userId, achievementId);
+        
+        if (!achievement) {
+            db.prepare(`
+                INSERT INTO user_achievements 
+                (user_id, achievement_id, achievement_type, target)
+                VALUES (?, ?, ?, ?)
+            `).run(userId, achievementId, achievementType, target);
+            achievement = db.prepare(`
+                SELECT * FROM user_achievements 
+                WHERE user_id = ? AND achievement_id = ?
+            `).get(userId, achievementId);
+        }
+        
+        return achievement;
+    },
+
+    // 更新成就进度
+    updateAchievementProgress(userId, achievementId, progress) {
+        // 根据成就ID确定类型和目标值
+        const achievementConfig = {
+            "read_10k": { type: "reading", target: 10000 },
+            "read_100k": { type: "reading", target: 100000 },
+            "read_1m": { type: "reading", target: 1000000 },
+            "read_10m": { type: "reading", target: 10000000 },
+            "read_7days": { type: "reading", target: 7 },
+            "read_30days": { type: "reading", target: 30 },
+            "read_50k_day": { type: "reading", target: 50000 },
+            "realm_qi": { type: "realm", target: 1 },
+            "realm_zhu": { type: "realm", target: 1 },
+            "realm_jin": { type: "realm", target: 1 },
+            "realm_yuan": { type: "realm", target: 1 },
+            "realm_hua": { type: "realm", target: 1 },
+            "fragments_100": { type: "collection", target: 100 },
+            "techniques_10": { type: "collection", target: 10 },
+            "items_50": { type: "collection", target: 50 },
+            "realm_5_day": { type: "special", target: 5 },
+            "exp_1000": { type: "special", target: 1000 },
+            "fragments_3": { type: "special", target: 3 }
+        };
+        
+        const config = achievementConfig[achievementId] || { type: "reading", target: 1 };
+        const achievement = this.getOrInitAchievement(userId, achievementId, config.type, config.target);
+        if (achievement.completed) return achievement;
+        
+        const newProgress = Math.max(achievement.progress, progress);
+        const completed = newProgress >= achievement.target ? 1 : 0;
+        
+        db.prepare(`
+            UPDATE user_achievements 
+            SET progress = ?, completed = ?, completed_at = ?
+            WHERE user_id = ? AND achievement_id = ?
+        `).run(
+            newProgress,
+            completed,
+            completed ? new Date().toISOString() : null,
+            userId,
+            achievementId
+        );
+        
+        return { ...achievement, progress: newProgress, completed: completed === 1 };
+    },
+
+    // 领取成就奖励
+    claimAchievementReward(userId, achievementId) {
+        const achievement = db.prepare(`
+            SELECT * FROM user_achievements 
+            WHERE user_id = ? AND achievement_id = ?
+        `).get(userId, achievementId);
+        
+        if (!achievement || !achievement.completed || achievement.reward_claimed) {
+            return { success: false, message: "成就未完成或已领取" };
+        }
+        
+        // 根据成就ID计算奖励
+        const rewards = this.getAchievementReward(achievementId);
+        
+        // 发放奖励
+        if (rewards.exp > 0) {
+            this.addExp(userId, rewards.exp);
+        }
+        if (rewards.items) {
+            rewards.items.forEach(item => {
+                this.addItem(userId, item.type, item.id, item.quantity);
+            });
+        }
+        
+        // 标记已领取
+        db.prepare(`
+            UPDATE user_achievements 
+            SET reward_claimed = 1 
+            WHERE user_id = ? AND achievement_id = ?
+        `).run(userId, achievementId);
+        
+        return { success: true, rewards };
+    },
+
+    // 获取成就奖励配置
+    getAchievementReward(achievementId) {
+        const rewards = {
+            "read_10k": { exp: 100, items: [] },
+            "read_100k": { exp: 500, items: [{ type: "pill", id: "聚灵丹", quantity: 1 }] },
+            "read_1m": { exp: 2000, items: [{ type: "pill", id: "回神丹", quantity: 3 }] },
+            "read_10m": { exp: 10000, items: [{ type: "pill", id: "悟道丹", quantity: 5 }] },
+            "read_7days": { exp: 300, items: [] },
+            "read_30days": { exp: 1000, items: [{ type: "pill", id: "清心丹", quantity: 2 }] },
+            "read_50k_day": { exp: 500, items: [] },
+            "realm_qi": { exp: 200, items: [] },
+            "realm_zhu": { exp: 500, items: [] },
+            "realm_jin": { exp: 1000, items: [] },
+            "realm_yuan": { exp: 2000, items: [] },
+            "realm_hua": { exp: 5000, items: [] },
+            "fragments_100": { exp: 800, items: [] },
+            "techniques_10": { exp: 1000, items: [] },
+            "items_50": { exp: 1500, items: [] },
+            "realm_5_day": { exp: 2000, items: [] },
+            "exp_1000": { exp: 500, items: [] },
+            "fragments_3": { exp: 200, items: [] }
+        };
+        return rewards[achievementId] || { exp: 100, items: [] };
+    },
+
+    // 获取所有成就
+    getAllAchievements(userId) {
+        return db.prepare(`
+            SELECT * FROM user_achievements 
+            WHERE user_id = ? 
+            ORDER BY completed DESC, created_at
+        `).all(userId);
+    },
+
+    // ==================== 每日任务系统 ====================
+    
+    // 生成每日任务
+    generateDailyTasks(userId, date) {
+        const dateStr = date || new Date().toISOString().split('T')[0];
+        
+        // 检查今天是否已生成任务
+        const existing = db.prepare(`
+            SELECT COUNT(*) as count FROM user_daily_tasks 
+            WHERE user_id = ? AND task_date = ?
+        `).get(userId, dateStr);
+        
+        if (existing.count > 0) {
+            return db.prepare(`
+                SELECT * FROM user_daily_tasks 
+                WHERE user_id = ? AND task_date = ?
+                ORDER BY difficulty, created_at
+            `).all(userId, dateStr);
+        }
+        
+        // 任务模板
+        const taskTemplates = [
+            { id: "read_5k", type: "reading", name: "阅读5000字", desc: "今日阅读5000字", target: 5000, reward: 50, difficulty: "easy" },
+            { id: "read_30min", type: "reading", name: "阅读30分钟", desc: "今日阅读30分钟", target: 1800, reward: 30, difficulty: "easy" },
+            { id: "read_chapter", type: "reading", name: "完成1个章节", desc: "完成阅读1个章节", target: 1, reward: 20, difficulty: "easy" },
+            { id: "use_item", type: "cultivation", name: "使用1个道具", desc: "使用任意道具1次", target: 1, reward: 20, difficulty: "easy" },
+            { id: "equip_technique", type: "cultivation", name: "装备功法阅读", desc: "装备功法并阅读", target: 1, reward: 30, difficulty: "easy" },
+            { id: "synthesize_fragment", type: "cultivation", name: "合成1个碎片", desc: "合成任意碎片", target: 1, reward: 50, difficulty: "medium" },
+            { id: "read_10k", type: "challenge", name: "单次阅读1万字", desc: "单次阅读达到1万字", target: 10000, reward: 100, difficulty: "hard" },
+            { id: "get_5_fragments", type: "challenge", name: "获得5个碎片", desc: "今日获得5个碎片", target: 5, reward: 80, difficulty: "medium" },
+            { id: "level_up", type: "challenge", name: "提升1个境界", desc: "提升任意境界", target: 1, reward: 200, difficulty: "hard" }
+        ];
+        
+        // 随机选择3-5个任务
+        const selectedTasks = [];
+        const shuffled = [...taskTemplates].sort(() => Math.random() - 0.5);
+        const count = 3 + Math.floor(Math.random() * 3); // 3-5个任务
+        
+        for (let i = 0; i < count && i < shuffled.length; i++) {
+            const template = shuffled[i];
+            const stmt = db.prepare(`
+                INSERT INTO user_daily_tasks 
+                (user_id, task_id, task_type, task_name, task_desc, target, reward_exp, difficulty, task_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `);
+            stmt.run(
+                userId,
+                template.id,
+                template.type,
+                template.name,
+                template.desc,
+                template.target,
+                template.reward,
+                template.difficulty,
+                dateStr
+            );
+            selectedTasks.push({
+                task_id: template.id,
+                task_type: template.type,
+                task_name: template.name,
+                task_desc: template.desc,
+                target: template.target,
+                reward_exp: template.reward,
+                difficulty: template.difficulty,
+                progress: 0,
+                completed: 0
+            });
+        }
+        
+        return selectedTasks;
+    },
+
+    // 获取每日任务
+    getDailyTasks(userId, date) {
+        const dateStr = date || new Date().toISOString().split('T')[0];
+        
+        // 确保任务已生成
+        this.generateDailyTasks(userId, dateStr);
+        
+        return db.prepare(`
+            SELECT * FROM user_daily_tasks 
+            WHERE user_id = ? AND task_date = ?
+            ORDER BY difficulty, created_at
+        `).all(userId, dateStr);
+    },
+
+    // 更新任务进度
+    updateTaskProgress(userId, taskType, progress, date) {
+        const dateStr = date || new Date().toISOString().split('T')[0];
+        const tasks = db.prepare(`
+            SELECT * FROM user_daily_tasks 
+            WHERE user_id = ? AND task_date = ? AND task_type = ? AND completed = 0
+        `).all(userId, dateStr, taskType);
+        
+        const updatedTasks = [];
+        tasks.forEach(task => {
+            let newProgress = task.progress;
+            
+            // 根据任务ID更新进度
+            if (task.task_id === "read_5k" || task.task_id === "read_10k") {
+                newProgress = Math.min(task.progress + (progress.wordsRead || 0), task.target);
+            } else if (task.task_id === "read_30min") {
+                newProgress = Math.min(task.progress + (progress.readingTime || 0), task.target);
+            } else if (task.task_id === "read_chapter") {
+                newProgress = Math.min(task.progress + (progress.chaptersRead || 0), task.target);
+            } else if (task.task_id === "use_item") {
+                newProgress = Math.min(task.progress + (progress.itemsUsed || 0), task.target);
+            } else if (task.task_id === "equip_technique") {
+                if (progress.techniqueEquipped) newProgress = Math.min(task.progress + 1, task.target);
+            } else if (task.task_id === "synthesize_fragment") {
+                newProgress = Math.min(task.progress + (progress.fragmentsSynthesized || 0), task.target);
+            } else if (task.task_id === "get_5_fragments") {
+                newProgress = Math.min(task.progress + (progress.fragmentsObtained || 0), task.target);
+            } else if (task.task_id === "level_up") {
+                if (progress.leveledUp) newProgress = Math.min(task.progress + 1, task.target);
+            }
+            
+            const completed = newProgress >= task.target ? 1 : 0;
+            
+            db.prepare(`
+                UPDATE user_daily_tasks 
+                SET progress = ?, completed = ?, completed_at = ?
+                WHERE id = ?
+            `).run(
+                newProgress,
+                completed,
+                completed ? new Date().toISOString() : null,
+                task.id
+            );
+            
+            // 如果完成，发放奖励
+            if (completed && !task.completed) {
+                this.addExp(userId, task.reward_exp);
+                updatedTasks.push({ ...task, progress: newProgress, completed: 1, reward: task.reward_exp });
+            }
+        });
+        
+        return updatedTasks;
+    },
+
+    // 领取任务奖励（已完成的任务）
+    claimTaskReward(userId, taskId, date) {
+        const dateStr = date || new Date().toISOString().split('T')[0];
+        const task = db.prepare(`
+            SELECT * FROM user_daily_tasks 
+            WHERE user_id = ? AND task_id = ? AND task_date = ?
+        `).get(userId, taskId, dateStr);
+        
+        if (!task || !task.completed) {
+            return { success: false, message: "任务未完成" };
+        }
+        
+        // 奖励已在完成时发放，这里只是标记
+        return { success: true, reward: task.reward_exp };
+    }
+};
+
 module.exports = {
     db,
     UserDB,
@@ -2601,5 +3443,6 @@ module.exports = {
     ReadingStatsDB,
     SubscriptionDB,
     BookListDB,
-    BookListCommentDB
+    BookListCommentDB,
+    GameDB
 };

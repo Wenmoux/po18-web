@@ -1,0 +1,792 @@
+/**
+ * 游戏系统样式 - 简约线框风格
+ */
+
+:root {
+    --game-primary: #d81b60;
+    --game-surface: #ffffff;
+    --game-border: #e0e0e0;
+    --game-border-hover: #d81b60;
+    --game-text-primary: #212121;
+    --game-text-secondary: #757575;
+    --game-text-muted: #9e9e9e;
+    --game-success: #4caf50;
+    --game-warning: #ff9800;
+    --game-info: #2196f3;
+    --game-radius: 8px;
+    --game-spacing: 16px;
+}
+
+/* ===== 游戏入口按钮 ===== */
+.game-entry-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: var(--game-surface);
+    border: 1px solid var(--game-border);
+    border-radius: var(--game-radius);
+    color: var(--game-text-primary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.game-entry-btn:hover {
+    border-color: var(--game-border-hover);
+    color: var(--game-primary);
+}
+
+.game-entry-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* ===== 游戏页面内容 ===== */
+#game-page-content {
+    padding: var(--game-spacing);
+}
+
+/* ===== 信息卡片 ===== */
+.game-info-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--game-spacing);
+    margin-bottom: var(--game-spacing);
+}
+
+@media (max-width: 480px) {
+    .game-info-cards {
+        grid-template-columns: 1fr;
+    }
+}
+
+.game-info-card {
+    border: 1px solid var(--game-border);
+    border-radius: var(--game-radius);
+    padding: var(--game-spacing);
+    transition: all 0.2s ease;
+}
+
+.game-info-card:hover {
+    border-color: var(--game-border-hover);
+}
+
+.game-info-card-title {
+    font-size: 12px;
+    color: var(--game-text-secondary);
+    margin-bottom: 8px;
+}
+
+.game-info-card-value {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--game-text-primary);
+    margin-bottom: 8px;
+}
+
+.game-info-card-subtitle {
+    font-size: 14px;
+    color: var(--game-text-secondary);
+}
+
+/* ===== 进度条 ===== */
+.game-progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #f5f5f5;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.game-progress-fill {
+    height: 100%;
+    background: var(--game-primary);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+/* ===== 碎片网格 ===== */
+.game-section {
+    margin-bottom: 24px;
+}
+
+.game-section-title {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--game-text-primary);
+    margin-bottom: 12px;
+}
+
+.game-fragments-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 12px;
+}
+
+@media (max-width: 768px) {
+    .game-fragments-grid {
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    }
+}
+
+.game-fragment-card {
+    min-height: 120px;
+    border: 1px solid var(--game-border);
+    border-radius: var(--game-radius);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: var(--game-surface);
+    position: relative;
+}
+
+.game-fragment-card:hover {
+    border-color: var(--game-border-hover);
+    transform: translateY(-2px);
+}
+
+.game-fragment-card.empty {
+    border-style: dashed;
+    opacity: 0.5;
+}
+
+.game-fragment-card.can-synthesize {
+    border-color: var(--game-warning);
+    border-width: 2px;
+    position: relative;
+}
+
+.game-fragment-synthesize {
+    margin-top: 8px;
+    padding: 4px 12px;
+    border: 1px solid var(--game-warning);
+    border-radius: 4px;
+    background: var(--game-warning);
+    color: white;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.game-fragment-synthesize:hover {
+    background: #f57c00;
+    border-color: #f57c00;
+    transform: translateY(-1px);
+}
+
+.game-fragment-icon {
+    font-size: 24px;
+    margin-bottom: 8px;
+}
+
+.game-fragment-name {
+    font-size: 12px;
+    color: var(--game-text-primary);
+    margin-bottom: 4px;
+}
+
+.game-fragment-count {
+    font-size: 11px;
+    color: var(--game-text-secondary);
+}
+
+/* ===== 道具列表 ===== */
+.game-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.game-item-card {
+    border: 1px solid var(--game-border);
+    border-radius: var(--game-radius);
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.2s ease;
+}
+
+.game-item-card:hover {
+    border-color: var(--game-border-hover);
+}
+
+.game-item-icon {
+    font-size: 24px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--game-border);
+    border-radius: 4px;
+}
+
+.game-item-info {
+    flex: 1;
+}
+
+.game-item-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--game-text-primary);
+    margin-bottom: 4px;
+}
+
+.game-item-count {
+    font-size: 12px;
+    color: var(--game-text-secondary);
+}
+
+.game-item-action {
+    padding: 6px 16px;
+    border: 1px solid var(--game-border);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--game-text-primary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.game-item-action:hover {
+    border-color: var(--game-primary);
+    color: var(--game-primary);
+}
+
+/* ===== 功法列表 ===== */
+.game-techniques-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.game-technique-card {
+    border: 1px solid var(--game-border);
+    border-radius: var(--game-radius);
+    padding: 12px;
+    transition: all 0.2s ease;
+}
+
+.game-technique-card.equipped {
+    border-color: var(--game-primary);
+    background: rgba(216, 27, 96, 0.05);
+}
+
+.game-technique-card:hover {
+    border-color: var(--game-border-hover);
+}
+
+.game-technique-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.game-technique-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.game-technique-icon {
+    font-size: 24px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--game-border);
+    border-radius: 4px;
+}
+
+.game-technique-details {
+    flex: 1;
+}
+
+.game-technique-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--game-text-primary);
+    margin-bottom: 4px;
+}
+
+.game-technique-level {
+    font-size: 12px;
+    color: var(--game-text-secondary);
+}
+
+.game-technique-effect {
+    font-size: 12px;
+    color: var(--game-text-secondary);
+    margin-top: 8px;
+}
+
+.game-technique-action {
+    padding: 6px 16px;
+    border: 1px solid var(--game-border);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--game-text-primary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.game-technique-action:hover {
+    border-color: var(--game-primary);
+    color: var(--game-primary);
+}
+
+.game-technique-action.equipped {
+    border-color: var(--game-primary);
+    color: var(--game-primary);
+    background: rgba(216, 27, 96, 0.1);
+}
+
+/* ===== 奖励弹窗 ===== */
+.game-reward-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--game-surface);
+    border: 1px solid var(--game-border);
+    border-radius: var(--game-radius);
+    padding: 24px;
+    z-index: 2000;
+    text-align: center;
+    min-width: 280px;
+    animation: popupIn 0.3s ease;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes popupIn {
+    from {
+        transform: translate(-50%, -50%) scale(0.9);
+        opacity: 0;
+    }
+    to {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes levelUpShake {
+    0%, 100% {
+        transform: translate(-50%, -50%) scale(1);
+    }
+    25% {
+        transform: translate(-50%, -50%) scale(1.1) rotate(-2deg);
+    }
+    75% {
+        transform: translate(-50%, -50%) scale(1.1) rotate(2deg);
+    }
+}
+
+.game-reward-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--game-text-primary);
+    margin-bottom: 16px;
+}
+
+.game-reward-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+
+.game-reward-name {
+    font-size: 16px;
+    color: var(--game-text-primary);
+    margin-bottom: 20px;
+}
+
+.game-reward-close {
+    padding: 8px 24px;
+    border: 1px solid var(--game-border);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--game-text-primary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.game-reward-close:hover {
+    border-color: var(--game-primary);
+    color: var(--game-primary);
+}
+
+/* ===== 实时提示 ===== */
+.game-notification {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: var(--game-surface);
+    border: 1px solid var(--game-border);
+    border-radius: var(--game-radius);
+    padding: 12px 16px;
+    z-index: 1500;
+    min-width: 200px;
+    animation: slideInRight 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.game-notification.expiring {
+    animation: slideOutRight 0.3s ease forwards;
+}
+
+@keyframes slideOutRight {
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+.game-notification-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.game-notification-icon {
+    font-size: 20px;
+}
+
+.game-notification-text {
+    flex: 1;
+    font-size: 14px;
+    color: var(--game-text-primary);
+}
+
+/* ===== 空状态 ===== */
+.game-empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--game-text-secondary);
+}
+
+.game-empty-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.game-empty-text {
+    font-size: 14px;
+}
+
+/* ===== 加载状态 ===== */
+.game-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    color: var(--game-text-secondary);
+}
+
+.game-loading::after {
+    content: "...";
+    animation: dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes dots {
+    0%, 20% {
+        content: ".";
+    }
+    40% {
+        content: "..";
+    }
+    60%, 100% {
+        content: "...";
+    }
+}
+
+/* ===== 签到系统 ===== */
+.game-signin-calendar {
+    border: 1px solid var(--game-border);
+    border-radius: var(--game-radius);
+    padding: var(--game-spacing);
+}
+
+.game-signin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--game-spacing);
+    padding-bottom: var(--game-spacing);
+    border-bottom: 1px solid var(--game-border);
+}
+
+.game-signin-consecutive {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.game-signin-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+}
+
+.game-signin-weekday {
+    text-align: center;
+    font-size: 12px;
+    color: var(--game-text-secondary);
+    font-weight: 500;
+    padding: 4px;
+}
+
+.game-signin-day {
+    aspect-ratio: 1;
+    border: 1px solid var(--game-border);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.game-signin-day:hover:not(.empty) {
+    border-color: var(--game-border-hover);
+    background: #fafafa;
+}
+
+.game-signin-day.empty {
+    border: none;
+    cursor: default;
+}
+
+.game-signin-day.today {
+    border-color: var(--game-primary);
+    background: #fff5f8;
+}
+
+.game-signin-day.signed {
+    background: #e8f5e9;
+    border-color: var(--game-success);
+}
+
+.game-signin-day.missed {
+    opacity: 0.4;
+}
+
+.game-signin-day-number {
+    font-size: 12px;
+    color: var(--game-text-primary);
+    font-weight: 500;
+}
+
+.game-signin-check {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    font-size: 10px;
+    color: var(--game-success);
+    font-weight: bold;
+}
+
+/* ===== 任务系统 ===== */
+.game-tasks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.game-task-card {
+    border: 1px solid var(--game-border);
+    border-radius: var(--game-radius);
+    padding: var(--game-spacing);
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.game-task-card:hover {
+    border-color: var(--game-border-hover);
+}
+
+.game-task-card.completed {
+    background: #f5f5f5;
+    opacity: 0.8;
+}
+
+.game-task-card.easy {
+    border-left: 3px solid var(--game-success);
+}
+
+.game-task-card.medium {
+    border-left: 3px solid var(--game-warning);
+}
+
+.game-task-card.hard {
+    border-left: 3px solid var(--game-primary);
+}
+
+.game-task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.game-task-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--game-text-primary);
+}
+
+.game-task-reward {
+    font-size: 12px;
+    color: var(--game-warning);
+    font-weight: 500;
+}
+
+.game-task-desc {
+    font-size: 12px;
+    color: var(--game-text-secondary);
+    margin-bottom: 12px;
+}
+
+.game-task-progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.game-task-progress-text {
+    font-size: 12px;
+    color: var(--game-text-secondary);
+    white-space: nowrap;
+}
+
+.game-task-completed {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    font-size: 12px;
+    color: var(--game-success);
+    font-weight: 500;
+}
+
+/* ===== 成就系统 ===== */
+.game-achievement-group {
+    margin-bottom: 24px;
+}
+
+.game-achievement-group-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--game-text-primary);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--game-border);
+}
+
+.game-achievements-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.game-achievement-card {
+    border: 1px solid var(--game-border);
+    border-radius: var(--game-radius);
+    padding: var(--game-spacing);
+    display: flex;
+    gap: 12px;
+    transition: all 0.2s ease;
+}
+
+.game-achievement-card:hover {
+    border-color: var(--game-border-hover);
+}
+
+.game-achievement-card.completed {
+    background: #f5f5f5;
+}
+
+.game-achievement-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--game-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: var(--game-text-secondary);
+    flex-shrink: 0;
+}
+
+.game-achievement-card.completed .game-achievement-icon {
+    border-color: var(--game-success);
+    background: var(--game-success);
+    color: white;
+}
+
+.game-achievement-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.game-achievement-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--game-text-primary);
+    margin-bottom: 4px;
+}
+
+.game-achievement-desc {
+    font-size: 12px;
+    color: var(--game-text-secondary);
+    margin-bottom: 8px;
+}
+
+.game-achievement-reward {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.game-achievement-reward-exp {
+    font-size: 12px;
+    color: var(--game-warning);
+    font-weight: 500;
+}
+
+.game-achievement-claimed {
+    font-size: 11px;
+    color: var(--game-text-muted);
+}
+
+.game-btn-small {
+    padding: 4px 12px;
+    font-size: 12px;
+}
+

@@ -334,6 +334,9 @@ class Reader {
                 '<p style="text-align:center;color:#999;">内容加载失败</p>';
         }
 
+        // 计算章节字数并传递给游戏系统
+        this.trackReadingWords();
+
         // 渲染后恢复滚动位置
         setTimeout(() => {
             this.restoreScrollPosition();
@@ -344,6 +347,22 @@ class Reader {
                 this.resumeTTSAfterChapterChange();
             }
         }, 100);
+    }
+
+    // 跟踪阅读字数
+    trackReadingWords() {
+        const contentEl = document.getElementById("chapter-content");
+        if (!contentEl) return;
+
+        // 计算文本字数（去除HTML标签）
+        const text = contentEl.innerText || contentEl.textContent || "";
+        const wordCount = text.replace(/\s+/g, "").length; // 中文字数统计
+
+        // 传递给游戏系统
+        if (typeof gameSystem !== "undefined" && wordCount > 0) {
+            const chapter = this.chapters[this.currentChapterIndex];
+            gameSystem.addReadingWords(wordCount, this.bookId, chapter?.chapterId);
+        }
     }
 
     // 浏览器端加载章节（直接请求PO18）
@@ -635,6 +654,12 @@ class Reader {
         // 书签
         document.getElementById("btn-bookmark").addEventListener("click", () => {
             this.addBookmark();
+        });
+
+        // 游戏系统
+        document.getElementById("btn-game")?.addEventListener("click", () => {
+            // 跳转到游戏页面
+            window.location.href = "/?page=game";
         });
 
         // 日夜切换

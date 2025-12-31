@@ -73,6 +73,7 @@
         <link rel="stylesheet" href="css/bookshelf.css?v=20251224e" />
         <link rel="stylesheet" href="css/components.css?v=20251224e" />
         <link rel="stylesheet" href="css/mobile-enhancements.css?v=20251224e" />
+        <link rel="stylesheet" href="css/game.css?v=20251224e" />
 
         <!-- 字体异步加载 -->
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -104,6 +105,7 @@
                     <a href="#" class="nav-link" data-page="bookshelf">📖 芸香屉</a>
                     <a href="#" class="nav-link" data-page="book-lists">📑 花间集</a>
                     <a href="#" class="nav-link" data-page="global-library" id="nav-global-library" style="display: none">🌎 琅嬛录</a>
+                    <a href="#" class="nav-link" data-page="game" id="nav-game" style="display: none">🎮 修仙系统</a>
                     <a href="#" class="nav-link" data-page="subscriptions" id="nav-subscriptions">
                         🔔 青鸟约
                         <span class="nav-badge" id="subscription-badge" style="display: none">0</span>
@@ -209,6 +211,11 @@
                                 <div class="access-icon">🔔</div>
                                 <div class="access-title">青鸟约</div>
                                 <div class="access-desc">书籍更新提醒</div>
+                            </div>
+                            <div class="quick-access-card" id="game-access-card" onclick="App.navigateTo('game')" style="display: none;">
+                                <div class="access-icon">🎮</div>
+                                <div class="access-title">修仙系统</div>
+                                <div class="access-desc">阅读获得修为</div>
                             </div>
                         </div>
                     </div>
@@ -646,6 +653,17 @@
                     <!-- 订阅列表 -->
                     <div class="subscription-list" id="subscription-list">
                         <p class="empty-message">暂无订阅，去书籍详情页点击"订阅更新"关注你喜欢的书籍吧</p>
+                    </div>
+                </section>
+
+                <!-- 游戏页面 -->
+                <section class="page" id="page-game">
+                    <div class="page-header">
+                        <h2>🎮 修仙系统</h2>
+                        <p class="page-subtitle">阅读获得修为，提升境界</p>
+                    </div>
+                    <div id="game-page-content">
+                        <div class="game-loading">加载中</div>
                     </div>
                 </section>
 
@@ -1424,6 +1442,10 @@
                 <span class="tab-icon">🌐</span>
                 <span class="tab-label">琅嬛录</span>
             </a>
+            <a href="#" class="tab-item" data-page="game" id="tab-game" style="display: none">
+                <span class="tab-icon">🎮</span>
+                <span class="tab-label">修仙</span>
+            </a>
             <a href="#" class="tab-item" data-page="subscriptions" id="tab-subscriptions">
                 <span class="tab-icon">🔔</span>
                 <span class="tab-label">青鸟约</span>
@@ -1446,6 +1468,7 @@
         <script src="js/mobile.js?v=20251224e"></script>
         <script src="js/app.js?v=20251224e"></script>
         <script src="js/smart-bookshelf.js?v=20251224e"></script>
+        <script src="js/game.js?v=20251224e"></script>
         
         <!-- 确保智能书架正确初始化 -->
         <script>

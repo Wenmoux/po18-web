@@ -65,22 +65,31 @@ const App = {
             }
         });
 
-        // 检查URL hash导航
-        const hash = window.location.hash.substring(1); // 去掉#
-        if (
-            hash &&
-            [
-                "download",
-                "rankings",
-                "purchased",
-                "bookshelf",
-                "downloads",
-                "library",
-                "global-library",
-                "settings"
-            ].includes(hash)
-        ) {
-            this.currentPage = hash;
+        // 检查URL参数或hash导航
+        const urlParams = new URLSearchParams(window.location.search);
+        const pageParam = urlParams.get("page");
+        if (pageParam && ["download", "rankings", "purchased", "bookshelf", "downloads", "library", "global-library", "settings", "game", "subscriptions", "book-lists"].includes(pageParam)) {
+            this.currentPage = pageParam;
+        } else {
+            const hash = window.location.hash.substring(1); // 去掉#
+            if (
+                hash &&
+                [
+                    "download",
+                    "rankings",
+                    "purchased",
+                    "bookshelf",
+                    "downloads",
+                    "library",
+                    "global-library",
+                    "settings",
+                    "game",
+                    "subscriptions",
+                    "book-lists"
+                ].includes(hash)
+            ) {
+                this.currentPage = hash;
+            }
         }
 
         // 初始化全站书库相关事件
@@ -951,6 +960,24 @@ const App = {
                 });
             }
 
+            // 显示游戏入口（登录后可见）
+            const gameAccessCard = document.getElementById("game-access-card");
+            if (gameAccessCard) {
+                gameAccessCard.style.display = "flex";
+            }
+            
+            // 显示导航栏游戏入口
+            const navGame = document.getElementById("nav-game");
+            if (navGame) {
+                navGame.style.display = "block";
+            }
+            
+            // 显示移动端底部导航游戏入口
+            const tabGame = document.getElementById("tab-game");
+            if (tabGame) {
+                tabGame.style.display = "flex";
+            }
+
             // 更新已购书籍页面
             document.getElementById("purchased-login-required").style.display = this.currentUser.hasPo18Cookie
                 ? "none"
@@ -958,6 +985,25 @@ const App = {
         } else {
             userArea.style.display = "flex";
             userInfo.style.display = "none";
+            
+            // 隐藏游戏入口（未登录）
+            const gameAccessCard = document.getElementById("game-access-card");
+            if (gameAccessCard) {
+                gameAccessCard.style.display = "none";
+            }
+            
+            // 隐藏导航栏游戏入口
+            const navGame = document.getElementById("nav-game");
+            if (navGame) {
+                navGame.style.display = "none";
+            }
+            
+            // 隐藏移动端底部导航游戏入口
+            const tabGame = document.getElementById("tab-game");
+            if (tabGame) {
+                tabGame.style.display = "none";
+            }
+            
             if (adminLink) adminLink.style.display = "none";
             if (globalLibraryNav) globalLibraryNav.style.display = "none";
         }
