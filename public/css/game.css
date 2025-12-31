@@ -866,3 +866,327 @@
     font-size: 12px;
 }
 
+/* ===== 玄藏录样式 ===== */
+.collections-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.collections-grid .collection-card {
+    animation-delay: calc(var(--index, 0) * 0.05s);
+}
+
+.collection-card {
+    background: var(--md-surface-container-low);
+    border: 1px solid var(--game-border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    animation: fadeInUp 0.5s ease-out;
+    animation-fill-mode: both;
+    cursor: pointer;
+}
+
+.collection-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--collection-color, var(--md-primary)), transparent);
+    transition: height 0.3s;
+}
+
+.collection-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at center, rgba(var(--collection-color-rgb, 33, 150, 243), 0.05), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+.collection-card:hover {
+    border-color: var(--game-border-hover);
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.collection-card:hover::before {
+    height: 6px;
+}
+
+.collection-card:hover::after {
+    opacity: 1;
+}
+
+.collection-icon {
+    font-size: 48px;
+    margin-bottom: 10px;
+    transition: transform 0.3s;
+}
+
+.collection-card:hover .collection-icon {
+    transform: scale(1.1) rotate(5deg);
+}
+
+.collection-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--md-on-surface);
+    margin-bottom: 8px;
+}
+
+.collection-quality {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.collection-id {
+    font-size: 11px;
+    color: var(--md-on-surface-variant);
+    font-family: monospace;
+    margin-top: 8px;
+    word-break: break-all;
+}
+
+.collection-obtained {
+    font-size: 12px;
+    color: var(--md-on-surface-variant);
+    margin-top: 8px;
+}
+
+.collection-effect {
+    font-size: 12px;
+    color: var(--md-primary);
+    margin-top: 6px;
+    padding: 4px 8px;
+    background: linear-gradient(135deg, var(--md-surface-container), var(--md-surface-container-highest));
+    border-radius: 6px;
+    display: inline-block;
+    border: 1px solid rgba(var(--md-primary-rgb, 33, 150, 243), 0.2);
+    transition: all 0.3s;
+}
+
+.collection-card:hover .collection-effect {
+    background: linear-gradient(135deg, rgba(var(--md-primary-rgb, 33, 150, 243), 0.1), rgba(var(--md-primary-rgb, 33, 150, 243), 0.2));
+    border-color: var(--md-primary);
+    transform: scale(1.05);
+}
+
+.collection-description {
+    font-size: 12px;
+    color: var(--md-on-surface-variant);
+    margin-top: 8px;
+    line-height: 1.4;
+    max-height: 40px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.collection-rarity {
+    font-size: 11px;
+    color: var(--md-on-surface-variant);
+    margin-top: 4px;
+}
+
+/* 品质颜色 */
+.quality-common { background: #9e9e9e; color: white; }
+.quality-uncommon { background: #4caf50; color: white; }
+.quality-rare { background: #2196f3; color: white; }
+.quality-epic { background: #9c27b0; color: white; }
+.quality-legendary { background: #ff9800; color: white; }
+.quality-mythic { background: #f44336; color: white; }
+
+/* 筛选和搜索栏 */
+.collections-filters {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.filter-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.filter-label {
+    font-size: 14px;
+    color: var(--md-on-surface-variant);
+    white-space: nowrap;
+}
+
+.filter-select,
+.search-input {
+    padding: 8px 12px;
+    border: 1px solid var(--game-border);
+    border-radius: 8px;
+    background: var(--md-surface-container-low);
+    color: var(--md-on-surface);
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.filter-select:hover,
+.search-input:hover {
+    border-color: var(--game-border-hover);
+}
+
+.filter-select:focus,
+.search-input:focus {
+    outline: none;
+    border-color: var(--md-primary);
+    box-shadow: 0 0 0 2px rgba(var(--md-primary-rgb, 33, 150, 243), 0.2);
+}
+
+.search-input {
+    flex: 1;
+    min-width: 200px;
+}
+
+/* 详情弹窗 */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal-content {
+    background: var(--md-surface);
+    border-radius: 16px;
+    padding: 30px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    animation: slideUp 0.3s;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--game-border);
+}
+
+.modal-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--md-on-surface);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--md-on-surface-variant);
+    padding: 4px;
+    line-height: 1;
+    transition: color 0.3s;
+}
+
+.modal-close:hover {
+    color: var(--md-on-surface);
+}
+
+.modal-body {
+    color: var(--md-on-surface);
+}
+
+.modal-info-row {
+    display: flex;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--game-border);
+}
+
+.modal-info-label {
+    font-weight: 600;
+    color: var(--md-on-surface-variant);
+    min-width: 100px;
+}
+
+.modal-info-value {
+    flex: 1;
+    color: var(--md-on-surface);
+}
+
+.modal-effect {
+    background: var(--md-surface-container-low);
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 12px;
+}
+
+.modal-effect-title {
+    font-weight: 600;
+    color: var(--md-primary);
+    margin-bottom: 8px;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+

@@ -15,7 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const { logger } = require('./logger');
 const config = require('./config');
-const { db, SubscriptionDB, BookMetadataDB } = require('./database');
+const { db, SubscriptionDB, SubscriptionCheckLogDB, SubscriptionNotificationDB, BookMetadataDB } = require('./database');
 const { Crawler } = require('./crawler');
 
 class PerformanceMonitor {
@@ -451,26 +451,33 @@ class PerformanceMonitor {
 const performanceMonitor = new PerformanceMonitor();
 
 /**
- * 订阅更新检测类
+ * 订阅更新检测类（重新设计版本）
+ * 支持智能检查策略、失败重试、检查历史记录、提醒通知
  */
 class SubscriptionChecker {
     constructor(options = {}) {
-        this.checkInterval = options.checkInterval || 30 * 60 * 1000; // 默认30分钟检查一次
+        this.checkInterval = options.checkInterval || 15 * 60 * 1000; // 默认15分钟检查一次
         this.maxConcurrent = options.maxConcurrent || 5; // 最大并发检查数
+        this.maxRetries = options.maxRetries || 3; // 最大重试次数
+        this.retryDelay = options.retryDelay || 5 * 60 * 1000; // 重试延迟（5分钟）
+        this.batchSize = options.batchSize || 50; // 每批检查的订阅数量
         this.checkTimer = null;
         this.isChecking = false;
         this.lastCheckTime = null;
         this.checkCount = 0;
         this.updateCount = 0;
+        this.errorCount = 0;
+        this.pendingRetries = new Map(); // 待重试的订阅
     }
 
     /**
      * 启动订阅检查
      */
     startChecking() {
-        logger.info('启动订阅更新检查', {
+        logger.info('启动订阅更新检查（新版本）', {
             interval: `${this.checkInterval / 1000 / 60}分钟`,
-            maxConcurrent: this.maxConcurrent
+            maxConcurrent: this.maxConcurrent,
+            batchSize: this.batchSize
         });
 
         // 立即执行一次检查
@@ -480,6 +487,11 @@ class SubscriptionChecker {
         this.checkTimer = setInterval(() => {
             this.checkAllSubscriptions();
         }, this.checkInterval);
+
+        // 定期处理重试
+        this.retryTimer = setInterval(() => {
+            this.processRetries();
+        }, this.retryDelay);
     }
 
     /**
@@ -489,12 +501,16 @@ class SubscriptionChecker {
         if (this.checkTimer) {
             clearInterval(this.checkTimer);
             this.checkTimer = null;
-            logger.info('订阅更新检查已停止');
         }
+        if (this.retryTimer) {
+            clearInterval(this.retryTimer);
+            this.retryTimer = null;
+        }
+        logger.info('订阅更新检查已停止');
     }
 
     /**
-     * 检查所有订阅的更新
+     * 检查所有订阅的更新（智能选择）
      */
     async checkAllSubscriptions() {
         if (this.isChecking) {
@@ -503,12 +519,13 @@ class SubscriptionChecker {
         }
 
         this.isChecking = true;
+        const startTime = Date.now();
         this.lastCheckTime = new Date();
         this.checkCount++;
 
         try {
-            // 获取所有需要检查的订阅
-            const subscriptions = SubscriptionDB.getAllForCheck();
+            // 使用智能选择获取需要检查的订阅
+            const subscriptions = SubscriptionDB.getSubscriptionsForCheck(this.batchSize);
             
             if (subscriptions.length === 0) {
                 logger.debug('没有需要检查的订阅');
@@ -520,40 +537,96 @@ class SubscriptionChecker {
 
             let updatedCount = 0;
             let errorCount = 0;
+            const checkResults = [];
 
             // 分批处理，避免并发过多
             for (let i = 0; i < subscriptions.length; i += this.maxConcurrent) {
                 const batch = subscriptions.slice(i, i + this.maxConcurrent);
                 const results = await Promise.allSettled(
-                    batch.map(sub => this.checkBookUpdate(sub.book_id, sub.last_chapter_count))
+                    batch.map(sub => this.checkBookUpdate(sub.book_id, sub.last_chapter_count, 'scheduled'))
                 );
 
-                // 统计结果
+                // 处理结果
                 results.forEach((result, index) => {
-                    if (result.status === 'fulfilled' && result.value) {
-                        updatedCount++;
-                    } else if (result.status === 'rejected') {
+                    const sub = batch[index];
+                    const checkStartTime = Date.now();
+                    
+                    if (result.status === 'fulfilled') {
+                        const checkResult = result.value;
+                        const { updated, newChapters, error, oldCount, newCount } = checkResult || {};
+                        const duration = Date.now() - checkStartTime;
+                        
+                        if (updated) {
+                            updatedCount++;
+                            checkResults.push({
+                                bookId: sub.book_id,
+                                status: 'success',
+                                updated: true,
+                                newChapters
+                            });
+                        } else {
+                            checkResults.push({
+                                bookId: sub.book_id,
+                                status: 'success',
+                                updated: false
+                            });
+                        }
+
+                        // 记录检查日志
+                        SubscriptionCheckLogDB.logCheck(
+                            sub.book_id,
+                            'scheduled',
+                            updated ? 'updated' : 'no_update',
+                            oldCount !== undefined ? oldCount : sub.last_chapter_count,
+                            newCount !== undefined ? newCount : (sub.last_chapter_count + (newChapters || 0)),
+                            newChapters || 0,
+                            error || null,
+                            duration
+                        );
+
+                        // 更新最后检查时间
+                        SubscriptionDB.updateLastChecked(sub.book_id);
+                    } else {
                         errorCount++;
+                        const error = result.reason?.message || '未知错误';
                         logger.warn(`检查订阅失败`, {
-                            bookId: batch[index].book_id,
-                            error: result.reason?.message
+                            bookId: sub.book_id,
+                            error
                         });
+
+                        // 记录错误日志
+                        SubscriptionCheckLogDB.logCheck(
+                            sub.book_id,
+                            'scheduled',
+                            'error',
+                            sub.last_chapter_count,
+                            null,
+                            null,
+                            error,
+                            Date.now() - checkStartTime
+                        );
+
+                        // 添加到重试队列
+                        this.addToRetryQueue(sub.book_id, sub.last_chapter_count);
                     }
                 });
 
-                // 避免过快请求，每批次间隔等待2秒
+                // 避免过快请求，每批次间隔等待1秒
                 if (i + this.maxConcurrent < subscriptions.length) {
-                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    await new Promise(resolve => setTimeout(resolve, 1000));
                 }
             }
 
             this.updateCount += updatedCount;
+            this.errorCount += errorCount;
+
+            const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
             logger.info(`订阅检查完成`, {
                 total: subscriptions.length,
                 updated: updatedCount,
                 errors: errorCount,
-                duration: `${(Date.now() - this.lastCheckTime.getTime()) / 1000}s`
+                duration: `${duration}s`
             });
 
         } catch (error) {
@@ -564,42 +637,166 @@ class SubscriptionChecker {
     }
 
     /**
-     * 检查单个书籍的更新
-     * 修改为检查用户订阅数据和服务器元数据之间的差异，不访问网站
+     * 检查单个书籍的更新（增强版）
      */
-    async checkBookUpdate(bookId, lastChapterCount) {
+    async checkBookUpdate(bookId, lastChapterCount, checkType = 'manual') {
+        const startTime = Date.now();
+        
         try {
             // 从本地元数据库获取书籍信息
             const bookMetadata = BookMetadataDB.get(bookId);
             
             if (!bookMetadata) {
                 logger.debug(`本地无书籍元数据: ${bookId}`);
-                return false;
+                return {
+                    updated: false,
+                    error: '本地无书籍元数据'
+                };
             }
 
             const currentChapterCount = bookMetadata.total_chapters || 0;
 
             // 如果章节数增加，标记为有更新
             if (currentChapterCount > lastChapterCount) {
+                const newChapters = currentChapterCount - lastChapterCount;
+                
+                // 标记为有更新
                 SubscriptionDB.markUpdate(bookId, currentChapterCount);
                 
-                const newChapters = currentChapterCount - lastChapterCount;
+                // 获取所有订阅此书籍的用户
+                const bookSubscriptions = db.prepare(`
+                    SELECT user_id, title, notification_enabled 
+                    FROM book_subscriptions 
+                    WHERE book_id = ? AND has_update = 0
+                `).all(bookId);
+
+                // 为每个订阅用户创建提醒
+                for (const sub of bookSubscriptions) {
+                    if (sub.notification_enabled === 1) {
+                        SubscriptionNotificationDB.createNotification(
+                            sub.user_id,
+                            bookId,
+                            'update',
+                            `${sub.title} 有更新`,
+                            `新增 ${newChapters} 章，共 ${currentChapterCount} 章`
+                        );
+                    }
+                }
+                
                 logger.info(`发现更新`, {
                     bookId,
                     title: bookMetadata.title,
                     oldCount: lastChapterCount,
                     newCount: currentChapterCount,
-                    newChapters
+                    newChapters,
+                    notifiedUsers: bookSubscriptions.length
                 });
 
-                return true;
+                return {
+                    updated: true,
+                    newChapters,
+                    oldCount: lastChapterCount,
+                    newCount: currentChapterCount
+                };
             }
 
-            return false;
+            return {
+                updated: false,
+                oldCount: lastChapterCount,
+                newCount: currentChapterCount
+            };
         } catch (error) {
             logger.debug(`检查书籍失败: ${bookId}`, { error: error.message });
-            throw error;
+            return {
+                updated: false,
+                error: error.message
+            };
         }
+    }
+
+    /**
+     * 添加到重试队列
+     */
+    addToRetryQueue(bookId, lastChapterCount) {
+        const retryInfo = this.pendingRetries.get(bookId) || {
+            bookId,
+            lastChapterCount,
+            retryCount: 0,
+            lastRetryTime: null
+        };
+
+        retryInfo.retryCount++;
+        retryInfo.lastRetryTime = Date.now();
+
+        if (retryInfo.retryCount <= this.maxRetries) {
+            this.pendingRetries.set(bookId, retryInfo);
+            logger.debug(`添加到重试队列`, { bookId, retryCount: retryInfo.retryCount });
+        } else {
+            this.pendingRetries.delete(bookId);
+            logger.warn(`超过最大重试次数，停止重试`, { bookId, retryCount: retryInfo.retryCount });
+        }
+    }
+
+    /**
+     * 处理重试队列
+     */
+    async processRetries() {
+        if (this.pendingRetries.size === 0) {
+            return;
+        }
+
+        const now = Date.now();
+        const toRetry = [];
+
+        for (const [bookId, retryInfo] of this.pendingRetries.entries()) {
+            // 检查是否到了重试时间
+            if (!retryInfo.lastRetryTime || (now - retryInfo.lastRetryTime) >= this.retryDelay) {
+                toRetry.push(retryInfo);
+            }
+        }
+
+        if (toRetry.length === 0) {
+            return;
+        }
+
+        logger.info(`处理 ${toRetry.length} 个重试任务`);
+
+        // 并发处理重试（限制并发数）
+        for (let i = 0; i < toRetry.length; i += this.maxConcurrent) {
+            const batch = toRetry.slice(i, i + this.maxConcurrent);
+            await Promise.allSettled(
+                batch.map(async (retryInfo) => {
+                    const result = await this.checkBookUpdate(retryInfo.bookId, retryInfo.lastChapterCount, 'retry');
+                    
+                    if (result.updated || !result.error) {
+                        // 成功或没有错误，从重试队列移除
+                        this.pendingRetries.delete(retryInfo.bookId);
+                    }
+                })
+            );
+
+            if (i + this.maxConcurrent < toRetry.length) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
+    }
+
+    /**
+     * 手动检查指定书籍
+     */
+    async checkBook(bookId) {
+        const subscription = db.prepare(`
+            SELECT book_id, last_chapter_count 
+            FROM book_subscriptions 
+            WHERE book_id = ? 
+            LIMIT 1
+        `).get(bookId);
+
+        if (!subscription) {
+            throw new Error('未找到订阅记录');
+        }
+
+        return await this.checkBookUpdate(subscription.book_id, subscription.last_chapter_count, 'manual');
     }
 
     /**
@@ -611,6 +808,8 @@ class SubscriptionChecker {
             lastCheckTime: this.lastCheckTime,
             checkCount: this.checkCount,
             updateCount: this.updateCount,
+            errorCount: this.errorCount,
+            pendingRetries: this.pendingRetries.size,
             checkInterval: this.checkInterval
         };
     }

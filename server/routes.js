@@ -2008,13 +2008,13 @@ router.post("/share/upload", requireLogin, async (req, res) => {
         // 增加用户共享计数
         UserDB.incrementSharedBooks(req.session.userId);
         
-        // 更新共享相关成就
-        const user = UserDB.findById(req.session.userId);
-        if (user) {
-            GameDB.updateAchievementProgress(req.session.userId, "share_1", user.shared_books_count);
-            GameDB.updateAchievementProgress(req.session.userId, "share_10", user.shared_books_count);
-            GameDB.updateAchievementProgress(req.session.userId, "share_50", user.shared_books_count);
-            GameDB.updateAchievementProgress(req.session.userId, "share_100", user.shared_books_count);
+        // 更新共享相关成就（重新获取用户数据，因为共享计数已更新）
+        const updatedUser = UserDB.findById(req.session.userId);
+        if (updatedUser) {
+            GameDB.updateAchievementProgress(req.session.userId, "share_1", updatedUser.shared_books_count);
+            GameDB.updateAchievementProgress(req.session.userId, "share_10", updatedUser.shared_books_count);
+            GameDB.updateAchievementProgress(req.session.userId, "share_50", updatedUser.shared_books_count);
+            GameDB.updateAchievementProgress(req.session.userId, "share_100", updatedUser.shared_books_count);
         }
 
         res.json({ success: true, message: "上传成功" });
@@ -2593,9 +2593,15 @@ router.get("/rankings/:type", (req, res) => {
         const { type } = req.params;
         const { limit = 100 } = req.query;
 
-        const validTypes = ["favorites", "comments", "monthly", "total", "wordcount", "latest"];
+        const validTypes = ["favorites", "comments", "monthly", "total", "wordcount", "latest", "cultivation"];
         if (!validTypes.includes(type)) {
             return res.status(400).json({ error: "无效的排行榜类型" });
+        }
+
+        // 修为排行榜使用GameDB
+        if (type === "cultivation") {
+            const rankings = GameDB.getCultivationRankings(parseInt(limit));
+            return res.json(rankings);
         }
 
         const rankings = BookMetadataDB.getRankings(type, parseInt(limit));
@@ -4679,6 +4685,138 @@ router.post("/subscriptions/check-updates", requireLogin, async (req, res) => {
         });
     } catch (error) {
         console.error("触发订阅检查失败:", error);
+        res.status(500).json({ error: "操作失败" });
+    }
+});
+
+// 手动检查指定书籍
+router.post("/subscriptions/:bookId/check", requireLogin, async (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const { bookId } = req.params;
+        
+        // 检查是否已订阅
+        if (!SubscriptionDB.isSubscribed(userId, bookId)) {
+            return res.status(400).json({ error: "未订阅此书籍" });
+        }
+        
+        const { subscriptionChecker } = require('./monitor');
+        const result = await subscriptionChecker.checkBook(bookId);
+        
+        res.json({
+            success: true,
+            ...result
+        });
+    } catch (error) {
+        console.error("检查书籍失败:", error);
+        res.status(500).json({ error: "操作失败" });
+    }
+});
+
+// 获取订阅检查历史
+router.get("/subscriptions/:bookId/check-history", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const { bookId } = req.params;
+        const { limit = 20 } = req.query;
+        
+        // 检查是否已订阅
+        if (!SubscriptionDB.isSubscribed(userId, bookId)) {
+            return res.status(400).json({ error: "未订阅此书籍" });
+        }
+        
+        const { SubscriptionCheckLogDB } = require('./database');
+        const history = SubscriptionCheckLogDB.getCheckHistory(bookId, parseInt(limit));
+        
+        res.json({ history });
+    } catch (error) {
+        console.error("获取检查历史失败:", error);
+        res.status(500).json({ error: "操作失败" });
+    }
+});
+
+// 设置订阅通知偏好
+router.post("/subscriptions/:bookId/notification", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const { bookId } = req.params;
+        const { enabled } = req.body;
+        
+        if (typeof enabled !== 'boolean') {
+            return res.status(400).json({ error: "参数错误" });
+        }
+        
+        SubscriptionDB.setNotificationEnabled(userId, bookId, enabled);
+        
+        res.json({ success: true, message: enabled ? "已开启通知" : "已关闭通知" });
+    } catch (error) {
+        console.error("设置通知偏好失败:", error);
+        res.status(500).json({ error: "操作失败" });
+    }
+});
+
+// 获取用户提醒列表
+router.get("/subscriptions/notifications", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const { limit = 50, unreadOnly = false } = req.query;
+        
+        const { SubscriptionNotificationDB } = require('./database');
+        
+        let notifications;
+        if (unreadOnly === 'true') {
+            notifications = SubscriptionNotificationDB.getUnreadNotifications(userId, parseInt(limit));
+        } else {
+            notifications = SubscriptionNotificationDB.getUserNotifications(userId, parseInt(limit));
+        }
+        
+        res.json({ notifications });
+    } catch (error) {
+        console.error("获取提醒列表失败:", error);
+        res.status(500).json({ error: "操作失败" });
+    }
+});
+
+// 标记提醒为已读
+router.post("/subscriptions/notifications/:notificationId/read", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const { notificationId } = req.params;
+        
+        const { SubscriptionNotificationDB } = require('./database');
+        SubscriptionNotificationDB.markAsRead(notificationId);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error("标记提醒已读失败:", error);
+        res.status(500).json({ error: "操作失败" });
+    }
+});
+
+// 标记所有提醒为已读
+router.post("/subscriptions/notifications/read-all", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        
+        const { SubscriptionNotificationDB } = require('./database');
+        SubscriptionNotificationDB.markAllAsRead(userId);
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error("标记所有提醒已读失败:", error);
+        res.status(500).json({ error: "操作失败" });
+    }
+});
+
+// 获取订阅检查器状态
+router.get("/subscriptions/checker-status", requireLogin, (req, res) => {
+    try {
+        const { subscriptionChecker } = require('./monitor');
+        const status = subscriptionChecker.getStatus();
+        
+        res.json({ status });
+    } catch (error) {
+        console.error("获取检查器状态失败:", error);
         res.status(500).json({ error: "操作失败" });
     }
 });

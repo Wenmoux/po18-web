@@ -480,6 +480,41 @@ const API = {
         // 手动检查所有订阅更新
         checkUpdates() {
             return API.post('/subscriptions/check-updates');
+        },
+
+        // 手动检查指定书籍
+        checkBook(bookId) {
+            return API.post(`/subscriptions/${bookId}/check`);
+        },
+
+        // 获取检查历史
+        getCheckHistory(bookId, limit = 20) {
+            return API.get(`/subscriptions/${bookId}/check-history`, { limit });
+        },
+
+        // 设置通知偏好
+        setNotification(bookId, enabled) {
+            return API.post(`/subscriptions/${bookId}/notification`, { enabled });
+        },
+
+        // 获取提醒列表
+        getNotifications(limit = 50, unreadOnly = false) {
+            return API.get('/subscriptions/notifications', { limit, unreadOnly: unreadOnly ? 'true' : 'false' });
+        },
+
+        // 标记提醒为已读
+        markNotificationRead(notificationId) {
+            return API.post(`/subscriptions/notifications/${notificationId}/read`);
+        },
+
+        // 标记所有提醒为已读
+        markAllNotificationsRead() {
+            return API.post('/subscriptions/notifications/read-all');
+        },
+
+        // 获取检查器状态
+        getCheckerStatus() {
+            return API.get('/subscriptions/checker-status');
         }
     },
 

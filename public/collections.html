@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-        <title>藏品系统 - 荼蘼辞</title>
+        <title>玄藏录 - 荼蘼辞</title>
         <link rel="stylesheet" href="css/style.css?v=20251224d" />
         <link rel="stylesheet" href="css/game.css?v=20251224d" />
         <style>
@@ -37,6 +37,38 @@
                 border-radius: 12px;
                 text-align: center;
                 border: 1px solid var(--game-border);
+                transition: all 0.3s;
+                position: relative;
+                overflow: hidden;
+            }
+
+            .stat-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 3px;
+                background: linear-gradient(90deg, var(--md-primary), transparent);
+                opacity: 0;
+                transition: opacity 0.3s;
+            }
+
+            .stat-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            }
+
+            .stat-card:hover::before {
+                opacity: 1;
+            }
+
+            .stat-value {
+                transition: transform 0.3s;
+            }
+
+            .stat-card:hover .stat-value {
+                transform: scale(1.1);
             }
 
             .stat-card .stat-value {
@@ -58,21 +90,21 @@
                 margin-bottom: 30px;
             }
 
+            .collections-grid .collection-card {
+                animation-delay: calc(var(--index, 0) * 0.05s);
+            }
+
             .collection-card {
                 background: var(--md-surface-container-low);
                 border: 1px solid var(--game-border);
                 border-radius: 12px;
                 padding: 20px;
                 text-align: center;
-                transition: all 0.3s;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                 position: relative;
                 overflow: hidden;
-            }
-
-            .collection-card:hover {
-                border-color: var(--game-border-hover);
-                transform: translateY(-4px);
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                animation: fadeInUp 0.5s ease-out;
+                animation-fill-mode: both;
             }
 
             .collection-card::before {
@@ -82,7 +114,54 @@
                 left: 0;
                 right: 0;
                 height: 4px;
-                background: var(--collection-color, var(--md-primary));
+                background: linear-gradient(90deg, var(--collection-color, var(--md-primary)), transparent);
+                transition: height 0.3s;
+            }
+
+            .collection-card::after {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: radial-gradient(circle at center, rgba(var(--collection-color-rgb, 33, 150, 243), 0.05), transparent);
+                opacity: 0;
+                transition: opacity 0.3s;
+                pointer-events: none;
+            }
+
+            .collection-card:hover {
+                border-color: var(--game-border-hover);
+                transform: translateY(-6px) scale(1.02);
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            }
+
+            .collection-card:hover::before {
+                height: 6px;
+            }
+
+            .collection-card:hover::after {
+                opacity: 1;
+            }
+
+            .collection-icon {
+                transition: transform 0.3s;
+            }
+
+            .collection-card:hover .collection-icon {
+                transform: scale(1.1) rotate(5deg);
+            }
+
+            @keyframes fadeInUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
             }
 
             .collection-icon {
@@ -120,6 +199,47 @@
                 margin-top: 8px;
             }
 
+            .collection-effect {
+                font-size: 12px;
+                color: var(--md-primary);
+                margin-top: 6px;
+                padding: 4px 8px;
+                background: linear-gradient(135deg, var(--md-surface-container), var(--md-surface-container-highest));
+                border-radius: 6px;
+                display: inline-block;
+                border: 1px solid rgba(var(--md-primary-rgb, 33, 150, 243), 0.2);
+                transition: all 0.3s;
+            }
+
+            .collection-card:hover .collection-effect {
+                background: linear-gradient(135deg, rgba(var(--md-primary-rgb, 33, 150, 243), 0.1), rgba(var(--md-primary-rgb, 33, 150, 243), 0.2));
+                border-color: var(--md-primary);
+                transform: scale(1.05);
+            }
+
+            .collection-description {
+                font-size: 12px;
+                color: var(--md-on-surface-variant);
+                margin-top: 8px;
+                line-height: 1.4;
+                max-height: 40px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+            }
+
+            .collection-card {
+                cursor: pointer;
+            }
+
+            .collection-card .collection-rarity {
+                font-size: 11px;
+                color: var(--md-on-surface-variant);
+                margin-top: 4px;
+            }
+
             /* 品质颜色 */
             .quality-common { background: #9e9e9e; color: white; }
             .quality-uncommon { background: #4caf50; color: white; }
@@ -127,6 +247,170 @@
             .quality-epic { background: #9c27b0; color: white; }
             .quality-legendary { background: #ff9800; color: white; }
             .quality-mythic { background: #f44336; color: white; }
+
+            /* 筛选和搜索栏 */
+            .collections-filters {
+                display: flex;
+                gap: 15px;
+                margin-bottom: 20px;
+                flex-wrap: wrap;
+                align-items: center;
+            }
+
+            .filter-group {
+                display: flex;
+                gap: 10px;
+                align-items: center;
+            }
+
+            .filter-label {
+                font-size: 14px;
+                color: var(--md-on-surface-variant);
+                white-space: nowrap;
+            }
+
+            .filter-select,
+            .search-input {
+                padding: 8px 12px;
+                border: 1px solid var(--game-border);
+                border-radius: 8px;
+                background: var(--md-surface-container-low);
+                color: var(--md-on-surface);
+                font-size: 14px;
+                transition: all 0.3s;
+            }
+
+            .filter-select:hover,
+            .search-input:hover {
+                border-color: var(--game-border-hover);
+            }
+
+            .filter-select:focus,
+            .search-input:focus {
+                outline: none;
+                border-color: var(--md-primary);
+                box-shadow: 0 0 0 2px rgba(var(--md-primary-rgb, 33, 150, 243), 0.2);
+            }
+
+            .search-input {
+                flex: 1;
+                min-width: 200px;
+            }
+
+            /* 详情弹窗 */
+            .modal-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 1000;
+                align-items: center;
+                justify-content: center;
+                animation: fadeIn 0.3s;
+            }
+
+            .modal-overlay.active {
+                display: flex;
+            }
+
+            .modal-content {
+                background: var(--md-surface);
+                border-radius: 16px;
+                padding: 30px;
+                max-width: 500px;
+                width: 90%;
+                max-height: 90vh;
+                overflow-y: auto;
+                position: relative;
+                animation: slideUp 0.3s;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            }
+
+            .modal-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+                padding-bottom: 15px;
+                border-bottom: 1px solid var(--game-border);
+            }
+
+            .modal-title {
+                font-size: 24px;
+                font-weight: 600;
+                color: var(--md-on-surface);
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .modal-close {
+                background: none;
+                border: none;
+                font-size: 24px;
+                cursor: pointer;
+                color: var(--md-on-surface-variant);
+                padding: 4px;
+                line-height: 1;
+                transition: color 0.3s;
+            }
+
+            .modal-close:hover {
+                color: var(--md-on-surface);
+            }
+
+            .modal-body {
+                color: var(--md-on-surface);
+            }
+
+            .modal-info-row {
+                display: flex;
+                padding: 12px 0;
+                border-bottom: 1px solid var(--game-border);
+            }
+
+            .modal-info-label {
+                font-weight: 600;
+                color: var(--md-on-surface-variant);
+                min-width: 100px;
+            }
+
+            .modal-info-value {
+                flex: 1;
+                color: var(--md-on-surface);
+            }
+
+            .modal-effect {
+                background: var(--md-surface-container-low);
+                padding: 12px;
+                border-radius: 8px;
+                margin-top: 12px;
+            }
+
+            .modal-effect-title {
+                font-weight: 600;
+                color: var(--md-primary);
+                margin-bottom: 8px;
+            }
+
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+
+            @keyframes slideUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
 
             .empty-state {
                 text-align: center;
@@ -218,16 +502,16 @@
     <body>
         <div class="collections-container">
             <div class="collections-header">
-                <h1>📚 藏品系统</h1>
-                <p style="color: var(--md-on-surface-variant);">通过阅读获得，每个藏品都有唯一ID</p>
+                <h1>📚 玄藏录</h1>
+                <p style="color: var(--md-on-surface-variant);">通过阅读获得，每个玄藏都有唯一ID</p>
             </div>
 
             <div class="nav-tabs">
-                <button class="nav-tab active" data-tab="my-collections">我的藏品</button>
-                <button class="nav-tab" data-tab="ranking">藏品排行</button>
+                <button class="nav-tab active" data-tab="my-collections">我的玄藏</button>
+                <button class="nav-tab" data-tab="ranking">玄藏排行</button>
             </div>
 
-            <!-- 我的藏品 -->
+            <!-- 我的玄藏 -->
             <div class="tab-content active" id="tab-my-collections">
                 <div class="collections-stats" id="collections-stats">
                     <div class="stat-card">
@@ -248,6 +532,36 @@
                     </div>
                 </div>
 
+                <div class="collections-filters">
+                    <div class="filter-group">
+                        <label class="filter-label">搜索:</label>
+                        <input type="text" class="search-input" id="search-input" placeholder="搜索玄藏名称、描述或ID...">
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">品质:</label>
+                        <select class="filter-select" id="filter-quality">
+                            <option value="">全部</option>
+                            <option value="common">普通</option>
+                            <option value="uncommon">不凡</option>
+                            <option value="rare">稀有</option>
+                            <option value="epic">史诗</option>
+                            <option value="legendary">传说</option>
+                            <option value="mythic">神话</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">排序:</label>
+                        <select class="filter-select" id="sort-by">
+                            <option value="obtained_at_desc">获得时间（最新）</option>
+                            <option value="obtained_at_asc">获得时间（最早）</option>
+                            <option value="rarity_desc">稀有度（高→低）</option>
+                            <option value="rarity_asc">稀有度（低→高）</option>
+                            <option value="quality">品质</option>
+                            <option value="name">名称</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="collections-grid" id="collections-grid">
                     <div class="empty-state">
                         <div class="empty-state-icon">📚</div>
@@ -256,14 +570,14 @@
                 </div>
             </div>
 
-            <!-- 藏品排行 -->
+            <!-- 玄藏排行 -->
             <div class="tab-content" id="tab-ranking">
                 <div style="overflow-x: auto;">
                     <table class="ranking-table">
                         <thead>
                             <tr>
                                 <th class="ranking-rank">排名</th>
-                                <th>藏品ID</th>
+                                <th>玄藏ID</th>
                                 <th>名称</th>
                                 <th>品质</th>
                                 <th>稀有度</th>
@@ -283,7 +597,27 @@
             </div>
         </div>
 
+        <!-- 详情弹窗 -->
+        <div class="modal-overlay" id="collection-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-title" id="modal-title">
+                        <span id="modal-icon" style="font-size: 32px;"></span>
+                        <span id="modal-name"></span>
+                    </div>
+                    <button class="modal-close" id="modal-close">&times;</button>
+                </div>
+                <div class="modal-body" id="modal-body">
+                    <!-- 动态填充 -->
+                </div>
+            </div>
+        </div>
+
         <script>
+            // 全局变量
+            let allCollections = [];
+            let filteredCollections = [];
+
             // 标签切换
             document.querySelectorAll('.nav-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
@@ -308,7 +642,20 @@
                 });
             });
 
-            // 加载我的藏品
+            // 筛选和搜索事件
+            document.getElementById('search-input').addEventListener('input', applyFilters);
+            document.getElementById('filter-quality').addEventListener('change', applyFilters);
+            document.getElementById('sort-by').addEventListener('change', applyFilters);
+
+            // 详情弹窗事件
+            document.getElementById('modal-close').addEventListener('click', closeModal);
+            document.getElementById('collection-modal').addEventListener('click', (e) => {
+                if (e.target.id === 'collection-modal') {
+                    closeModal();
+                }
+            });
+
+            // 加载我的玄藏
             async function loadMyCollections() {
                 try {
                     const response = await fetch('/api/game/collections', {
@@ -318,6 +665,7 @@
                     
                     if (result.success) {
                         const { collections, stats } = result.data;
+                        allCollections = collections;
                         
                         // 更新统计
                         document.getElementById('stat-total').textContent = stats.total || 0;
@@ -325,36 +673,11 @@
                         document.getElementById('stat-legendary').textContent = stats.legendary_count || 0;
                         document.getElementById('stat-epic').textContent = stats.epic_count || 0;
                         
-                        // 更新藏品列表
-                        const grid = document.getElementById('collections-grid');
-                        if (collections.length === 0) {
-                            grid.innerHTML = `
-                                <div class="empty-state" style="grid-column: 1 / -1;">
-                                    <div class="empty-state-icon">📚</div>
-                                    <p>暂无藏品</p>
-                                    <p style="font-size: 14px; margin-top: 10px;">继续阅读以获得藏品</p>
-                                </div>
-                            `;
-                        } else {
-                            grid.innerHTML = collections.map(collection => {
-                                const qualityClass = `quality-${collection.quality || 'common'}`;
-                                const color = collection.color || '#9e9e9e';
-                                const icon = collection.icon || '📚';
-                                
-                                return `
-                                    <div class="collection-card" style="--collection-color: ${color}">
-                                        <div class="collection-icon">${icon}</div>
-                                        <div class="collection-name">${collection.name || '未知'}</div>
-                                        <div class="collection-quality ${qualityClass}">${getQualityName(collection.quality)}</div>
-                                        <div class="collection-id">${collection.collection_id}</div>
-                                        <div class="collection-obtained">获得时间: ${formatDate(collection.obtained_at)}</div>
-                                    </div>
-                                `;
-                            }).join('');
-                        }
+                        // 应用筛选和排序
+                        applyFilters();
                     }
                 } catch (error) {
-                    console.error('加载藏品失败:', error);
+                    console.error('加载玄藏失败:', error);
                     document.getElementById('collections-grid').innerHTML = `
                         <div class="empty-state" style="grid-column: 1 / -1;">
                             <div class="empty-state-icon">❌</div>
@@ -362,6 +685,199 @@
                         </div>
                     `;
                 }
+            }
+
+            // 应用筛选和排序
+            function applyFilters() {
+                const searchTerm = document.getElementById('search-input').value.toLowerCase();
+                const qualityFilter = document.getElementById('filter-quality').value;
+                const sortBy = document.getElementById('sort-by').value;
+
+                // 筛选
+                filteredCollections = allCollections.filter(collection => {
+                    // 搜索筛选
+                    if (searchTerm) {
+                        const searchable = [
+                            collection.name || '',
+                            collection.description || '',
+                            collection.collection_id || '',
+                            collection.effect_description || ''
+                        ].join(' ').toLowerCase();
+                        if (!searchable.includes(searchTerm)) {
+                            return false;
+                        }
+                    }
+
+                    // 品质筛选
+                    if (qualityFilter && collection.quality !== qualityFilter) {
+                        return false;
+                    }
+
+                    return true;
+                });
+
+                // 排序
+                filteredCollections.sort((a, b) => {
+                    switch (sortBy) {
+                        case 'obtained_at_desc':
+                            return new Date(b.obtained_at) - new Date(a.obtained_at);
+                        case 'obtained_at_asc':
+                            return new Date(a.obtained_at) - new Date(b.obtained_at);
+                        case 'rarity_desc':
+                            return (b.rarity || 1) - (a.rarity || 1);
+                        case 'rarity_asc':
+                            return (a.rarity || 1) - (b.rarity || 1);
+                        case 'quality':
+                            const qualityOrder = { 'mythic': 6, 'legendary': 5, 'epic': 4, 'rare': 3, 'uncommon': 2, 'common': 1 };
+                            return (qualityOrder[b.quality] || 0) - (qualityOrder[a.quality] || 0);
+                        case 'name':
+                            return (a.name || '').localeCompare(b.name || '');
+                        default:
+                            return 0;
+                    }
+                });
+
+                // 渲染
+                renderCollections();
+            }
+
+            // 渲染藏品列表
+            function renderCollections() {
+                const grid = document.getElementById('collections-grid');
+                
+                if (filteredCollections.length === 0) {
+                    grid.innerHTML = `
+                        <div class="empty-state" style="grid-column: 1 / -1;">
+                            <div class="empty-state-icon">📚</div>
+                            <p>${allCollections.length === 0 ? '暂无玄藏' : '没有找到匹配的玄藏'}</p>
+                            ${allCollections.length === 0 ? '<p style="font-size: 14px; margin-top: 10px;">继续阅读以获得玄藏</p>' : ''}
+                        </div>
+                    `;
+                } else {
+                    grid.innerHTML = filteredCollections.map((collection, index) => {
+                        const qualityClass = `quality-${collection.quality || 'common'}`;
+                        const color = collection.color || '#9e9e9e';
+                        const icon = collection.icon || '📚';
+                        const effectText = collection.effect_description || '';
+                        
+                        // 提取 RGB 值用于渐变
+                        const rgb = hexToRgb(color);
+                        const rgbString = rgb ? `${rgb.r}, ${rgb.g}, ${rgb.b}` : '33, 150, 243';
+                        
+                        return `
+                            <div class="collection-card" 
+                                 style="--collection-color: ${color}; --collection-color-rgb: ${rgbString}; --index: ${index}" 
+                                 data-collection-index="${index}">
+                                <div class="collection-icon">${icon}</div>
+                                <div class="collection-name">${collection.name || '未知'}</div>
+                                <div class="collection-quality ${qualityClass}">${getQualityName(collection.quality)}</div>
+                                ${effectText ? `<div class="collection-effect">${effectText}</div>` : ''}
+                                ${collection.description ? `<div class="collection-description">${collection.description}</div>` : ''}
+                                ${collection.rarity ? `<div class="collection-rarity">稀有度: ${collection.rarity}</div>` : ''}
+                                <div class="collection-id">${collection.collection_id}</div>
+                                <div class="collection-obtained">获得时间: ${formatDate(collection.obtained_at)}</div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                // 绑定点击事件
+                grid.querySelectorAll('.collection-card').forEach(card => {
+                    card.addEventListener('click', () => {
+                        const index = parseInt(card.dataset.collectionIndex);
+                        showCollectionDetail(filteredCollections[index]);
+                    });
+                });
+            }
+
+            // 显示藏品详情
+            function showCollectionDetail(collection) {
+                const modal = document.getElementById('collection-modal');
+                const qualityClass = `quality-${collection.quality || 'common'}`;
+                const color = collection.color || '#9e9e9e';
+                const icon = collection.icon || '📚';
+
+                document.getElementById('modal-icon').textContent = icon;
+                document.getElementById('modal-name').textContent = collection.name || '未知';
+
+                let bodyHtml = `
+                    <div class="modal-info-row">
+                        <div class="modal-info-label">品质:</div>
+                        <div class="modal-info-value">
+                            <span class="collection-quality ${qualityClass}">${getQualityName(collection.quality)}</span>
+                        </div>
+                    </div>
+                `;
+
+                if (collection.rarity) {
+                    bodyHtml += `
+                        <div class="modal-info-row">
+                            <div class="modal-info-label">稀有度:</div>
+                            <div class="modal-info-value">${collection.rarity}</div>
+                        </div>
+                    `;
+                }
+
+                if (collection.description) {
+                    bodyHtml += `
+                        <div class="modal-info-row">
+                            <div class="modal-info-label">描述:</div>
+                            <div class="modal-info-value">${collection.description}</div>
+                        </div>
+                    `;
+                }
+
+                if (collection.effect_description) {
+                    bodyHtml += `
+                        <div class="modal-effect">
+                            <div class="modal-effect-title">✨ 效果</div>
+                            <div>${collection.effect_description}</div>
+                        </div>
+                    `;
+                }
+
+                bodyHtml += `
+                    <div class="modal-info-row">
+                        <div class="modal-info-label">玄藏ID:</div>
+                        <div class="modal-info-value" style="font-family: monospace; font-size: 12px;">${collection.collection_id}</div>
+                    </div>
+                `;
+
+                if (collection.obtained_at) {
+                    bodyHtml += `
+                        <div class="modal-info-row">
+                            <div class="modal-info-label">获得时间:</div>
+                            <div class="modal-info-value">${formatDate(collection.obtained_at)}</div>
+                        </div>
+                    `;
+                }
+
+                if (collection.obtained_from_book_id) {
+                    bodyHtml += `
+                        <div class="modal-info-row">
+                            <div class="modal-info-label">获得来源:</div>
+                            <div class="modal-info-value">书籍ID: ${collection.obtained_from_book_id}</div>
+                        </div>
+                    `;
+                }
+
+                document.getElementById('modal-body').innerHTML = bodyHtml;
+                modal.classList.add('active');
+            }
+
+            // 关闭弹窗
+            function closeModal() {
+                document.getElementById('collection-modal').classList.remove('active');
+            }
+
+            // 十六进制转 RGB
+            function hexToRgb(hex) {
+                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                return result ? {
+                    r: parseInt(result[1], 16),
+                    g: parseInt(result[2], 16),
+                    b: parseInt(result[3], 16)
+                } : null;
             }
 
             // 加载排行

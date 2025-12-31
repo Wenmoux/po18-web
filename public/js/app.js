@@ -47,11 +47,22 @@ const App = {
         if (this.subscriptionCheckInterval) {
             clearInterval(this.subscriptionCheckInterval);
         }
+        // 优化：使用更智能的检查间隔，根据用户活跃度调整
         this.subscriptionCheckInterval = setInterval(() => {
             if (this.currentUser) {
                 this.checkSubscriptionUpdates();
             }
-        }, 5 * 60 * 1000); // 5分钟
+        }, 3 * 60 * 1000); // 3分钟（更频繁的检查）
+
+        // 启动提醒检查（检查未读提醒）
+        if (this.notificationCheckInterval) {
+            clearInterval(this.notificationCheckInterval);
+        }
+        this.notificationCheckInterval = setInterval(() => {
+            if (this.currentUser) {
+                this.checkNotifications();
+            }
+        }, 2 * 60 * 1000); // 2分钟检查一次提醒
 
         // 监听来自书籍详情页的订阅更新通知
         window.addEventListener('message', (event) => {
@@ -2864,67 +2875,106 @@ const App = {
             return;
         }
 
-        const statLabels = {
-            favorites: "收藏",
-            comments: "留言",
-            monthly: "月人气",
-            total: "总人气",
-            wordcount: "字数",
-            latest: "更新时间"
-        };
+        // 如果是修仙榜，使用不同的渲染方式
+        if (this.currentRankingType === "cultivation") {
+            container.innerHTML = books
+                .map((user, index) => {
+                    const rank = user.rank || (index + 1);
+                    const rankClass = rank === 1 ? "top1" : rank === 2 ? "top2" : rank === 3 ? "top3" : "";
 
-        const label = statLabels[this.currentRankingType] || "";
+                    // 格式化阅读时长（分钟转小时）
+                    const hours = Math.floor((user.total_read_time || 0) / 60);
+                    const minutes = (user.total_read_time || 0) % 60;
+                    const timeText = hours > 0 ? `${hours}小时${minutes}分钟` : `${minutes}分钟`;
 
-        container.innerHTML = books
-            .map((book, index) => {
-                const rank = index + 1;
-                const rankClass = rank === 1 ? "top1" : rank === 2 ? "top2" : rank === 3 ? "top3" : "";
-
-                let statValue = "";
-                if (this.currentRankingType === "favorites") {
-                    statValue = this.formatNumber(book.favorites_count);
-                } else if (this.currentRankingType === "comments") {
-                    statValue = this.formatNumber(book.comments_count);
-                } else if (this.currentRankingType === "monthly") {
-                    statValue = this.formatNumber(book.monthly_popularity);
-                } else if (this.currentRankingType === "total") {
-                    statValue = this.formatNumber(book.total_popularity);
-                } else if (this.currentRankingType === "wordcount") {
-                    statValue = this.formatNumber(book.word_count);
-                } else if (this.currentRankingType === "latest") {
-                    statValue = this.formatUpdateTime(book.latest_chapter_date);
-                }
-
-                const cover = book.cover || this.defaultCover;
-                const detailUrl = book.detail_url || (book.platform === 'popo' ? `https://www.popo.tw/books/${book.book_id}` : `https://www.po18.tw/books/${book.book_id}`);
-                const statusText = this.getStatusText(book.status);
-                const platformIcon = book.platform === 'popo' ? '📚' : '💖';  // POPO用📚, PO18用💖
-
-                return `
-                <div class="ranking-item">
-                    <div class="ranking-number ${rankClass}">${rank}</div>
-                    <img src="${cover}" class="ranking-cover" alt="${this.escapeHtml(book.title)}" 
-                         loading="lazy" onerror="this.src='${this.defaultCover}'"
-                         style="cursor: pointer;"
-                         onclick="window.location.href='/book-detail.html?id=${book.book_id}'">
-                    <div class="ranking-info" style="cursor: pointer;" onclick="window.location.href='/book-detail.html?id=${book.book_id}'">
-                        <div class="ranking-title">
-                            <span style="margin-right: 0px;">${platformIcon}</span>
-                            ${this.escapeHtml(book.title)}
+                    return `
+                    <div class="ranking-item">
+                        <div class="ranking-number ${rankClass}">${rank}</div>
+                        <div class="ranking-info" style="flex: 1;">
+                            <div class="ranking-title">
+                                <span style="margin-right: 8px;">👤</span>
+                                ${this.escapeHtml(user.username || `用户${user.user_id}`)}
+                            </div>
+                            <div class="ranking-author">
+                                <span style="color: var(--primary-color);">${user.levelName || "炼气期"} ${user.levelLayer || 1}层</span>
+                                <span style="margin-left: 12px; color: #666;">ID: ${user.user_id}</span>
+                            </div>
                         </div>
-                        <div class="ranking-author">作者：${this.escapeHtml(book.author || "未知")}</div>
+                        <div class="ranking-stats">
+                            <div class="ranking-value">${this.formatNumber(user.exp || 0)}</div>
+                            <div class="ranking-label">修为</div>
+                            <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                                ⏱️ ${timeText}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                })
+                .join("");
+        } else {
+            // 原有的书籍排行榜渲染
+            const statLabels = {
+                favorites: "收藏",
+                comments: "留言",
+                monthly: "月人气",
+                total: "总人气",
+                wordcount: "字数",
+                latest: "更新时间"
+            };
 
+            const label = statLabels[this.currentRankingType] || "";
+
+            container.innerHTML = books
+                .map((book, index) => {
+                    const rank = index + 1;
+                    const rankClass = rank === 1 ? "top1" : rank === 2 ? "top2" : rank === 3 ? "top3" : "";
+
+                    let statValue = "";
+                    if (this.currentRankingType === "favorites") {
+                        statValue = this.formatNumber(book.favorites_count);
+                    } else if (this.currentRankingType === "comments") {
+                        statValue = this.formatNumber(book.comments_count);
+                    } else if (this.currentRankingType === "monthly") {
+                        statValue = this.formatNumber(book.monthly_popularity);
+                    } else if (this.currentRankingType === "total") {
+                        statValue = this.formatNumber(book.total_popularity);
+                    } else if (this.currentRankingType === "wordcount") {
+                        statValue = this.formatNumber(book.word_count);
+                    } else if (this.currentRankingType === "latest") {
+                        statValue = this.formatUpdateTime(book.latest_chapter_date);
+                    }
+
+                    const cover = book.cover || this.defaultCover;
+                    const detailUrl = book.detail_url || (book.platform === 'popo' ? `https://www.popo.tw/books/${book.book_id}` : `https://www.po18.tw/books/${book.book_id}`);
+                    const statusText = this.getStatusText(book.status);
+                    const platformIcon = book.platform === 'popo' ? '📚' : '💖';  // POPO用📚, PO18用💖
+
+                    return `
+                    <div class="ranking-item">
+                        <div class="ranking-number ${rankClass}">${rank}</div>
+                        <img src="${cover}" class="ranking-cover" alt="${this.escapeHtml(book.title)}" 
+                             loading="lazy" onerror="this.src='${this.defaultCover}'"
+                             style="cursor: pointer;"
+                             onclick="window.location.href='/book-detail.html?id=${book.book_id}'">
+                        <div class="ranking-info" style="cursor: pointer;" onclick="window.location.href='/book-detail.html?id=${book.book_id}'">
+                            <div class="ranking-title">
+                                <span style="margin-right: 0px;">${platformIcon}</span>
+                                ${this.escapeHtml(book.title)}
+                            </div>
+                            <div class="ranking-author">作者：${this.escapeHtml(book.author || "未知")}</div>
+
+                        </div>
+                        <div class="ranking-stats">
+                            <div class="ranking-value">${statValue}</div>
+                            <div class="ranking-label">${label}</div>
+                            <a href="${detailUrl}" target="_blank" class="btn-external" style="margin-top: 8px; font-size: 12px; color: var(--primary-color);" title="跳转到${book.platform === 'popo' ? 'POPO' : 'PO18'}原站">
+                            </a>
+                        </div>
                     </div>
-                    <div class="ranking-stats">
-                        <div class="ranking-value">${statValue}</div>
-                        <div class="ranking-label">${label}</div>
-                        <a href="${detailUrl}" target="_blank" class="btn-external" style="margin-top: 8px; font-size: 12px; color: var(--primary-color);" title="跳转到${book.platform === 'popo' ? 'POPO' : 'PO18'}原站">
-                        </a>
-                    </div>
-                </div>
-            `;
-            })
-            .join("");
+                `;
+                })
+                .join("");
+        }
 
         // 触发图片懒加载
         if (this.observeImages) {
@@ -3902,10 +3952,13 @@ const App = {
 
     // ==================== 订阅管理功能 ====================
 
-    // 检查订阅更新并显示徽章
+    // 检查订阅更新并显示徽章（优化版）
     async checkSubscriptionUpdates() {
         try {
             if (!this.currentUser) return;
+
+            // 记录上次的更新数量，用于检测新更新
+            const lastUpdateCount = this.lastSubscriptionUpdateCount || 0;
 
             const data = await API.subscriptions.getList();
             
@@ -3915,8 +3968,14 @@ const App = {
                 updateCount = data.updateCount;
             } else if (Array.isArray(data.subscriptions)) {
                 // 如果没有updateCount字段，从subscriptions数组计算
-                updateCount = data.subscriptions.filter(s => s.hasUpdate).length;
+                updateCount = data.subscriptions.filter(s => s.has_update === 1 || s.hasUpdate).length;
             }
+
+            // 保存当前更新数量
+            this.lastSubscriptionUpdateCount = updateCount;
+
+            // 检测是否有新更新（数量增加）
+            const hasNewUpdates = updateCount > lastUpdateCount;
 
             // 更新导航栏徽章
             const badge = document.getElementById("subscription-badge");
@@ -3924,6 +3983,11 @@ const App = {
                 if (updateCount > 0) {
                     badge.textContent = updateCount > 99 ? "99+" : updateCount;
                     badge.style.display = "flex";
+                    // 如果有新更新，添加动画效果
+                    if (hasNewUpdates) {
+                        badge.classList.add('pulse');
+                        setTimeout(() => badge.classList.remove('pulse'), 2000);
+                    }
                 } else {
                     badge.style.display = "none";
                 }
@@ -3935,6 +3999,11 @@ const App = {
                 if (updateCount > 0) {
                     tabBadge.textContent = updateCount > 99 ? "99+" : updateCount;
                     tabBadge.style.display = "flex";
+                    // 如果有新更新，添加动画效果
+                    if (hasNewUpdates) {
+                        tabBadge.classList.add('pulse');
+                        setTimeout(() => tabBadge.classList.remove('pulse'), 2000);
+                    }
                 } else {
                     tabBadge.style.display = "none";
                 }
@@ -3952,17 +4021,43 @@ const App = {
                 }
             }
 
-            // 如果有更新且浏览器支持通知，发送通知
-            if (updateCount > 0 && Notification.permission === "granted") {
-                this.showBrowserNotification("🔔 订阅更新", `您有 ${updateCount} 本订阅的书籍有更新！`, {
-                    tag: "subscription-update",
-                    url: "#subscriptions"
-                });
+            // 如果有新更新且浏览器支持通知，发送通知
+            if (hasNewUpdates && updateCount > 0 && Notification.permission === "granted") {
+                const newCount = updateCount - lastUpdateCount;
+                this.showBrowserNotification(
+                    "🔔 订阅更新", 
+                    `您有 ${newCount > 1 ? `${newCount} 本` : '1 本'}订阅的书籍有更新！`, 
+                    {
+                        tag: "subscription-update",
+                        url: "#subscriptions",
+                        requireInteraction: false
+                    }
+                );
             }
 
-            console.log(`[订阅] 检查更新完成，发现 ${updateCount} 个更新`);
+            console.log(`[订阅] 检查更新完成，发现 ${updateCount} 个更新${hasNewUpdates ? '（新）' : ''}`);
         } catch (error) {
-            console.log("检查订阅更新失败:", error);
+            console.error("检查订阅更新失败:", error);
+            // 错误时不显示给用户，避免干扰
+        }
+    },
+
+    // 检查未读提醒
+    async checkNotifications() {
+        try {
+            if (!this.currentUser) return;
+
+            const data = await API.subscriptions.getNotifications(50, true);
+            const unreadCount = data.notifications?.length || 0;
+
+            // 如果有未读提醒，可以在这里处理（比如显示提醒列表）
+            if (unreadCount > 0) {
+                console.log(`[提醒] 发现 ${unreadCount} 条未读提醒`);
+                // 可以在这里触发UI更新，比如显示提醒图标
+            }
+        } catch (error) {
+            // 静默失败，不影响主流程
+            console.debug("检查提醒失败:", error);
         }
     },
 
@@ -4083,7 +4178,7 @@ const App = {
         window.location.href = `/book-detail.html?id=${bookId}`;
     },
 
-    // 手动检查订阅更新
+    // 手动检查订阅更新（优化版）
     async manualCheckUpdates() {
         const btn = document.getElementById('btn-check-updates');
         if (!btn) return;
@@ -4096,25 +4191,66 @@ const App = {
             const result = await API.subscriptions.checkUpdates();
             
             if (result.success) {
-                this.showToast('已开始检查订阅更新，请稍后刷新页面', 'success');
+                this.showToast('已开始检查订阅更新', 'success');
                 
-                // 3秒后重新加载订阅列表
-                setTimeout(async () => {
-                    await this.loadSubscriptions();
-                    await this.checkSubscriptionUpdates();
-                }, 3000);
+                // 轮询检查状态，直到完成
+                const checkStatus = async () => {
+                    try {
+                        const status = await API.subscriptions.getCheckerStatus();
+                        if (!status.status.isChecking) {
+                            // 检查完成，刷新列表
+                            await this.loadSubscriptions();
+                            await this.checkSubscriptionUpdates();
+                            btn.disabled = false;
+                            btn.innerHTML = '<span>🔄</span><span>检查更新</span>';
+                            this.showToast('检查完成', 'success');
+                        } else {
+                            // 还在检查中，继续等待
+                            setTimeout(checkStatus, 2000);
+                        }
+                    } catch (error) {
+                        console.error('检查状态失败:', error);
+                        // 即使失败也刷新一次
+                        await this.loadSubscriptions();
+                        await this.checkSubscriptionUpdates();
+                        btn.disabled = false;
+                        btn.innerHTML = '<span>🔄</span><span>检查更新</span>';
+                    }
+                };
+
+                // 2秒后开始检查状态
+                setTimeout(checkStatus, 2000);
             } else {
                 this.showToast(result.message || '检查失败', 'warning');
+                btn.disabled = false;
+                btn.innerHTML = '<span>🔄</span><span>检查更新</span>';
             }
         } catch (error) {
             console.error('检查订阅更新失败:', error);
             this.showToast('检查失败，请稍后重试', 'error');
-        } finally {
-            // 恢复按钮状态
-            setTimeout(() => {
-                btn.disabled = false;
-                btn.innerHTML = '<span>🔄</span><span>检查更新</span>';
-            }, 1000);
+            btn.disabled = false;
+            btn.innerHTML = '<span>🔄</span><span>检查更新</span>';
+        }
+    },
+
+    // 检查单个书籍更新
+    async checkSingleBook(bookId) {
+        try {
+            const result = await API.subscriptions.checkBook(bookId);
+            
+            if (result.success) {
+                if (result.updated) {
+                    this.showToast(`发现更新：新增 ${result.newChapters} 章`, 'success');
+                } else {
+                    this.showToast('暂无更新', 'info');
+                }
+                // 刷新订阅列表
+                await this.loadSubscriptions();
+                await this.checkSubscriptionUpdates();
+            }
+        } catch (error) {
+            console.error('检查书籍失败:', error);
+            this.showToast('检查失败', 'error');
         }
     },
 

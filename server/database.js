@@ -426,9 +426,44 @@ function initDatabase() {
             last_chapter_count INTEGER DEFAULT 0,
             last_checked_at DATETIME,
             has_update INTEGER DEFAULT 0,
+            check_priority INTEGER DEFAULT 1,
+            check_interval INTEGER DEFAULT 30,
+            notification_enabled INTEGER DEFAULT 1,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id),
             UNIQUE(user_id, book_id)
+        )
+    `);
+
+    // 订阅检查记录表
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS subscription_check_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            book_id TEXT NOT NULL,
+            check_type TEXT NOT NULL,
+            check_status TEXT NOT NULL,
+            old_chapter_count INTEGER,
+            new_chapter_count INTEGER,
+            new_chapters INTEGER,
+            error_message TEXT,
+            check_duration INTEGER,
+            checked_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    // 订阅提醒历史表
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS subscription_notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            book_id TEXT NOT NULL,
+            notification_type TEXT NOT NULL,
+            notification_status TEXT NOT NULL,
+            title TEXT,
+            message TEXT,
+            read_at DATETIME,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
         )
     `);
 
@@ -570,6 +605,12 @@ function initDatabase() {
     db.exec(`
         CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON book_subscriptions(user_id);
         CREATE INDEX IF NOT EXISTS idx_subscriptions_update ON book_subscriptions(has_update);
+        CREATE INDEX IF NOT EXISTS idx_subscriptions_book_id ON book_subscriptions(book_id);
+        CREATE INDEX IF NOT EXISTS idx_check_logs_book_id ON subscription_check_logs(book_id);
+        CREATE INDEX IF NOT EXISTS idx_check_logs_checked_at ON subscription_check_logs(checked_at);
+        CREATE INDEX IF NOT EXISTS idx_notifications_user ON subscription_notifications(user_id);
+        CREATE INDEX IF NOT EXISTS idx_notifications_book ON subscription_notifications(book_id);
+        CREATE INDEX IF NOT EXISTS idx_notifications_status ON subscription_notifications(notification_status);
         CREATE INDEX IF NOT EXISTS idx_user_actions_user_id ON user_actions(user_id);
         CREATE INDEX IF NOT EXISTS idx_user_actions_action ON user_actions(action);
         CREATE INDEX IF NOT EXISTS idx_user_actions_created_at ON user_actions(created_at);
@@ -2600,6 +2641,170 @@ const SubscriptionDB = {
             "SELECT COUNT(*) as count FROM book_subscriptions WHERE user_id = ? AND has_update = 1"
         );
         return stmt.get(userId).count;
+    },
+
+    // 更新订阅检查优先级
+    updatePriority(bookId, priority) {
+        const stmt = db.prepare(
+            "UPDATE book_subscriptions SET check_priority = ? WHERE book_id = ?"
+        );
+        return stmt.run(priority, bookId);
+    },
+
+    // 更新订阅检查间隔
+    updateCheckInterval(bookId, interval) {
+        const stmt = db.prepare(
+            "UPDATE book_subscriptions SET check_interval = ? WHERE book_id = ?"
+        );
+        return stmt.run(interval, bookId);
+    },
+
+    // 设置通知开关
+    setNotificationEnabled(userId, bookId, enabled) {
+        const stmt = db.prepare(
+            "UPDATE book_subscriptions SET notification_enabled = ? WHERE user_id = ? AND book_id = ?"
+        );
+        return stmt.run(enabled ? 1 : 0, userId, bookId);
+    },
+
+    // 获取需要检查的订阅（智能选择）
+    getSubscriptionsForCheck(limit = 50) {
+        // SQLite不支持NULLS FIRST，需要特殊处理
+        const stmt = db.prepare(`
+            SELECT DISTINCT book_id, last_chapter_count, check_priority, check_interval, last_checked_at
+            FROM book_subscriptions
+            WHERE has_update = 0 
+               AND (last_checked_at IS NULL 
+                    OR datetime(last_checked_at, '+' || COALESCE(check_interval, 30) || ' minutes') <= datetime('now'))
+            ORDER BY check_priority DESC, 
+                     CASE WHEN last_checked_at IS NULL THEN 0 ELSE 1 END,
+                     last_checked_at ASC
+            LIMIT ?
+        `);
+        return stmt.all(limit);
+    },
+
+    // 更新最后检查时间
+    updateLastChecked(bookId) {
+        const stmt = db.prepare(
+            "UPDATE book_subscriptions SET last_checked_at = CURRENT_TIMESTAMP WHERE book_id = ?"
+        );
+        return stmt.run(bookId);
+    }
+};
+
+// 订阅检查记录数据库操作
+const SubscriptionCheckLogDB = {
+    // 记录检查日志
+    logCheck(bookId, checkType, checkStatus, oldChapterCount, newChapterCount, newChapters, errorMessage, checkDuration) {
+        const stmt = db.prepare(`
+            INSERT INTO subscription_check_logs 
+            (book_id, check_type, check_status, old_chapter_count, new_chapter_count, new_chapters, error_message, check_duration)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        return stmt.run(bookId, checkType, checkStatus, oldChapterCount, newChapterCount, newChapters, errorMessage || null, checkDuration || null);
+    },
+
+    // 获取检查历史
+    getCheckHistory(bookId, limit = 20) {
+        const stmt = db.prepare(`
+            SELECT * FROM subscription_check_logs
+            WHERE book_id = ?
+            ORDER BY checked_at DESC
+            LIMIT ?
+        `);
+        return stmt.all(bookId, limit);
+    },
+
+    // 获取最近的检查记录
+    getRecentChecks(limit = 50) {
+        const stmt = db.prepare(`
+            SELECT * FROM subscription_check_logs
+            ORDER BY checked_at DESC
+            LIMIT ?
+        `);
+        return stmt.all(limit);
+    },
+
+    // 清理旧记录（保留最近N条）
+    cleanupOldLogs(keepCount = 1000) {
+        const stmt = db.prepare(`
+            DELETE FROM subscription_check_logs
+            WHERE id NOT IN (
+                SELECT id FROM subscription_check_logs
+                ORDER BY checked_at DESC
+                LIMIT ?
+            )
+        `);
+        return stmt.run(keepCount);
+    }
+};
+
+// 订阅提醒数据库操作
+const SubscriptionNotificationDB = {
+    // 创建提醒
+    createNotification(userId, bookId, notificationType, title, message) {
+        const stmt = db.prepare(`
+            INSERT INTO subscription_notifications
+            (user_id, book_id, notification_type, notification_status, title, message)
+            VALUES (?, ?, ?, 'unread', ?, ?)
+        `);
+        return stmt.run(userId, bookId, notificationType, title, message);
+    },
+
+    // 标记为已读
+    markAsRead(notificationId) {
+        const stmt = db.prepare(`
+            UPDATE subscription_notifications
+            SET notification_status = 'read', read_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `);
+        return stmt.run(notificationId);
+    },
+
+    // 标记用户所有提醒为已读
+    markAllAsRead(userId) {
+        const stmt = db.prepare(`
+            UPDATE subscription_notifications
+            SET notification_status = 'read', read_at = CURRENT_TIMESTAMP
+            WHERE user_id = ? AND notification_status = 'unread'
+        `);
+        return stmt.run(userId);
+    },
+
+    // 获取用户未读提醒
+    getUnreadNotifications(userId, limit = 50) {
+        const stmt = db.prepare(`
+            SELECT * FROM subscription_notifications
+            WHERE user_id = ? AND notification_status = 'unread'
+            ORDER BY created_at DESC
+            LIMIT ?
+        `);
+        return stmt.all(userId, limit);
+    },
+
+    // 获取用户所有提醒
+    getUserNotifications(userId, limit = 100) {
+        const stmt = db.prepare(`
+            SELECT * FROM subscription_notifications
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            LIMIT ?
+        `);
+        return stmt.all(userId, limit);
+    },
+
+    // 删除旧提醒（保留最近N条）
+    cleanupOldNotifications(keepCount = 500) {
+        const stmt = db.prepare(`
+            DELETE FROM subscription_notifications
+            WHERE id NOT IN (
+                SELECT id FROM subscription_notifications
+                ORDER BY created_at DESC
+                LIMIT ?
+            )
+        `);
+        return stmt.run(keepCount);
     }
 };
 
@@ -3671,6 +3876,45 @@ const GameDB = {
             DELETE FROM reading_session_logs 
             WHERE created_at < ?
         `).run(sevenDaysAgo.toISOString());
+    },
+
+    // 获取修为排行榜
+    getCultivationRankings(limit = 100) {
+        const levelNames = [
+            "炼气期", "筑基期", "金丹期", "元婴期", "化神期", 
+            "合体期", "大乘期", "渡劫期"
+        ];
+
+        const rankings = db.prepare(`
+            SELECT 
+                ugd.user_id,
+                u.username,
+                ugd.exp,
+                ugd.level,
+                ugd.total_read_time
+            FROM user_game_data ugd
+            JOIN users u ON ugd.user_id = u.id
+            ORDER BY ugd.exp DESC, ugd.level DESC, ugd.total_read_time DESC
+            LIMIT ?
+        `).all(limit);
+
+        // 添加境界信息
+        return rankings.map((item, index) => {
+            const levelIndex = Math.min(Math.floor((item.level - 1) / 10), levelNames.length - 1);
+            const levelName = levelNames[levelIndex];
+            const levelLayer = ((item.level - 1) % 10) + 1;
+            
+            return {
+                rank: index + 1,
+                user_id: item.user_id,
+                username: item.username,
+                exp: item.exp,
+                level: item.level,
+                levelName: levelName,
+                levelLayer: levelLayer,
+                total_read_time: item.total_read_time
+            };
+        });
     }
 };
 
@@ -4113,6 +4357,8 @@ module.exports = {
     BookshelfCategoryDB,
     ReadingStatsDB,
     SubscriptionDB,
+    SubscriptionCheckLogDB,
+    SubscriptionNotificationDB,
     BookListDB,
     BookListCommentDB,
     GameDB,

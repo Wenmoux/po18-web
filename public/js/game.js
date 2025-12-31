@@ -10,6 +10,8 @@ class GameSystem {
         this.lastRewardCheck = 0;
         this.rewardCheckInterval = 1000; // 每1000字检查一次奖励
         this.lastReadingTime = null; // 上次阅读时间（用于计算阅读时长）
+        this.allCollections = []; // 所有藏品
+        this.filteredCollections = []; // 筛选后的藏品
     }
 
     /**
@@ -157,13 +159,16 @@ class GameSystem {
             <!-- 标签页导航 -->
             <div class="game-tabs" style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid var(--game-border);">
                 <button class="game-tab active" data-tab="main" style="padding: 12px 24px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 14px; color: var(--md-on-surface-variant); transition: all 0.3s; margin-bottom: -2px;">
-                    修仙
+                    蓬莱境
                 </button>
                 <button class="game-tab" data-tab="collections" style="padding: 12px 24px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 14px; color: var(--md-on-surface-variant); transition: all 0.3s; margin-bottom: -2px;">
-                    我的藏品
+                    玄藏录
                 </button>
                 <button class="game-tab" data-tab="ranking" style="padding: 12px 24px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 14px; color: var(--md-on-surface-variant); transition: all 0.3s; margin-bottom: -2px;">
-                    藏品排行
+                    玄藏排行
+                </button>
+                <button class="game-tab" data-tab="cultivation-ranking" style="padding: 12px 24px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 14px; color: var(--md-on-surface-variant); transition: all 0.3s; margin-bottom: -2px;">
+                    修为排行
                 </button>
             </div>
 
@@ -207,7 +212,7 @@ class GameSystem {
                 </div>
 
                 <!-- 修仙子标签页 -->
-                <div class="game-sub-tabs" style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 2px solid var(--game-border);">
+                <div class="game-sub-tabs" style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 2px solid var(--game-border); flex-wrap: wrap;">
                     <button class="game-sub-tab active" data-subtab="fragments" style="padding: 10px 20px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 13px; color: var(--md-on-surface-variant); transition: all 0.3s; margin-bottom: -2px;">
                         碎片背包
                     </button>
@@ -283,16 +288,38 @@ class GameSystem {
                 </div>
             </div>
 
-            <!-- 我的藏品标签页内容 -->
+            <!-- 玄藏录标签页内容 -->
             <div class="game-tab-content" id="game-tab-collections" style="display: none;">
                 <div id="collections-content">
                     <div class="game-loading">加载中...</div>
                 </div>
+                <!-- 详情弹窗 -->
+                <div class="modal-overlay" id="collection-modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <div class="modal-title" id="modal-title">
+                                <span id="modal-icon" style="font-size: 32px;"></span>
+                                <span id="modal-name"></span>
+                            </div>
+                            <button class="modal-close" id="modal-close">&times;</button>
+                        </div>
+                        <div class="modal-body" id="modal-body">
+                            <!-- 动态填充 -->
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <!-- 藏品排行标签页内容 -->
+            <!-- 玄藏排行标签页内容 -->
             <div class="game-tab-content" id="game-tab-ranking" style="display: none;">
                 <div id="ranking-content">
+                    <div class="game-loading">加载中...</div>
+                </div>
+            </div>
+
+            <!-- 修为排行标签页内容 -->
+            <div class="game-tab-content" id="game-tab-cultivation-ranking" style="display: none;">
+                <div id="cultivation-ranking-content">
                     <div class="game-loading">加载中...</div>
                 </div>
             </div>
@@ -953,6 +980,8 @@ class GameSystem {
             this.loadCollections();
         } else if (tabName === "ranking") {
             this.loadRanking();
+        } else if (tabName === "cultivation-ranking") {
+            this.loadCultivationRanking();
         } else if (tabName === "main") {
             // 切换到修仙标签页时，默认显示第一个子标签页
             this.switchSubTab("fragments");
@@ -998,7 +1027,7 @@ class GameSystem {
     }
 
     /**
-     * 加载我的藏品
+     * 加载玄藏录
      */
     async loadCollections() {
         const container = document.getElementById("collections-content");
@@ -1013,10 +1042,11 @@ class GameSystem {
             
             if (result.success) {
                 const { collections, stats } = result.data;
+                this.allCollections = collections;
                 
                 let html = `
                     <div class="game-section">
-                        <div class="game-section-title">藏品统计</div>
+                        <div class="game-section-title">玄藏统计</div>
                         <div class="game-info-cards">
                             <div class="game-info-card">
                                 <div class="game-info-card-title">总藏品数</div>
@@ -1037,57 +1067,59 @@ class GameSystem {
                         </div>
                     </div>
                     <div class="game-section">
-                        <div class="game-section-title">我的藏品</div>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px;">
-                `;
-
-                if (collections.length === 0) {
-                    html += `
-                        <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--md-on-surface-variant);">
-                            <div style="font-size: 64px; margin-bottom: 20px; opacity: 0.5;">📚</div>
-                            <p>暂无藏品</p>
-                            <p style="font-size: 14px; margin-top: 10px;">继续阅读以获得藏品</p>
-                        </div>
-                    `;
-                } else {
-                    const qualityNames = {
-                        'common': '普通', 'uncommon': '不凡', 'rare': '稀有',
-                        'epic': '史诗', 'legendary': '传说', 'mythic': '神话'
-                    };
-                    const qualityColors = {
-                        'common': '#9e9e9e', 'uncommon': '#4caf50', 'rare': '#2196f3',
-                        'epic': '#9c27b0', 'legendary': '#ff9800', 'mythic': '#f44336'
-                    };
-
-                    collections.forEach(collection => {
-                        const qualityName = qualityNames[collection.quality] || '普通';
-                        const color = collection.color || qualityColors[collection.quality] || '#9e9e9e';
-                        const icon = collection.icon || '📚';
-                        const date = new Date(collection.obtained_at).toLocaleString('zh-CN', {
-                            year: 'numeric', month: '2-digit', day: '2-digit',
-                            hour: '2-digit', minute: '2-digit'
-                        });
-
-                        html += `
-                            <div class="game-info-card" style="position: relative; overflow: hidden;">
-                                <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: ${color};"></div>
-                                <div style="text-align: center; padding-top: 8px;">
-                                    <div style="font-size: 48px; margin-bottom: 10px;">${icon}</div>
-                                    <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">${collection.name || '未知'}</div>
-                                    <div style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; background: ${color}; color: white; margin-bottom: 8px;">${qualityName}</div>
-                                    <div style="font-size: 11px; color: var(--md-on-surface-variant); font-family: monospace; margin-top: 8px; word-break: break-all;">${collection.collection_id}</div>
-                                    <div style="font-size: 11px; color: var(--md-on-surface-variant); margin-top: 4px;">${date}</div>
-                                </div>
+                        <div class="game-section-title">我的玄藏</div>
+                        <div class="collections-filters">
+                            <div class="filter-group">
+                                <label class="filter-label">搜索:</label>
+                                <input type="text" class="search-input" id="collections-search-input" placeholder="搜索玄藏名称、描述或ID...">
                             </div>
-                        `;
-                    });
-                }
-
-                html += `
+                            <div class="filter-group">
+                                <label class="filter-label">品质:</label>
+                                <select class="filter-select" id="collections-filter-quality">
+                                    <option value="">全部</option>
+                                    <option value="common">普通</option>
+                                    <option value="uncommon">不凡</option>
+                                    <option value="rare">稀有</option>
+                                    <option value="epic">史诗</option>
+                                    <option value="legendary">传说</option>
+                                    <option value="mythic">神话</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label class="filter-label">排序:</label>
+                                <select class="filter-select" id="collections-sort-by">
+                                    <option value="obtained_at_desc">获得时间（最新）</option>
+                                    <option value="obtained_at_asc">获得时间（最早）</option>
+                                    <option value="rarity_desc">稀有度（高→低）</option>
+                                    <option value="rarity_asc">稀有度（低→高）</option>
+                                    <option value="quality">品质</option>
+                                    <option value="name">名称</option>
+                                </select>
+                            </div>
                         </div>
+                        <div class="collections-grid" id="collections-grid"></div>
                     </div>
                 `;
                 container.innerHTML = html;
+                
+                // 绑定筛选和搜索事件
+                document.getElementById('collections-search-input').addEventListener('input', () => this.applyCollectionFilters());
+                document.getElementById('collections-filter-quality').addEventListener('change', () => this.applyCollectionFilters());
+                document.getElementById('collections-sort-by').addEventListener('change', () => this.applyCollectionFilters());
+                
+                // 绑定详情弹窗事件
+                const modal = document.getElementById('collection-modal');
+                if (modal) {
+                    document.getElementById('modal-close').addEventListener('click', () => this.closeCollectionModal());
+                    modal.addEventListener('click', (e) => {
+                        if (e.target.id === 'collection-modal') {
+                            this.closeCollectionModal();
+                        }
+                    });
+                }
+                
+                // 应用筛选和排序
+                this.applyCollectionFilters();
             } else {
                 container.innerHTML = `
                     <div style="text-align: center; padding: 40px; color: var(--md-error);">
@@ -1097,7 +1129,7 @@ class GameSystem {
                 `;
             }
         } catch (error) {
-            console.error("加载藏品失败:", error);
+            console.error("加载玄藏失败:", error);
             container.innerHTML = `
                 <div style="text-align: center; padding: 40px; color: var(--md-error);">
                     <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
@@ -1108,7 +1140,247 @@ class GameSystem {
     }
 
     /**
-     * 加载藏品排行
+     * 应用筛选和排序
+     */
+    applyCollectionFilters() {
+        const searchTerm = document.getElementById('collections-search-input')?.value.toLowerCase() || '';
+        const qualityFilter = document.getElementById('collections-filter-quality')?.value || '';
+        const sortBy = document.getElementById('collections-sort-by')?.value || 'obtained_at_desc';
+
+        // 筛选
+        this.filteredCollections = this.allCollections.filter(collection => {
+            // 搜索筛选
+            if (searchTerm) {
+                const searchable = [
+                    collection.name || '',
+                    collection.description || '',
+                    collection.collection_id || '',
+                    collection.effect_description || ''
+                ].join(' ').toLowerCase();
+                if (!searchable.includes(searchTerm)) {
+                    return false;
+                }
+            }
+
+            // 品质筛选
+            if (qualityFilter && collection.quality !== qualityFilter) {
+                return false;
+            }
+
+            return true;
+        });
+
+        // 排序
+        this.filteredCollections.sort((a, b) => {
+            switch (sortBy) {
+                case 'obtained_at_desc':
+                    return new Date(b.obtained_at) - new Date(a.obtained_at);
+                case 'obtained_at_asc':
+                    return new Date(a.obtained_at) - new Date(b.obtained_at);
+                case 'rarity_desc':
+                    return (b.rarity || 1) - (a.rarity || 1);
+                case 'rarity_asc':
+                    return (a.rarity || 1) - (b.rarity || 1);
+                case 'quality':
+                    const qualityOrder = { 'mythic': 6, 'legendary': 5, 'epic': 4, 'rare': 3, 'uncommon': 2, 'common': 1 };
+                    return (qualityOrder[b.quality] || 0) - (qualityOrder[a.quality] || 0);
+                case 'name':
+                    return (a.name || '').localeCompare(b.name || '');
+                default:
+                    return 0;
+            }
+        });
+
+        // 渲染
+        this.renderCollections();
+    }
+
+    /**
+     * 渲染藏品列表
+     */
+    renderCollections() {
+        const grid = document.getElementById('collections-grid');
+        if (!grid) return;
+        
+        if (this.filteredCollections.length === 0) {
+            grid.innerHTML = `
+                <div class="empty-state" style="grid-column: 1 / -1;">
+                    <div class="empty-state-icon">📚</div>
+                    <p>${this.allCollections.length === 0 ? '暂无玄藏' : '没有找到匹配的玄藏'}</p>
+                    ${this.allCollections.length === 0 ? '<p style="font-size: 14px; margin-top: 10px;">继续阅读以获得玄藏</p>' : ''}
+                </div>
+            `;
+        } else {
+            const getQualityName = (quality) => {
+                const names = {
+                    'common': '普通', 'uncommon': '不凡', 'rare': '稀有',
+                    'epic': '史诗', 'legendary': '传说', 'mythic': '神话'
+                };
+                return names[quality] || '普通';
+            };
+
+            const formatDate = (dateString) => {
+                if (!dateString) return '未知';
+                const date = new Date(dateString);
+                return date.toLocaleString('zh-CN', {
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit'
+                });
+            };
+
+            const hexToRgb = (hex) => {
+                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                return result ? {
+                    r: parseInt(result[1], 16),
+                    g: parseInt(result[2], 16),
+                    b: parseInt(result[3], 16)
+                } : null;
+            };
+
+            grid.innerHTML = this.filteredCollections.map((collection, index) => {
+                const qualityClass = `quality-${collection.quality || 'common'}`;
+                const color = collection.color || '#9e9e9e';
+                const icon = collection.icon || '📚';
+                const effectText = collection.effect_description || '';
+                
+                // 提取 RGB 值用于渐变
+                const rgb = hexToRgb(color);
+                const rgbString = rgb ? `${rgb.r}, ${rgb.g}, ${rgb.b}` : '33, 150, 243';
+                
+                return `
+                    <div class="collection-card" 
+                         style="--collection-color: ${color}; --collection-color-rgb: ${rgbString}; --index: ${index}" 
+                         data-collection-index="${index}">
+                        <div class="collection-icon">${icon}</div>
+                        <div class="collection-name">${collection.name || '未知'}</div>
+                        <div class="collection-quality ${qualityClass}">${getQualityName(collection.quality)}</div>
+                        ${effectText ? `<div class="collection-effect">${effectText}</div>` : ''}
+                        ${collection.description ? `<div class="collection-description">${collection.description}</div>` : ''}
+                        ${collection.rarity ? `<div class="collection-rarity">稀有度: ${collection.rarity}</div>` : ''}
+                        <div class="collection-id">${collection.collection_id}</div>
+                        <div class="collection-obtained">获得时间: ${formatDate(collection.obtained_at)}</div>
+                    </div>
+                `;
+            }).join('');
+
+            // 绑定点击事件
+            grid.querySelectorAll('.collection-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const index = parseInt(card.dataset.collectionIndex);
+                    this.showCollectionDetail(this.filteredCollections[index]);
+                });
+            });
+        }
+    }
+
+    /**
+     * 显示藏品详情
+     */
+    showCollectionDetail(collection) {
+        const modal = document.getElementById('collection-modal');
+        if (!modal) return;
+
+        const getQualityName = (quality) => {
+            const names = {
+                'common': '普通', 'uncommon': '不凡', 'rare': '稀有',
+                'epic': '史诗', 'legendary': '传说', 'mythic': '神话'
+            };
+            return names[quality] || '普通';
+        };
+
+        const formatDate = (dateString) => {
+            if (!dateString) return '未知';
+            const date = new Date(dateString);
+            return date.toLocaleString('zh-CN', {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit'
+            });
+        };
+
+        const qualityClass = `quality-${collection.quality || 'common'}`;
+        const color = collection.color || '#9e9e9e';
+        const icon = collection.icon || '📚';
+
+        document.getElementById('modal-icon').textContent = icon;
+        document.getElementById('modal-name').textContent = collection.name || '未知';
+
+        let bodyHtml = `
+            <div class="modal-info-row">
+                <div class="modal-info-label">品质:</div>
+                <div class="modal-info-value">
+                    <span class="collection-quality ${qualityClass}">${getQualityName(collection.quality)}</span>
+                </div>
+            </div>
+        `;
+
+        if (collection.rarity) {
+            bodyHtml += `
+                <div class="modal-info-row">
+                    <div class="modal-info-label">稀有度:</div>
+                    <div class="modal-info-value">${collection.rarity}</div>
+                </div>
+            `;
+        }
+
+        if (collection.description) {
+            bodyHtml += `
+                <div class="modal-info-row">
+                    <div class="modal-info-label">描述:</div>
+                    <div class="modal-info-value">${collection.description}</div>
+                </div>
+            `;
+        }
+
+        if (collection.effect_description) {
+            bodyHtml += `
+                <div class="modal-effect">
+                    <div class="modal-effect-title">✨ 效果</div>
+                    <div>${collection.effect_description}</div>
+                </div>
+            `;
+        }
+
+        bodyHtml += `
+            <div class="modal-info-row">
+                <div class="modal-info-label">玄藏ID:</div>
+                <div class="modal-info-value" style="font-family: monospace; font-size: 12px;">${collection.collection_id}</div>
+            </div>
+        `;
+
+        if (collection.obtained_at) {
+            bodyHtml += `
+                <div class="modal-info-row">
+                    <div class="modal-info-label">获得时间:</div>
+                    <div class="modal-info-value">${formatDate(collection.obtained_at)}</div>
+                </div>
+            `;
+        }
+
+        if (collection.obtained_from_book_id) {
+            bodyHtml += `
+                <div class="modal-info-row">
+                    <div class="modal-info-label">获得来源:</div>
+                    <div class="modal-info-value">书籍ID: ${collection.obtained_from_book_id}</div>
+                </div>
+            `;
+        }
+
+        document.getElementById('modal-body').innerHTML = bodyHtml;
+        modal.classList.add('active');
+    }
+
+    /**
+     * 关闭详情弹窗
+     */
+    closeCollectionModal() {
+        const modal = document.getElementById('collection-modal');
+        if (modal) {
+            modal.classList.remove('active');
+        }
+    }
+
+    /**
+     * 加载玄藏排行
      */
     async loadRanking() {
         const container = document.getElementById("ranking-content");
@@ -1133,7 +1405,7 @@ class GameSystem {
 
                 let html = `
                     <div class="game-section">
-                        <div class="game-section-title">藏品排行</div>
+                        <div class="game-section-title">玄藏排行</div>
                         <div style="overflow-x: auto;">
                             <table style="width: 100%; border-collapse: collapse; background: var(--md-surface-container-low); border-radius: 12px; overflow: hidden;">
                                 <thead>
@@ -1200,6 +1472,106 @@ class GameSystem {
             }
         } catch (error) {
             console.error("加载排行失败:", error);
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: var(--md-error);">
+                    <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
+                    <p>加载失败，请刷新重试</p>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * 加载修为排行榜
+     */
+    async loadCultivationRanking() {
+        const container = document.getElementById("cultivation-ranking-content");
+        if (!container) return;
+
+        try {
+            container.innerHTML = '<div class="game-loading">加载中...</div>';
+            const response = await fetch("/api/rankings/cultivation?limit=100", {
+                credentials: "include"
+            });
+            
+            if (!response.ok) {
+                throw new Error("加载失败");
+            }
+
+            const rankings = await response.json();
+            
+            if (!rankings || rankings.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: var(--md-on-surface-variant);">
+                        <div style="font-size: 48px; margin-bottom: 10px;">📊</div>
+                        <p>暂无排行数据</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // 格式化阅读时长
+            const formatTime = (minutes) => {
+                const hours = Math.floor(minutes / 60);
+                const mins = minutes % 60;
+                if (hours > 0) return `${hours}小时${mins}分钟`;
+                return `${mins}分钟`;
+            };
+
+            // 格式化数字
+            const formatNumber = (num) => {
+                if (!num) return "0";
+                if (num >= 10000) return (num / 10000).toFixed(1) + "w";
+                return num.toLocaleString();
+            };
+
+            let html = `
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; background: var(--md-surface-container-low); border-radius: 12px; overflow: hidden;">
+                        <thead>
+                            <tr style="background: var(--md-surface-container);">
+                                <th style="padding: 12px; text-align: left; font-weight: 600; width: 60px;">排名</th>
+                                <th style="padding: 12px; text-align: left; font-weight: 600;">用户名</th>
+                                <th style="padding: 12px; text-align: left; font-weight: 600;">境界</th>
+                                <th style="padding: 12px; text-align: left; font-weight: 600;">修为</th>
+                                <th style="padding: 12px; text-align: left; font-weight: 600;">阅读时长</th>
+                                <th style="padding: 12px; text-align: left; font-weight: 600;">ID</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            rankings.forEach((user, index) => {
+                const rank = user.rank || (index + 1);
+                const rankClass = rank === 1 ? "top1" : rank === 2 ? "top2" : rank === 3 ? "top3" : "";
+                const rankStyle = rank <= 3 
+                    ? `font-weight: 700; color: ${rank === 1 ? '#ffd700' : rank === 2 ? '#c0c0c0' : '#cd7f32'};` 
+                    : 'font-weight: 600; color: var(--md-primary);';
+
+                html += `
+                    <tr style="border-bottom: 1px solid var(--game-border); ${rank <= 3 ? 'background: rgba(255, 215, 0, 0.05);' : ''}">
+                        <td style="padding: 12px; ${rankStyle}">#${rank}</td>
+                        <td style="padding: 12px; font-weight: 500;">${(user.username || `用户${user.user_id}`).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td>
+                        <td style="padding: 12px;">
+                            <span style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; background: var(--md-primary); color: white; font-weight: 600;">
+                                ${user.levelName || "炼气期"} ${user.levelLayer || 1}层
+                            </span>
+                        </td>
+                        <td style="padding: 12px; font-weight: 600; color: var(--md-primary);">${formatNumber(user.exp || 0)}</td>
+                        <td style="padding: 12px; font-size: 13px; color: var(--md-on-surface-variant);">${formatTime(user.total_read_time || 0)}</td>
+                        <td style="padding: 12px; font-family: monospace; font-size: 11px; color: var(--md-on-surface-variant);">${user.user_id}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            container.innerHTML = html;
+        } catch (error) {
+            console.error("加载修为排行榜失败:", error);
             container.innerHTML = `
                 <div style="text-align: center; padding: 40px; color: var(--md-error);">
                     <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
@@ -1327,7 +1699,7 @@ class GameSystem {
             
             const result = await response.json();
             if (result.success && result.data) {
-                // 检查是否获得藏品
+                // 检查是否获得玄藏
                 if (result.data.collection) {
                     this.showCollectionNotification(result.data.collection);
                 }
@@ -1448,11 +1820,11 @@ class GameSystem {
         popup.innerHTML = `
             <div style="font-size: 48px; margin-bottom: 15px;">✨</div>
             <div style="font-size: 20px; font-weight: 600; margin-bottom: 10px; color: #333;">
-                获得藏品！
+                获得玄藏！
             </div>
             <div style="font-size: 48px; margin: 15px 0;">${icon}</div>
             <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px; color: ${color};">
-                ${collection.name || '未知藏品'}
+                ${collection.name || '未知玄藏'}
             </div>
             <div style="display: inline-block; padding: 4px 12px; border-radius: 12px; background: ${color}; color: white; font-size: 12px; margin-bottom: 15px;">
                 ${qualityName}

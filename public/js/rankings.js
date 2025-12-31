@@ -56,6 +56,43 @@ const Rankings = {
     renderBooks(books, type) {
         const container = document.getElementById("ranking-list");
 
+        // 如果是修仙榜，使用不同的渲染方式
+        if (type === "cultivation") {
+            container.innerHTML = books
+                .map((user, index) => {
+                    const rank = user.rank || (index + 1);
+                    const rankClass = rank === 1 ? "top1" : rank === 2 ? "top2" : rank === 3 ? "top3" : "";
+
+                    // 格式化阅读时长（分钟转小时）
+                    const hours = Math.floor((user.total_read_time || 0) / 60);
+                    const minutes = (user.total_read_time || 0) % 60;
+                    const timeText = hours > 0 ? `${hours}小时${minutes}分钟` : `${minutes}分钟`;
+
+                    return `
+                    <div class="book-item">
+                        <div class="rank ${rankClass}">${rank}</div>
+                        <div class="book-info" style="flex: 1;">
+                            <div class="book-title">👤 ${this.escapeHtml(user.username || `用户${user.user_id}`)}</div>
+                            <div class="book-author">
+                                <span style="color: var(--primary-color); font-weight: bold;">${user.levelName || "炼气期"} ${user.levelLayer || 1}层</span>
+                                <span style="margin-left: 12px; color: #666;">ID: ${user.user_id}</span>
+                            </div>
+                            <div class="book-meta">
+                                <span>⏱️ ${timeText}</span>
+                            </div>
+                        </div>
+                        <div class="book-stats">
+                            <div class="stat-value">${this.formatNumber(user.exp || 0)}</div>
+                            <div class="stat-label">修为</div>
+                        </div>
+                    </div>
+                `;
+                })
+                .join("");
+            return;
+        }
+
+        // 原有的书籍排行榜渲染
         const statLabelMap = {
             favorites: "收藏",
             comments: "留言",

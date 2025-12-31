@@ -105,7 +105,7 @@
                     <a href="#" class="nav-link" data-page="bookshelf">📖 芸香屉</a>
                     <a href="#" class="nav-link" data-page="book-lists">📑 花间集</a>
                     <a href="#" class="nav-link" data-page="global-library" id="nav-global-library" style="display: none">🌎 琅嬛录</a>
-                    <a href="#" class="nav-link" data-page="game" id="nav-game" style="display: none">🎮 修仙系统</a>
+                    <a href="#" class="nav-link" data-page="game" id="nav-game" style="display: none">🎮 蓬莱境</a>
                     <a href="#" class="nav-link" data-page="subscriptions" id="nav-subscriptions">
                         🔔 青鸟约
                         <span class="nav-badge" id="subscription-badge" style="display: none">0</span>
@@ -214,7 +214,7 @@
                             </div>
                             <div class="quick-access-card" id="game-access-card" onclick="App.navigateTo('game')" style="display: none;">
                                 <div class="access-icon">🎮</div>
-                                <div class="access-title">修仙系统</div>
+                                <div class="access-title">蓬莱境</div>
                                 <div class="access-desc">阅读获得修为</div>
                             </div>
                         </div>
@@ -352,10 +352,6 @@
 
                 <!-- 排行榜页 -->
                 <section class="page" id="page-rankings">
-                    <div class="page-header">
-                        <p class="page-subtitle">每6小时自动更新</p>
-                    </div>
-
                     <div class="rankings-tabs">
                         <button class="ranking-tab active" data-type="favorites">收藏榜</button>
                         <button class="ranking-tab" data-type="comments">留言榜</button>
@@ -372,11 +368,7 @@
 
                 <!-- 已购书籍页 -->
                 <section class="page" id="page-purchased">
-                    <div class="page-header">
-                        <h2>📚 知否知否</h2>
-                        <p class="page-subtitle">查看您已购买的书籍</p>
-                    </div>
-                    <div class="page-header">
+                    <div style="margin-bottom: 16px;">
                         <button class="btn btn-outline" id="refresh-purchased">刷新</button>
                     </div>
                     <div class="login-required" id="purchased-login-required">
@@ -388,11 +380,7 @@
 
                 <!-- 下载管理页（单列表显示） -->
                 <section class="page" id="page-downloads">
-                    <div class="page-header">
-                        <h2>📥 云篆集</h2>
-                        <p class="page-subtitle">管理您的下载任务</p>
-                    </div>
-                    <div class="page-header">
+                    <div style="margin-bottom: 16px;">
                         <button class="btn btn-outline" id="clear-completed">清除已完成</button>
                     </div>
 
@@ -404,11 +392,6 @@
 
                 <!-- 我的书架页 -->
                 <section class="page" id="page-bookshelf">
-                    <div class="page-header">
-                        <h2>📖 芸香屉</h2>
-                        <p class="page-subtitle">记录你的阅读历程</p>
-                    </div>
-
                     <!-- 筛选和排序 - 已隐藏，使用智能书架的标签筛选器 -->
                     <div class="filter-bar" style="display: none !important; visibility: hidden !important;">
                         <select id="bookshelf-sort-select" class="md-select">
@@ -483,10 +466,6 @@
 
                 <!-- 我的书库页 -->
                 <section class="page" id="page-library">
-                    <div class="page-header">
-                        <p class="page-subtitle">管理您下载的书籍</p>
-                    </div>
-
                     <!-- 书库统计 -->
                     <div
                         class="stats-summary"
@@ -537,11 +516,6 @@
 
                 <!-- 全站书库页（仅授权用户） -->
                 <section class="page" id="page-global-library">
-                    <div class="page-header">
-                        <h2>🌐 琅嬛录</h2>
-                        <p class="page-subtitle">浏览所有包含正文内容的书籍</p>
-                    </div>
-
                     <!-- 数量统计 -->
                     <div
                         class="stats-bar"
@@ -616,11 +590,6 @@
 
                 <!-- 订阅管理页面 -->
                 <section class="page" id="page-subscriptions">
-                    <div class="page-header">
-                        <h2>🔔 青鸟约</h2>
-                        <p class="page-subtitle">关注的书籍有更新时会及时通知你</p>
-                    </div>
-
                     <!-- 更新提醒标签页 -->
                     <div class="subscription-tabs" style="margin-bottom: 20px">
                         <button class="sub-tab active" data-filter="all">
@@ -658,10 +627,6 @@
 
                 <!-- 游戏页面 -->
                 <section class="page" id="page-game">
-                    <div class="page-header">
-                        <h2>🎮 修仙系统</h2>
-                        <p class="page-subtitle">阅读获得修为，提升境界</p>
-                    </div>
                     <div id="game-page-content">
                         <div class="game-loading">加载中</div>
                     </div>
@@ -1115,11 +1080,6 @@
 
                 <!-- 书单页 -->
                 <section class="page" id="page-book-lists">
-                    <div class="page-header">
-                        <h2>📑 花间集</h2>
-                        <p class="page-subtitle">创建和管理你的书单，分享给其他书友</p>
-                    </div>
-
                     <!-- 书单标签页 -->
                     <div class="book-list-tabs" style="margin-bottom: 20px">
                         <button class="list-tab active" data-tab="my-lists">
@@ -1444,7 +1404,7 @@
             </a>
             <a href="#" class="tab-item" data-page="game" id="tab-game" style="display: none">
                 <span class="tab-icon">🎮</span>
-                <span class="tab-label">修仙</span>
+                <span class="tab-label">蓬莱境</span>
             </a>
             <a href="#" class="tab-item" data-page="subscriptions" id="tab-subscriptions">
                 <span class="tab-icon">🔔</span>
