@@ -6266,13 +6266,18 @@ router.post("/game/reading", requireLogin, async (req, res) => {
         const equippedTechniques = techniques.filter(t => t.is_equipped);
         let expMultiplier = 1.0;
         
-        // 功法加成
+        // 功法加成（根据等级提升效果）
         equippedTechniques.forEach(tech => {
-            // 根据功法名称计算加成
-            if (tech.technique_id === "清心诀") expMultiplier += 0.10;
-            else if (tech.technique_id === "凝神诀") expMultiplier += 0.15;
-            else if (tech.technique_id === "悟道诀") expMultiplier += 0.20;
-            else if (tech.technique_id === "静心诀") expMultiplier += 0.12;
+            // 基础加成
+            let baseMultiplier = 0;
+            if (tech.technique_id === "清心诀") baseMultiplier = 0.10;
+            else if (tech.technique_id === "凝神诀") baseMultiplier = 0.15;
+            else if (tech.technique_id === "悟道诀") baseMultiplier = 0.20;
+            else if (tech.technique_id === "静心诀") baseMultiplier = 0.12;
+            
+            // 每级增加0.01的加成（最多10级，额外+0.09）
+            const levelBonus = (tech.level - 1) * 0.01;
+            expMultiplier += baseMultiplier + levelBonus;
         });
         
         // 藏品效果加成
@@ -6296,6 +6301,35 @@ router.post("/game/reading", requireLogin, async (req, res) => {
         if (readingTime) {
             GameDB.addReadTime(userId, readingTime);
         }
+
+        // 给装备的功法和灵兽添加经验（每1000字 = 1经验）
+        const techniqueExp = Math.floor(wordsRead / 1000);
+        const beastExp = Math.floor(wordsRead / 1000);
+        
+        equippedTechniques.forEach(tech => {
+            if (techniqueExp > 0) {
+                try {
+                    db.prepare("UPDATE user_techniques SET exp = exp + ? WHERE user_id = ? AND technique_id = ?")
+                        .run(techniqueExp, userId, tech.technique_id);
+                } catch (error) {
+                    logger.error("更新功法经验失败", { error: error.message });
+                }
+            }
+        });
+        
+        // 获取装备的灵兽并添加经验
+        const beasts = GameDB.getUserBeasts(userId);
+        const equippedBeasts = beasts.filter(b => b.is_equipped);
+        equippedBeasts.forEach(beast => {
+            if (beastExp > 0) {
+                try {
+                    db.prepare("UPDATE user_beasts SET exp = exp + ? WHERE user_id = ? AND beast_id = ?")
+                        .run(beastExp, userId, beast.beast_id);
+                } catch (error) {
+                    logger.error("更新灵兽经验失败", { error: error.message });
+                }
+            }
+        });
 
         // 更新成就进度（需要重新获取更新后的数据）
         const updatedGameData = GameDB.getUserGameData(userId);
@@ -6528,6 +6562,28 @@ router.post("/game/techniques/toggle", requireLogin, (req, res) => {
     }
 });
 
+// 升级功法
+router.post("/game/techniques/upgrade", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const { techniqueId } = req.body;
+
+        if (!techniqueId) {
+            return res.status(400).json({ error: "缺少功法ID" });
+        }
+
+        const result = GameDB.upgradeTechnique(userId, techniqueId);
+        if (!result.success) {
+            return res.status(400).json({ error: result.message });
+        }
+        
+        res.json({ success: true, data: result });
+    } catch (error) {
+        logger.error("升级功法失败", { error: error.message });
+        res.status(500).json({ error: "升级失败" });
+    }
+});
+
 // 装备/卸下灵兽
 router.post("/game/beasts/toggle", requireLogin, (req, res) => {
     try {
@@ -6540,6 +6596,28 @@ router.post("/game/beasts/toggle", requireLogin, (req, res) => {
     } catch (error) {
         logger.error("切换灵兽装备状态失败", { error: error.message });
         res.status(500).json({ error: "操作失败" });
+    }
+});
+
+// 升级灵兽
+router.post("/game/beasts/upgrade", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const { beastId } = req.body;
+
+        if (!beastId) {
+            return res.status(400).json({ error: "缺少灵兽ID" });
+        }
+
+        const result = GameDB.upgradeBeast(userId, beastId);
+        if (!result.success) {
+            return res.status(400).json({ error: result.message });
+        }
+        
+        res.json({ success: true, data: result });
+    } catch (error) {
+        logger.error("升级灵兽失败", { error: error.message });
+        res.status(500).json({ error: "升级失败" });
     }
 });
 

@@ -428,6 +428,93 @@
     background: rgba(216, 27, 96, 0.1);
 }
 
+/* ===== 升级相关样式 ===== */
+.game-technique-exp {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--game-border);
+}
+
+.game-exp-info {
+    font-size: 11px;
+    color: var(--game-text-secondary);
+    margin-bottom: 6px;
+}
+
+.game-upgrade-btn {
+    width: 100%;
+    padding: 8px 16px;
+    margin-top: 8px;
+    border: 1px solid var(--game-primary);
+    border-radius: 4px;
+    background: var(--game-primary);
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.game-upgrade-btn:hover:not(.disabled) {
+    background: rgba(216, 27, 96, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(216, 27, 96, 0.3);
+}
+
+.game-upgrade-btn.disabled {
+    background: var(--game-surface);
+    border-color: var(--game-border);
+    color: var(--game-text-secondary);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* ===== Buff状态显示 ===== */
+.game-buff-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.game-buff-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+    background: var(--md-surface-container-low);
+    border: 1px solid var(--game-border);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.game-buff-item:hover {
+    background: var(--md-surface-container);
+    border-color: var(--game-primary);
+    box-shadow: 0 2px 8px rgba(216, 27, 96, 0.1);
+}
+
+.game-buff-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.game-buff-info {
+    flex: 1;
+}
+
+.game-buff-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--game-text-primary);
+    margin-bottom: 4px;
+}
+
+.game-buff-effect {
+    font-size: 12px;
+    color: var(--game-text-secondary);
+    line-height: 1.4;
+}
+
 /* ===== 奖励弹窗 ===== */
 .game-reward-popup {
     position: fixed;

@@ -3428,6 +3428,28 @@ const GameDB = {
         return db.prepare("SELECT * FROM user_techniques WHERE user_id = ? ORDER BY is_equipped DESC, unlocked_at DESC").all(userId);
     },
 
+    // 升级功法
+    upgradeTechnique(userId, techniqueId) {
+        const technique = db.prepare("SELECT * FROM user_techniques WHERE user_id = ? AND technique_id = ?").get(userId, techniqueId);
+        if (!technique) {
+            return { success: false, message: "功法不存在" };
+        }
+
+        // 计算升级所需经验：每级需要 level * 100 经验
+        const expRequired = technique.level * 100;
+        if (technique.exp < expRequired) {
+            return { success: false, message: `经验不足，需要 ${expRequired} 经验，当前 ${technique.exp}` };
+        }
+
+        // 扣除经验并升级
+        const newExp = technique.exp - expRequired;
+        const newLevel = technique.level + 1;
+        db.prepare("UPDATE user_techniques SET level = ?, exp = ? WHERE user_id = ? AND technique_id = ?")
+            .run(newLevel, newExp, userId, techniqueId);
+
+        return { success: true, level: newLevel, exp: newExp, message: `升级成功！当前等级 ${newLevel}` };
+    },
+
     // ==================== 灵兽系统 ====================
 
     // 解锁灵兽
@@ -3511,6 +3533,33 @@ const GameDB = {
         } catch (error) {
             console.error("获取灵兽数据失败:", error);
             return [];
+        }
+    },
+
+    // 升级灵兽
+    upgradeBeast(userId, beastId) {
+        try {
+            const beast = db.prepare("SELECT * FROM user_beasts WHERE user_id = ? AND beast_id = ?").get(userId, beastId);
+            if (!beast) {
+                return { success: false, message: "灵兽不存在" };
+            }
+
+            // 计算升级所需经验：每级需要 level * 100 经验
+            const expRequired = beast.level * 100;
+            if (beast.exp < expRequired) {
+                return { success: false, message: `经验不足，需要 ${expRequired} 经验，当前 ${beast.exp}` };
+            }
+
+            // 扣除经验并升级
+            const newExp = beast.exp - expRequired;
+            const newLevel = beast.level + 1;
+            db.prepare("UPDATE user_beasts SET level = ?, exp = ? WHERE user_id = ? AND beast_id = ?")
+                .run(newLevel, newExp, userId, beastId);
+
+            return { success: true, level: newLevel, exp: newExp, message: `升级成功！当前等级 ${newLevel}` };
+        } catch (error) {
+            console.error("升级灵兽失败:", error);
+            return { success: false, message: "升级失败" };
         }
     },
 

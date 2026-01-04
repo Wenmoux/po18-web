@@ -193,6 +193,14 @@ class GameSystem {
                         </div>
                     </div>
                 </div>
+
+                <!-- Buff状态显示 -->
+                <div class="game-section" id="buff-status-section">
+                    <div class="game-section-title">当前状态加成</div>
+                    <div class="game-buff-list" id="buff-list">
+                        ${this.renderBuffStatus()}
+                    </div>
+                </div>
                 
                 <!-- 阅读统计 -->
                 <div class="game-section">
@@ -864,7 +872,11 @@ class GameSystem {
         }
 
         return this.gameData.techniques.map(tech => {
-            const effectText = this.getTechniqueEffect(tech.technique_id);
+            const effectText = this.getTechniqueEffect(tech.technique_id, tech.level);
+            const expRequired = tech.level * 100;
+            const canUpgrade = tech.exp >= expRequired;
+            const expPercent = expRequired > 0 ? Math.min((tech.exp / expRequired) * 100, 100) : 0;
+            
             return `
                 <div class="game-technique-card ${tech.is_equipped ? "equipped" : ""}">
                     <div class="game-technique-header">
@@ -881,6 +893,19 @@ class GameSystem {
                         </button>
                     </div>
                     <div class="game-technique-effect">${effectText}</div>
+                    <div class="game-technique-exp">
+                        <div class="game-exp-info">
+                            <span>经验: ${tech.exp} / ${expRequired}</span>
+                        </div>
+                        <div class="game-progress-bar" style="width: 100%; margin-top: 4px; height: 6px;">
+                            <div class="game-progress-fill" style="width: ${expPercent}%"></div>
+                        </div>
+                        <button class="game-upgrade-btn ${canUpgrade ? "" : "disabled"}" 
+                                data-technique-id="${tech.technique_id}"
+                                ${!canUpgrade ? "disabled" : ""}>
+                            ${canUpgrade ? "✨ 升级" : "经验不足"}
+                        </button>
+                    </div>
                 </div>
             `;
         }).join("");
@@ -910,14 +935,17 @@ class GameSystem {
     /**
      * 获取功法效果描述
      */
-    getTechniqueEffect(techniqueId) {
-        const effects = {
-            "清心诀": "效果: 阅读时修为+10%",
-            "凝神诀": "效果: 阅读时修为+15%",
-            "悟道诀": "效果: 阅读时修为+20%",
-            "静心诀": "效果: 阅读时修为+12%"
+    getTechniqueEffect(techniqueId, level = 1) {
+        const baseEffects = {
+            "清心诀": 10,
+            "凝神诀": 15,
+            "悟道诀": 20,
+            "静心诀": 12
         };
-        return effects[techniqueId] || "效果: 提升阅读收益";
+        const basePercent = baseEffects[techniqueId] || 10;
+        // 每级增加1%的加成
+        const totalPercent = basePercent + (level - 1);
+        return `效果: 阅读时修为+${totalPercent}%`;
     }
 
     /**
@@ -935,6 +963,10 @@ class GameSystem {
 
         return this.gameData.beasts.map(beast => {
             const effectText = this.getBeastEffect(beast.beast_id);
+            const expRequired = beast.level * 100;
+            const canUpgrade = beast.exp >= expRequired;
+            const expPercent = expRequired > 0 ? Math.min((beast.exp / expRequired) * 100, 100) : 0;
+            
             return `
                 <div class="game-technique-card ${beast.is_equipped ? "equipped" : ""}">
                     <div class="game-technique-header">
@@ -951,6 +983,19 @@ class GameSystem {
                         </button>
                     </div>
                     <div class="game-technique-effect">${effectText}</div>
+                    <div class="game-technique-exp">
+                        <div class="game-exp-info">
+                            <span>经验: ${beast.exp} / ${expRequired}</span>
+                        </div>
+                        <div class="game-progress-bar" style="width: 100%; margin-top: 4px; height: 6px;">
+                            <div class="game-progress-fill" style="width: ${expPercent}%"></div>
+                        </div>
+                        <button class="game-upgrade-btn ${canUpgrade ? "" : "disabled"}" 
+                                data-beast-id="${beast.beast_id}"
+                                ${!canUpgrade ? "disabled" : ""}>
+                            ${canUpgrade ? "✨ 升级" : "经验不足"}
+                        </button>
+                    </div>
                 </div>
             `;
         }).join("");
@@ -1009,6 +1054,19 @@ class GameSystem {
                     await this.toggleTechnique(techniqueId);
                 } else if (beastId) {
                     await this.toggleBeast(beastId);
+                }
+            });
+        });
+
+        // 升级按钮
+        this.pageContainer.querySelectorAll(".game-upgrade-btn").forEach(btn => {
+            btn.addEventListener("click", async (e) => {
+                const techniqueId = e.target.dataset.techniqueId;
+                const beastId = e.target.dataset.beastId;
+                if (techniqueId) {
+                    await this.upgradeTechnique(techniqueId);
+                } else if (beastId) {
+                    await this.upgradeBeast(beastId);
                 }
             });
         });
@@ -1792,6 +1850,120 @@ class GameSystem {
                 window.App.showToast("操作失败", "error");
             }
         }
+    }
+
+    /**
+     * 升级功法
+     */
+    async upgradeTechnique(techniqueId) {
+        try {
+            const response = await fetch("/api/game/techniques/upgrade", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ techniqueId })
+            });
+            const result = await response.json();
+            if (result.success) {
+                if (window.App && window.App.showToast) {
+                    window.App.showToast(result.data.message || "升级成功", "success");
+                }
+                this.loadGameData();
+            } else {
+                if (window.App && window.App.showToast) {
+                    window.App.showToast(result.error || "升级失败", "error");
+                }
+            }
+        } catch (error) {
+            console.error("升级功法失败:", error);
+            if (window.App && window.App.showToast) {
+                window.App.showToast("升级失败", "error");
+            }
+        }
+    }
+
+    /**
+     * 升级灵兽
+     */
+    async upgradeBeast(beastId) {
+        try {
+            const response = await fetch("/api/game/beasts/upgrade", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ beastId })
+            });
+            const result = await response.json();
+            if (result.success) {
+                if (window.App && window.App.showToast) {
+                    window.App.showToast(result.data.message || "升级成功", "success");
+                }
+                this.loadGameData();
+            } else {
+                if (window.App && window.App.showToast) {
+                    window.App.showToast(result.error || "升级失败", "error");
+                }
+            }
+        } catch (error) {
+            console.error("升级灵兽失败:", error);
+            if (window.App && window.App.showToast) {
+                window.App.showToast("升级失败", "error");
+            }
+        }
+    }
+
+    /**
+     * 渲染Buff状态
+     */
+    renderBuffStatus() {
+        const buffs = [];
+        
+        // 获取装备的功法
+        if (this.gameData.techniques) {
+            const equippedTechnique = this.gameData.techniques.find(t => t.is_equipped);
+            if (equippedTechnique) {
+                const effect = this.getTechniqueEffect(equippedTechnique.technique_id, equippedTechnique.level);
+                buffs.push({
+                    icon: "📜",
+                    name: equippedTechnique.technique_id,
+                    effect: effect,
+                    level: equippedTechnique.level
+                });
+            }
+        }
+        
+        // 获取装备的灵兽
+        if (this.gameData.beasts) {
+            const equippedBeast = this.gameData.beasts.find(b => b.is_equipped);
+            if (equippedBeast) {
+                const effect = this.getBeastEffect(equippedBeast.beast_id);
+                buffs.push({
+                    icon: "🐉",
+                    name: equippedBeast.beast_id,
+                    effect: effect,
+                    level: equippedBeast.level
+                });
+            }
+        }
+        
+        if (buffs.length === 0) {
+            return `
+                <div class="game-empty-state" style="padding: 20px;">
+                    <div class="game-empty-icon">✨</div>
+                    <div class="game-empty-text">暂无激活加成<br>装备功法或灵兽获得加成</div>
+                </div>
+            `;
+        }
+        
+        return buffs.map(buff => `
+            <div class="game-buff-item">
+                <div class="game-buff-icon">${buff.icon}</div>
+                <div class="game-buff-info">
+                    <div class="game-buff-name">${buff.name} Lv.${buff.level}</div>
+                    <div class="game-buff-effect">${buff.effect}</div>
+                </div>
+            </div>
+        `).join("");
     }
 
     /**
