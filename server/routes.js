@@ -1903,7 +1903,15 @@ async function uploadToWebDAV(filePath, remotePath) {
 router.post("/share/upload", requireLogin, async (req, res) => {
     try {
         const { libraryId } = req.body;
+        
+        if (!libraryId) {
+            return res.status(400).json({ error: "缺少libraryId参数" });
+        }
+
         const user = UserDB.findById(req.session.userId);
+        if (!user) {
+            return res.status(401).json({ error: "用户不存在" });
+        }
 
         if (!user.share_enabled) {
             return res.status(400).json({ error: "请先启用共享功能" });
@@ -1917,25 +1925,53 @@ router.post("/share/upload", requireLogin, async (req, res) => {
         }
 
         // 从WebDAV获取书库列表
-        const client = new WebDAVClient({
-            url: webdavConfig.url,
-            username: webdavConfig.username,
-            password: webdavConfig.password,
-            path: webdavConfig.base_path
-        });
-        const books = await client.getLibraryBooks();
-        const book = books.find((b) => b.id === libraryId);
+        let client;
+        let books;
+        try {
+            client = new WebDAVClient({
+                url: webdavConfig.url,
+                username: webdavConfig.username,
+                password: webdavConfig.password,
+                path: webdavConfig.base_path
+            });
+            books = await client.getLibraryBooks();
+        } catch (webdavError) {
+            console.error("WebDAV连接失败:", webdavError);
+            return res.status(500).json({ error: "WebDAV连接失败: " + webdavError.message });
+        }
+
+        // 尝试多种方式匹配书籍
+        let book = books.find((b) => b.id === libraryId || b.id === String(libraryId));
+        
+        // 如果直接匹配失败，尝试通过路径匹配（处理URL编码等情况）
+        if (!book) {
+            book = books.find((b) => {
+                const normalizedId = decodeURIComponent(String(libraryId));
+                const normalizedPath = decodeURIComponent(b.id || "");
+                return normalizedPath === normalizedId || b.id === normalizedId || normalizedPath === libraryId;
+            });
+        }
+        
+        // 如果还是找不到，尝试通过bookId匹配
+        if (!book) {
+            book = books.find((b) => b.bookId === String(libraryId) || b.bookId === libraryId);
+        }
 
         if (!book) {
-            return res.status(404).json({ error: "书籍不存在" });
+            console.error("找不到书籍，libraryId:", libraryId, "可用书籍ID:", books.map(b => b.id).slice(0, 5));
+            return res.status(404).json({ 
+                error: "书籍不存在", 
+                libraryId: libraryId,
+                availableCount: books.length
+            });
         }
 
         // 从元信息获取详细信息
         const meta = BookMetadataDB.get(book.bookId);
-        const title = meta?.title || book.title;
+        const title = meta?.title || book.title || "未知书籍";
         const author = meta?.author || book.author || "未知";
-        const cover = meta?.cover || book.cover;
-        const tags = meta?.tags || book.tags;
+        const cover = meta?.cover || book.cover || "";
+        const tags = meta?.tags || book.tags || "";
         const chapterCount = meta?.subscribed_chapters || book.chapterCount || 0;
 
         // 下载文件到临时目录
@@ -1944,9 +1980,21 @@ router.post("/share/upload", requireLogin, async (req, res) => {
             fs.mkdirSync(tempDir, { recursive: true });
         }
 
-        const tempFilePath = path.join(tempDir, book.filename);
-        const fileBuffer = await client.downloadFile(book.path);
-        fs.writeFileSync(tempFilePath, fileBuffer);
+        const tempFilePath = path.join(tempDir, book.filename || `${book.bookId}.${book.format}`);
+        let fileBuffer;
+        try {
+            fileBuffer = await client.downloadFile(book.path);
+        } catch (downloadError) {
+            console.error("下载文件失败:", downloadError);
+            return res.status(500).json({ error: "下载文件失败: " + downloadError.message });
+        }
+        
+        try {
+            fs.writeFileSync(tempFilePath, fileBuffer);
+        } catch (writeError) {
+            console.error("写入临时文件失败:", writeError);
+            return res.status(500).json({ error: "写入临时文件失败: " + writeError.message });
+        }
 
         // 生成共享文件路径（包含书名和章节数以区分版本）
         // 格式: {bookId}_{title}_{chapterCount}ch.{format}
@@ -1978,17 +2026,30 @@ router.post("/share/upload", requireLogin, async (req, res) => {
         }
 
         // 添加到共享书库数据库
-        SharedDB.add(req.session.userId, {
-            bookId: book.bookId,
-            title: title,
-            author: author,
-            cover: cover,
-            tags: tags,
-            format: book.format,
-            filePath: sharedFilePath,
-            fileSize: book.size,
-            chapterCount: chapterCount
-        });
+        try {
+            SharedDB.add(req.session.userId, {
+                bookId: book.bookId,
+                title: title,
+                author: author,
+                cover: cover || "",
+                tags: tags || "",
+                format: book.format || "epub",
+                filePath: sharedFilePath,
+                fileSize: book.size || 0,
+                chapterCount: chapterCount
+            });
+        } catch (dbError) {
+            console.error("保存到数据库失败:", dbError);
+            // 如果数据库保存失败，删除已复制的文件
+            if (fs.existsSync(sharedFilePath)) {
+                try {
+                    fs.unlinkSync(sharedFilePath);
+                } catch (unlinkError) {
+                    console.error("删除共享文件失败:", unlinkError);
+                }
+            }
+            throw dbError;
+        }
 
         // 同时添加到书籍元信息（如果不存在）
         try {
@@ -2020,7 +2081,11 @@ router.post("/share/upload", requireLogin, async (req, res) => {
         res.json({ success: true, message: "上传成功" });
     } catch (error) {
         console.error("上传失败:", error);
-        res.status(500).json({ error: "上传失败" });
+        console.error("错误堆栈:", error.stack);
+        res.status(500).json({ 
+            error: "上传失败: " + (error.message || String(error)),
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 });
 

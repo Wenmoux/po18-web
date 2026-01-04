@@ -145,6 +145,9 @@
                                     id="unified-input"
                                     class="search-input"
                                     placeholder="输入书籍 ID、链接或书名搜索..."
+                                    autocomplete="off"
+                                    data-lpignore="true"
+                                    data-form-type="other"
                                 />
                             </div>
                             <div class="search-actions">
@@ -320,7 +323,7 @@
                             </div>
                         </div>
                         <div class="share-search" id="share-search" style="display: none">
-                            <input type="text" id="share-search-input" class="md-input" placeholder="搜索共享书库..." />
+                            <input type="text" id="share-search-input" class="md-input" placeholder="搜索共享书库..." autocomplete="off" data-lpignore="true" data-form-type="other" />
                             <button class="btn btn-primary" id="share-search-btn">搜索</button>
                         </div>
                         <!-- 共享书库筛选器 -->
@@ -1114,7 +1117,7 @@
                     <div class="list-tab-content" id="tab-square">
                         <div class="square-header" style="margin-bottom: 16px">
                             <div class="search-box" style="margin-bottom: 12px">
-                                <input type="text" id="list-search-input" class="search-input" placeholder="觅花笺..." />
+                                <input type="text" id="list-search-input" class="search-input" placeholder="觅花笺..." autocomplete="off" data-lpignore="true" data-form-type="other" />
                                 <button class="btn btn-primary btn-sm" id="btn-search-lists">🔍 搜索</button>
                             </div>
                             <div class="sort-tabs">

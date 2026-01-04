@@ -1638,6 +1638,62 @@ class SharedDB {
         }
     }
     
+    static add(userId, bookData) {
+        try {
+            // 检查是否已存在相同的书籍（根据book_id和format）
+            const existing = db.prepare(`
+                SELECT id FROM shared_library 
+                WHERE book_id = ? AND format = ?
+            `).get(bookData.bookId, bookData.format);
+            
+            if (existing) {
+                // 如果已存在，更新现有记录
+                const stmt = db.prepare(`
+                    UPDATE shared_library 
+                    SET title = ?, author = ?, cover = ?, tags = ?, 
+                        file_path = ?, file_size = ?, chapter_count = ?,
+                        shared_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                `);
+                stmt.run(
+                    bookData.title,
+                    bookData.author,
+                    bookData.cover,
+                    bookData.tags,
+                    bookData.filePath,
+                    bookData.fileSize,
+                    bookData.chapterCount,
+                    existing.id
+                );
+                return existing.id;
+            } else {
+                // 插入新记录
+                const stmt = db.prepare(`
+                    INSERT INTO shared_library (
+                        user_id, book_id, title, author, cover, tags, format, 
+                        file_path, file_size, chapter_count
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `);
+                const result = stmt.run(
+                    userId,
+                    bookData.bookId,
+                    bookData.title,
+                    bookData.author,
+                    bookData.cover,
+                    bookData.tags,
+                    bookData.format,
+                    bookData.filePath,
+                    bookData.fileSize,
+                    bookData.chapterCount
+                );
+                return result.lastInsertRowid;
+            }
+        } catch (error) {
+            console.error("添加共享书籍失败:", error);
+            throw error;
+        }
+    }
+
     static getAll() {
         const stmt = db.prepare(`
             SELECT sl.*, u.username as uploader_name 
