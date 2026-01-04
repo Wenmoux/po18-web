@@ -1520,10 +1520,15 @@ textarea {
     }
 
     .book-list,
-    .queue-list,
-    .search-results {
+    .queue-list {
         grid-template-columns: repeat(2, 1fr);
         gap: 10px;
+    }
+    
+    /* 搜索结果在移动端使用单列布局，提供更好的阅读体验 */
+    .search-results {
+        grid-template-columns: 1fr;
+        gap: 12px;
     }
 
     /* 书架在移动端：旧版单列，智能书架由bookshelf.css控制 */
@@ -1705,10 +1710,15 @@ textarea {
     }
 
     .book-list,
-    .queue-list,
-    .search-results {
+    .queue-list {
         grid-template-columns: repeat(2, 1fr);
         gap: 8px;
+    }
+    
+    /* 搜索结果在移动端使用单列布局 */
+    .search-results {
+        grid-template-columns: 1fr;
+        gap: 10px;
     }
 
     /* 书架始终单列，书库和共享书库两列 */
@@ -1847,10 +1857,15 @@ textarea {
     }
 
     .book-list,
-    .queue-list,
-    .search-results {
+    .queue-list {
         grid-template-columns: repeat(2, 1fr);
         gap: 6px;
+    }
+    
+    /* 搜索结果在移动端使用单列布局 */
+    .search-results {
+        grid-template-columns: 1fr;
+        gap: 8px;
     }
 
     /* 书架始终单列，书库和共享书库两列 */
@@ -1886,6 +1901,36 @@ textarea {
 
     .book-author {
         font-size: 10px;
+    }
+    
+    /* 小屏手机搜索结果进一步优化 */
+    .search-results .book-card-body {
+        padding: 12px !important;
+        gap: 12px !important;
+    }
+    
+    .search-results .book-cover {
+        width: 70px !important;
+        height: 98px !important;
+    }
+    
+    .search-results .book-title {
+        font-size: 14px !important;
+    }
+    
+    .search-results .book-author {
+        font-size: 12px !important;
+    }
+    
+    .search-results .book-card-footer {
+        padding: 10px 12px !important;
+    }
+    
+    .search-results .book-card-footer .btn {
+        min-width: calc(50% - 3px);
+        padding: 9px 10px;
+        font-size: 12px;
+        min-height: 38px;
     }
 
     .book-tag {
@@ -3396,23 +3441,209 @@ textarea {
         gap: 10px;
     }
     
-    /* 搜索结果移动端适配 */
-    .search-results .book-item {
-        padding: 10px !important;
+    /* 搜索结果移动端优化 */
+    .search-results {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+        padding: 0 4px;
+    }
+    
+    .search-results .search-result-card {
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        background: var(--md-surface-container-lowest);
+        border: 1px solid rgba(var(--md-outline-variant-rgb, 131, 115, 119), 0.12);
+    }
+    
+    .search-results .search-result-card:active {
+        transform: scale(0.98);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    }
+    
+    .search-results .book-card-body {
+        padding: 14px !important;
+        gap: 14px !important;
+        flex-direction: row;
     }
     
     .search-results .book-cover {
-        width: 50px !important;
-        height: 65px !important;
+        width: 80px !important;
+        height: 112px !important;
+        border-radius: 12px;
+        flex-shrink: 0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .search-results .book-info {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
     }
     
     .search-results .book-title {
-        font-size: 13px !important;
+        font-size: 15px !important;
+        font-weight: 600;
+        line-height: 1.4;
+        color: var(--md-on-surface);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-bottom: 2px;
     }
     
-    .search-results .book-author,
+    .search-results .book-author {
+        font-size: 13px !important;
+        color: var(--md-on-surface-variant);
+        line-height: 1.3;
+    }
+    
     .search-results .book-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 4px;
+    }
+    
+    .search-results .book-tag {
         font-size: 11px !important;
+        padding: 4px 10px;
+        border-radius: 12px;
+        background: var(--md-surface-container-high);
+        color: var(--md-on-surface-variant);
+        font-weight: 500;
+    }
+    
+    /* 版本信息移动端优化 */
+    .search-results .book-versions {
+        margin-top: 10px;
+        padding: 12px;
+        background: var(--md-surface-container);
+        border-radius: 12px;
+        border: 1px solid rgba(var(--md-outline-variant-rgb, 131, 115, 119), 0.1);
+    }
+    
+    .search-results .versions-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--md-on-surface-variant);
+        margin-bottom: 10px;
+    }
+    
+    .search-results .version-item {
+        padding: 10px 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(var(--md-outline-variant-rgb, 131, 115, 119), 0.1);
+    }
+    
+    .search-results .version-item:last-child {
+        border-bottom: none;
+    }
+    
+    .search-results .version-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .search-results .chapter-count {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--md-primary);
+    }
+    
+    .search-results .total-chapters {
+        font-size: 11px;
+        color: var(--md-on-surface-variant);
+    }
+    
+    .search-results .version-actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+    
+    .search-results .download-shared-btn {
+        padding: 6px 12px;
+        font-size: 11px;
+        border-radius: 8px;
+        min-height: 32px;
+        white-space: nowrap;
+    }
+    
+    .search-results .no-shared {
+        font-size: 11px;
+        padding: 6px 10px;
+        border-radius: 8px;
+    }
+    
+    /* 卡片底部按钮区域优化 */
+    .search-results .book-card-footer {
+        padding: 12px 14px !important;
+        gap: 8px !important;
+        flex-wrap: wrap;
+        background: var(--md-surface-container-low);
+        border-top: 1px solid rgba(var(--md-outline-variant-rgb, 131, 115, 119), 0.1);
+    }
+    
+    .search-results .book-card-footer .btn {
+        flex: 1;
+        min-width: calc(50% - 4px);
+        padding: 10px 12px;
+        font-size: 13px;
+        border-radius: 10px;
+        min-height: 40px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+    
+    .search-results .book-card-footer .btn:active {
+        transform: scale(0.96);
+    }
+    
+    .search-results .book-card-footer .btn-sm {
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+    
+    /* 按钮图标和文字 */
+    .search-results .book-card-footer .btn-icon-mobile {
+        font-size: 16px;
+        line-height: 1;
+    }
+    
+    .search-results .book-card-footer .btn-text-mobile {
+        font-size: 13px;
+        line-height: 1;
+    }
+    
+    /* 小屏时只显示图标 */
+    @media (max-width: 480px) {
+        .search-results .book-card-footer .btn-text-mobile {
+            display: none;
+        }
+        
+        .search-results .book-card-footer .btn-icon-mobile {
+            font-size: 18px;
+        }
+        
+        .search-results .book-card-footer .btn {
+            min-width: calc(33.333% - 4px);
+            padding: 10px 8px;
+        }
     }
     
     /* 全站书库移动端适配 */

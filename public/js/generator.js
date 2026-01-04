@@ -117,7 +117,7 @@ const FileGenerator = {
     <dc:title>${this.escapeXml(detail.title)}</dc:title>
     <dc:creator>${this.escapeXml(detail.author || "未知")}</dc:creator>
     <dc:language>zh-TW</dc:language>
-    <dc:publisher>PO18书库</dc:publisher>
+    <dc:publisher>PO18</dc:publisher>
     <meta property="dcterms:modified">${new Date().toISOString().replace(/\.\d+Z$/, "Z")}</meta>
   </metadata>
   <manifest>
@@ -164,7 +164,7 @@ ${spine}  </spine>
   <p class="kt">作者：${this.escapeXml(detail.author || "未知")}</p>
 ${descParagraphs}
   <div class="design-box">
-    <p class="design-content">本书采用PO18书库生成，仅供个人学习之用。</p>
+    <p class="design-content">本书采用网络文本生成，仅供个人学习之用。</p>
     <hr class="design-line"/>
   </div>
 </body>

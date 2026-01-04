@@ -687,3 +687,150 @@ body[data-theme="dark"] .nav-menu-item {
     overflow-y: auto;
     position: relative;
 }
+
+/* ==================== 移动端搜索结果优化 ==================== */
+@media (max-width: 768px) {
+    /* 搜索结果卡片触摸优化 */
+    .search-result-card {
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    
+    /* 搜索结果卡片加载动画 */
+    .search-result-card {
+        animation: searchCardFadeIn 0.3s ease-out;
+    }
+    
+    @keyframes searchCardFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* 搜索结果卡片悬停效果（移动端禁用，使用active） */
+    .search-result-card:active {
+        background: var(--md-surface-container);
+        transform: scale(0.98);
+    }
+    
+    /* 搜索结果空状态优化 */
+    .search-results .empty-message {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--md-on-surface-variant);
+        font-size: 15px;
+        line-height: 1.6;
+    }
+    
+    .search-results .empty-message::before {
+        content: "🔍";
+        display: block;
+        font-size: 48px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+    
+    /* 搜索结果加载状态 */
+    .search-results .loading-message {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--md-on-surface-variant);
+        font-size: 14px;
+    }
+    
+    /* 版本信息区域触摸优化 */
+    .search-results .book-versions {
+        touch-action: manipulation;
+    }
+    
+    .search-results .version-item {
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    /* 按钮区域触摸优化 */
+    .search-results .book-card-footer {
+        touch-action: manipulation;
+    }
+    
+    .search-results .book-card-footer .btn {
+        -webkit-tap-highlight-color: rgba(var(--md-primary-rgb, 216, 27, 96), 0.1);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    /* 防止按钮区域误触 */
+    .search-results .book-card-footer {
+        -webkit-user-select: none;
+        user-select: none;
+    }
+    
+    /* 搜索结果列表容器优化 */
+    .search-results {
+        padding-bottom: 20px;
+        /* iOS滚动优化 */
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* 搜索结果卡片阴影优化（移动端更柔和） */
+    .search-results .search-result-card {
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+    }
+    
+    .search-results .search-result-card:active {
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+}
+
+/* 小屏手机额外优化 */
+@media (max-width: 480px) {
+    .search-results {
+        gap: 10px;
+        padding: 0 2px;
+    }
+    
+    .search-results .search-result-card {
+        border-radius: 14px;
+    }
+    
+    .search-results .book-card-body {
+        padding: 12px !important;
+    }
+    
+    .search-results .book-card-footer {
+        padding: 10px 12px !important;
+        gap: 6px !important;
+    }
+    
+    .search-results .book-card-footer .btn {
+        font-size: 12px;
+        padding: 9px 10px;
+        min-height: 36px;
+    }
+    
+    /* 版本信息在小屏上更紧凑 */
+    .search-results .book-versions {
+        padding: 10px;
+        margin-top: 8px;
+    }
+    
+    .search-results .version-item {
+        padding: 8px 0;
+    }
+    
+    .search-results .version-actions {
+        gap: 4px;
+    }
+    
+    .search-results .download-shared-btn {
+        padding: 5px 10px;
+        font-size: 10px;
+        min-height: 30px;
+    }
+}

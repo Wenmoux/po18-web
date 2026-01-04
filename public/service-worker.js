@@ -1,5 +1,5 @@
 /**
- * PO18书库 - Service Worker
+ * 荼蘼辞 - Service Worker
  * 提供离线缓存和PWA支持
  */
 
@@ -363,7 +363,7 @@ self.addEventListener("push", (event) => {
         ]
     };
 
-    event.waitUntil(self.registration.showNotification(data.title || "PO18书库", options));
+    event.waitUntil(self.registration.showNotification(data.title || "荼蘼辞", options));
 });
 
 // 通知点击事件

@@ -222,6 +222,9 @@ class GameSystem {
                     <button class="game-sub-tab" data-subtab="techniques" style="padding: 10px 20px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 13px; color: var(--md-on-surface-variant); transition: all 0.3s; margin-bottom: -2px;">
                         功法列表
                     </button>
+                    <button class="game-sub-tab" data-subtab="beasts" style="padding: 10px 20px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 13px; color: var(--md-on-surface-variant); transition: all 0.3s; margin-bottom: -2px;">
+                        灵兽列表
+                    </button>
                     <button class="game-sub-tab" data-subtab="achievements" style="padding: 10px 20px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-size: 13px; color: var(--md-on-surface-variant); transition: all 0.3s; margin-bottom: -2px;">
                         成就系统
                     </button>
@@ -259,6 +262,16 @@ class GameSystem {
                         <div class="game-section-title">功法列表</div>
                         <div class="game-techniques-list">
                             ${this.renderTechniques()}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 灵兽列表子标签页 -->
+                <div class="game-sub-tab-content" id="game-subtab-beasts" style="display: none;">
+                    <div class="game-section">
+                        <div class="game-section-title">灵兽列表</div>
+                        <div class="game-techniques-list">
+                            ${this.renderBeasts()}
                         </div>
                     </div>
                 </div>
@@ -800,10 +813,23 @@ class GameSystem {
         const itemIcons = {
             pill: "💊",
             artifact: "🗡️",
-            talisman: "📿"
+            talisman: "📿",
+            beast: "🐉"
         };
 
-        return this.gameData.items.map(item => {
+        // 过滤掉灵兽类型道具（灵兽应该在灵兽列表中显示）
+        const filteredItems = this.gameData.items.filter(item => item.item_type !== "beast");
+
+        if (filteredItems.length === 0) {
+            return `
+                <div class="game-empty-state">
+                    <div class="game-empty-icon">📦</div>
+                    <div class="game-empty-text">暂无道具<br>继续阅读获得道具</div>
+                </div>
+            `;
+        }
+
+        return filteredItems.map(item => {
             const icon = itemIcons[item.item_type] || "📦";
             const effect = this.getItemEffect(item.item_id);
             return `
@@ -872,7 +898,11 @@ class GameSystem {
             "书签法宝": "效果: 快速定位阅读位置",
             "护眼法宝": "效果: 保护眼睛，减少疲劳",
             "记忆法宝": "效果: 增强记忆，提升理解",
-            "专注法宝": "效果: 提升阅读专注度"
+            "专注法宝": "效果: 提升阅读专注度",
+            "灵狐": "效果: 灵兽伙伴，提升阅读速度+10%",
+            "仙鹤": "效果: 灵兽伙伴，提升修为获得+15%",
+            "神龙": "效果: 灵兽伙伴，提升碎片掉落率+20%",
+            "凤凰": "效果: 灵兽伙伴，全面提升阅读收益+25%"
         };
         return effects[itemId] || "效果: 使用后生效";
     }
@@ -888,6 +918,55 @@ class GameSystem {
             "静心诀": "效果: 阅读时修为+12%"
         };
         return effects[techniqueId] || "效果: 提升阅读收益";
+    }
+
+    /**
+     * 渲染灵兽
+     */
+    renderBeasts() {
+        if (!this.gameData.beasts || this.gameData.beasts.length === 0) {
+            return `
+                <div class="game-empty-state">
+                    <div class="game-empty-icon">🐉</div>
+                    <div class="game-empty-text">暂无灵兽<br>收集灵兽碎片解锁</div>
+                </div>
+            `;
+        }
+
+        return this.gameData.beasts.map(beast => {
+            const effectText = this.getBeastEffect(beast.beast_id);
+            return `
+                <div class="game-technique-card ${beast.is_equipped ? "equipped" : ""}">
+                    <div class="game-technique-header">
+                        <div class="game-technique-info">
+                            <div class="game-technique-icon">🐉</div>
+                            <div class="game-technique-details">
+                                <div class="game-technique-name">${beast.beast_id}</div>
+                                <div class="game-technique-level">Lv.${beast.level}</div>
+                            </div>
+                        </div>
+                        <button class="game-technique-action ${beast.is_equipped ? "equipped" : ""}" 
+                                data-beast-id="${beast.beast_id}">
+                            ${beast.is_equipped ? "已装备" : "装备"}
+                        </button>
+                    </div>
+                    <div class="game-technique-effect">${effectText}</div>
+                </div>
+            `;
+        }).join("");
+    }
+
+    /**
+     * 获取灵兽效果描述
+     */
+    getBeastEffect(beastId) {
+        const effects = {
+            "灵狐": "效果: 灵兽伙伴，提升阅读速度+10%",
+            "仙鹤": "效果: 灵兽伙伴，提升修为获得+15%",
+            "神龙": "效果: 灵兽伙伴，提升碎片掉落率+20%",
+            "凤凰": "效果: 灵兽伙伴，全面提升阅读收益+25%"
+        };
+        return effects[beastId] || "效果: 未知";
     }
 
     /**
@@ -925,7 +1004,12 @@ class GameSystem {
         this.pageContainer.querySelectorAll(".game-technique-action").forEach(btn => {
             btn.addEventListener("click", async (e) => {
                 const techniqueId = e.target.dataset.techniqueId;
-                await this.toggleTechnique(techniqueId);
+                const beastId = e.target.dataset.beastId;
+                if (techniqueId) {
+                    await this.toggleTechnique(techniqueId);
+                } else if (beastId) {
+                    await this.toggleBeast(beastId);
+                }
             });
         });
         
@@ -1628,7 +1712,15 @@ class GameSystem {
                 if (window.App && window.App.showToast) {
                     window.App.showToast(result.data.message, "success");
                 }
-                this.loadGameData();
+                // 重新加载游戏数据
+                await this.loadGameData();
+                
+                // 如果合成的是灵兽，切换到灵兽列表标签页
+                if (result.data.type === "beast") {
+                    setTimeout(() => {
+                        this.switchSubTab("beasts");
+                    }, 100);
+                }
             } else {
                 if (window.App && window.App.showToast) {
                     window.App.showToast(result.error || "合成失败", "error");
@@ -1666,6 +1758,36 @@ class GameSystem {
             }
         } catch (error) {
             console.error("切换功法失败:", error);
+            if (window.App && window.App.showToast) {
+                window.App.showToast("操作失败", "error");
+            }
+        }
+    }
+
+    /**
+     * 切换灵兽装备状态
+     */
+    async toggleBeast(beastId) {
+        try {
+            const response = await fetch("/api/game/beasts/toggle", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ beastId })
+            });
+            const result = await response.json();
+            if (result.success) {
+                if (window.App && window.App.showToast) {
+                    window.App.showToast(result.isEquipped ? "装备成功" : "卸下成功", "success");
+                }
+                this.loadGameData();
+            } else {
+                if (window.App && window.App.showToast) {
+                    window.App.showToast(result.error || "操作失败", "error");
+                }
+            }
+        } catch (error) {
+            console.error("切换灵兽失败:", error);
             if (window.App && window.App.showToast) {
                 window.App.showToast("操作失败", "error");
             }

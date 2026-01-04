@@ -127,18 +127,36 @@ const API = {
                     }
                     throw new Error("您的账号已在其他设备登录，当前会话已失效");
                 }
-                throw new Error(errorData.error || `请求失败 (${response.status})`);
+                // 提供更友好的错误消息
+                const errorMessage = errorData.error || errorData.message || `请求失败 (${response.status})`;
+                const error = new Error(errorMessage);
+                error.status = response.status;
+                error.code = errorData.code;
+                throw error;
             }
 
             // 响应成功，读取数据
             const data = await response.json();
             return data;
         } catch (error) {
+            // 如果是AbortError（超时），优先处理
             if (error.name === "AbortError") {
                 throw new Error("请求超时，请稍后重试");
             }
+            
+            // 网络错误处理（原生fetch错误）
+            if (!error.message || error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                throw new Error("网络连接失败，请检查网络设置");
+            }
+            
+            // 如果已经有错误消息（来自服务器或我们之前设置的），直接抛出
+            if (error.message) {
+                throw error;
+            }
+            
+            // 未知错误，记录并转换
             console.error("API请求错误:", error);
-            throw error;
+            throw new Error("请求失败，请稍后重试");
         }
     },
 

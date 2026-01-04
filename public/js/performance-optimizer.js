@@ -18,16 +18,39 @@
 
     // 过滤浏览器扩展相关的错误
     const originalError = console.error;
+    const originalWarn = console.warn;
+    
     console.error = function(...args) {
         const message = args.join(' ');
         // 忽略浏览器扩展相关的错误，但保留其他错误
         if (message.includes('chrome-extension://') || 
-            message.includes('NotReadableError') ||
-            message.includes('web_accessible_resources')) {
+            message.includes('web_accessible_resources') ||
+            message.includes('background.bundle') ||
+            message.includes('moz-extension://') ||
+            message.includes('safari-extension://')) {
             return;
         }
+        
+        // IndexedDB的NotReadableError已经在offline-reader.js中处理，这里只记录警告
+        if (message.includes('NotReadableError') || message.includes('Data lost due to missing file')) {
+            console.warn('[IndexedDB] 数据库错误已处理，详情:', ...args);
+            return;
+        }
+        
         // 保留业务错误
         originalError.apply(console, args);
+    };
+    
+    // 同样过滤警告中的扩展相关错误
+    console.warn = function(...args) {
+        const message = args.join(' ');
+        if (message.includes('chrome-extension://') || 
+            message.includes('moz-extension://') ||
+            message.includes('safari-extension://') ||
+            message.includes('background.bundle')) {
+            return;
+        }
+        originalWarn.apply(console, args);
     };
 
     // ==================== 1. 预加载关键资源 ====================

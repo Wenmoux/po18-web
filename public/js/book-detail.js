@@ -353,7 +353,7 @@ const BookDetail = {
         }
 
         // 更新页面标题
-        document.title = `${this.bookData.title} - PO18书库`;
+        document.title = `${this.bookData.title} - 荼蘼辞`;
 
         // 检查书架状态
         this.checkBookshelfStatus();

@@ -675,6 +675,21 @@ function initDatabase() {
         )
     `);
 
+    // 用户灵兽表
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS user_beasts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            beast_id TEXT NOT NULL,
+            level INTEGER DEFAULT 1,
+            exp INTEGER DEFAULT 0,
+            is_equipped INTEGER DEFAULT 0,
+            unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            UNIQUE(user_id, beast_id)
+        )
+    `);
+
     // 阅读记录表（用于计算奖励）
     db.exec(`
         CREATE TABLE IF NOT EXISTS reading_sessions (
@@ -840,6 +855,7 @@ function initDatabase() {
         CREATE INDEX IF NOT EXISTS idx_fragments_user ON user_fragments(user_id);
         CREATE INDEX IF NOT EXISTS idx_items_user ON user_items(user_id);
         CREATE INDEX IF NOT EXISTS idx_techniques_user ON user_techniques(user_id);
+        CREATE INDEX IF NOT EXISTS idx_beasts_user ON user_beasts(user_id);
         CREATE INDEX IF NOT EXISTS idx_reading_sessions_user ON reading_sessions(user_id);
         CREATE INDEX IF NOT EXISTS idx_reading_sessions_time ON reading_sessions(session_start);
         CREATE INDEX IF NOT EXISTS idx_signin_user_date ON user_daily_signin(user_id, signin_date);
@@ -874,6 +890,30 @@ function initDatabase() {
     });
 
     console.log("数据库初始化完成");
+
+    // 确保 user_beasts 表存在（如果初始化时没有创建）
+    try {
+        const beastsTableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='user_beasts'").get();
+        if (!beastsTableCheck) {
+            db.exec(`
+                CREATE TABLE IF NOT EXISTS user_beasts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    beast_id TEXT NOT NULL,
+                    level INTEGER DEFAULT 1,
+                    exp INTEGER DEFAULT 0,
+                    is_equipped INTEGER DEFAULT 0,
+                    unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(id),
+                    UNIQUE(user_id, beast_id)
+                )
+            `);
+            db.exec(`CREATE INDEX IF NOT EXISTS idx_beasts_user ON user_beasts(user_id)`);
+            console.log("数据库迁移: 创建 user_beasts 表");
+        }
+    } catch (beastTableErr) {
+        console.error("创建 user_beasts 表失败:", beastTableErr.message);
+    }
 
     // 数据库迁移 - 添加缺少的列
     try {
@@ -1082,6 +1122,30 @@ function initDatabase() {
             console.log("迁移: 添加 shared_library.file_path 列");
         }
     } catch (migrateErr) {
+        // 检查 user_beasts 表是否存在，如果不存在则创建
+        try {
+            const beastsTableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='user_beasts'").get();
+            if (!beastsTableCheck) {
+                db.exec(`
+                    CREATE TABLE IF NOT EXISTS user_beasts (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        beast_id TEXT NOT NULL,
+                        level INTEGER DEFAULT 1,
+                        exp INTEGER DEFAULT 0,
+                        is_equipped INTEGER DEFAULT 0,
+                        unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users(id),
+                        UNIQUE(user_id, beast_id)
+                    )
+                `);
+                db.exec(`CREATE INDEX IF NOT EXISTS idx_beasts_user ON user_beasts(user_id)`);
+                console.log("迁移: 创建 user_beasts 表");
+            }
+        } catch (beastTableErr) {
+            console.error("创建 user_beasts 表失败:", beastTableErr.message);
+        }
+
         console.error("数据库迁移失败:", migrateErr.message);
     }
 }
@@ -3237,8 +3301,8 @@ const GameDB = {
             this.addItem(userId, "artifact", fragmentId, 1);
             return { success: true, type: "artifact", itemId: fragmentId, message: `成功合成法宝：${fragmentId}` };
         } else if (fragmentType === "beast") {
-            // 解锁灵兽（暂时作为道具）
-            this.addItem(userId, "beast", fragmentId, 1);
+            // 解锁灵兽
+            this.unlockBeast(userId, fragmentId);
             return { success: true, type: "beast", itemId: fragmentId, message: `成功解锁灵兽：${fragmentId}` };
         }
 
@@ -3306,6 +3370,92 @@ const GameDB = {
     // 获取用户所有功法
     getUserTechniques(userId) {
         return db.prepare("SELECT * FROM user_techniques WHERE user_id = ? ORDER BY is_equipped DESC, unlocked_at DESC").all(userId);
+    },
+
+    // ==================== 灵兽系统 ====================
+
+    // 解锁灵兽
+    unlockBeast(userId, beastId) {
+        try {
+            // 确保表存在
+            const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='user_beasts'").get();
+            if (!tableCheck) {
+                console.warn("user_beasts 表不存在，正在创建...");
+                db.exec(`
+                    CREATE TABLE IF NOT EXISTS user_beasts (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        beast_id TEXT NOT NULL,
+                        level INTEGER DEFAULT 1,
+                        exp INTEGER DEFAULT 0,
+                        is_equipped INTEGER DEFAULT 0,
+                        unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users(id),
+                        UNIQUE(user_id, beast_id)
+                    )
+                `);
+                db.exec(`CREATE INDEX IF NOT EXISTS idx_beasts_user ON user_beasts(user_id)`);
+            }
+
+            const existing = db.prepare("SELECT * FROM user_beasts WHERE user_id = ? AND beast_id = ?").get(userId, beastId);
+            if (!existing) {
+                const stmt = db.prepare("INSERT INTO user_beasts (user_id, beast_id, level, exp) VALUES (?, ?, 1, 0)");
+                const result = stmt.run(userId, beastId);
+                console.log(`解锁灵兽成功: userId=${userId}, beastId=${beastId}, lastInsertRowid=${result.lastInsertRowid}`);
+                return result;
+            }
+            console.log(`灵兽已存在: userId=${userId}, beastId=${beastId}`);
+            return null;
+        } catch (error) {
+            console.error("解锁灵兽失败:", error);
+            throw error;
+        }
+    },
+
+    // 装备/卸下灵兽（只能装备一个，装备新灵兽时自动卸下其他）
+    toggleBeastEquip(userId, beastId) {
+        const beast = db.prepare("SELECT * FROM user_beasts WHERE user_id = ? AND beast_id = ?").get(userId, beastId);
+        if (!beast) return false;
+        
+        const newEquip = beast.is_equipped ? 0 : 1;
+        
+        // 如果装备新灵兽，先卸下所有其他灵兽
+        if (newEquip === 1) {
+            db.prepare("UPDATE user_beasts SET is_equipped = 0 WHERE user_id = ?").run(userId);
+        }
+        
+        // 设置当前灵兽状态
+        db.prepare("UPDATE user_beasts SET is_equipped = ? WHERE user_id = ? AND beast_id = ?").run(newEquip, userId, beastId);
+        return newEquip === 1;
+    },
+
+    // 获取用户所有灵兽
+    getUserBeasts(userId) {
+        try {
+            // 确保表存在
+            const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='user_beasts'").get();
+            if (!tableCheck) {
+                console.warn("user_beasts 表不存在，正在创建...");
+                db.exec(`
+                    CREATE TABLE IF NOT EXISTS user_beasts (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        beast_id TEXT NOT NULL,
+                        level INTEGER DEFAULT 1,
+                        exp INTEGER DEFAULT 0,
+                        is_equipped INTEGER DEFAULT 0,
+                        unlocked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users(id),
+                        UNIQUE(user_id, beast_id)
+                    )
+                `);
+                db.exec(`CREATE INDEX IF NOT EXISTS idx_beasts_user ON user_beasts(user_id)`);
+            }
+            return db.prepare("SELECT * FROM user_beasts WHERE user_id = ? ORDER BY is_equipped DESC, unlocked_at DESC").all(userId);
+        } catch (error) {
+            console.error("获取灵兽数据失败:", error);
+            return [];
+        }
     },
 
     // 记录阅读会话
@@ -3814,26 +3964,34 @@ const GameDB = {
 
     // 更新游戏配置
     updateGameConfig(configKey, configValue, configDesc = null) {
+        // 确保 configValue 是字符串格式（数据库存储为 TEXT）
+        const valueStr = String(configValue);
+        
         const existing = db.prepare("SELECT * FROM game_config WHERE config_key = ?").get(configKey);
         if (existing) {
-            if (configDesc) {
+            if (configDesc !== null && configDesc !== undefined) {
+                // 如果提供了描述，更新值和描述
                 db.prepare(`
                     UPDATE game_config 
                     SET config_value = ?, config_desc = ?, updated_at = CURRENT_TIMESTAMP 
                     WHERE config_key = ?
-                `).run(configValue, configDesc, configKey);
+                `).run(valueStr, configDesc, configKey);
             } else {
+                // 只更新值，保留原有描述
                 db.prepare(`
                     UPDATE game_config 
                     SET config_value = ?, updated_at = CURRENT_TIMESTAMP 
                     WHERE config_key = ?
-                `).run(configValue, configKey);
+                `).run(valueStr, configKey);
             }
+            console.log(`更新游戏配置: ${configKey} = ${valueStr}`);
         } else {
+            // 如果配置不存在，创建新配置
             db.prepare(`
                 INSERT INTO game_config (config_key, config_value, config_desc) 
                 VALUES (?, ?, ?)
-            `).run(configKey, configValue, configDesc || "");
+            `).run(configKey, valueStr, configDesc || "");
+            console.log(`创建游戏配置: ${configKey} = ${valueStr}`);
         }
         return { success: true };
     },

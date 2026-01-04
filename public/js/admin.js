@@ -1799,14 +1799,21 @@ const Admin = {
     // 保存游戏配置
     async saveGameConfig() {
         try {
-            const configKey = document.getElementById('edit-config-key').value;
-            const configValue = document.getElementById('edit-config-value').value;
-            const configDesc = document.getElementById('edit-config-desc').value;
+            const configKey = document.getElementById('edit-config-key').value.trim();
+            const configValue = document.getElementById('edit-config-value').value.trim();
+            const configDesc = document.getElementById('edit-config-desc').value.trim();
+            
+            if (!configKey) {
+                this.showToast('配置键不能为空', 'error');
+                return;
+            }
             
             if (!configValue) {
                 this.showToast('配置值不能为空', 'error');
                 return;
             }
+            
+            console.log('保存游戏配置:', { configKey, configValue, configDesc });
             
             const response = await fetch('/api/admin/game/config', {
                 method: 'POST',
@@ -1821,12 +1828,20 @@ const Admin = {
                 })
             });
             
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
+            }
+            
             const result = await response.json();
             
             if (result.success) {
                 this.closeModal('game-config-edit-modal');
                 this.showToast('配置保存成功', 'success');
-                await this.loadGameConfigs();
+                // 延迟一下再刷新，确保数据库已更新
+                setTimeout(async () => {
+                    await this.loadGameConfigs();
+                }, 100);
             } else {
                 this.showToast('保存失败: ' + (result.error || '未知错误'), 'error');
             }

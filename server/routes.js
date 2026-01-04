@@ -4414,19 +4414,24 @@ router.get("/subscriptions", requireLogin, (req, res) => {
         // 为每个订阅添加当前章节数和更新章节数
         const { BookMetadataDB } = require('./database');
         const enrichedSubscriptions = subscriptions.map(sub => {
-            const bookMetaList = BookMetadataDB.getBookMetadata(sub.book_id);
-            const bookMeta = bookMetaList && bookMetaList.length > 0 ? bookMetaList[0] : null;
-            if (bookMeta) {
-                const currentChapterCount = bookMeta.total_chapters || bookMeta.subscribed_chapters || 0;
-                const lastChapterCount = sub.last_chapter_count || 0;
-                const newChapters = currentChapterCount > lastChapterCount 
-                    ? currentChapterCount - lastChapterCount 
-                    : 0;
-                return {
-                    ...sub,
-                    current_chapter_count: currentChapterCount,
-                    new_chapters: newChapters
-                };
+            try {
+                // BookMetadataDB.get() 返回单个对象，不是数组
+                const bookMeta = BookMetadataDB.get(sub.book_id);
+                if (bookMeta) {
+                    const currentChapterCount = bookMeta.total_chapters || bookMeta.subscribed_chapters || 0;
+                    const lastChapterCount = sub.last_chapter_count || 0;
+                    const newChapters = currentChapterCount > lastChapterCount 
+                        ? currentChapterCount - lastChapterCount 
+                        : 0;
+                    return {
+                        ...sub,
+                        current_chapter_count: currentChapterCount,
+                        new_chapters: newChapters
+                    };
+                }
+            } catch (metaError) {
+                // 如果获取元数据失败，记录错误但不影响其他订阅
+                console.warn(`获取书籍 ${sub.book_id} 元数据失败:`, metaError.message);
             }
             return {
                 ...sub,
@@ -4441,7 +4446,12 @@ router.get("/subscriptions", requireLogin, (req, res) => {
         });
     } catch (error) {
         console.error("获取订阅列表失败:", error);
-        res.status(500).json({ error: "获取订阅列表失败" });
+        console.error("错误堆栈:", error.stack);
+        res.status(500).json({ 
+            error: "获取订阅列表失败",
+            message: error.message || "未知错误",
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 });
 
@@ -6073,6 +6083,26 @@ router.get("/game/data", requireLogin, (req, res) => {
         const fragments = GameDB.getUserFragments(userId);
         const items = GameDB.getUserItems(userId);
         const techniques = GameDB.getUserTechniques(userId);
+        
+        // 自动迁移：将道具背包中的灵兽转换为灵兽系统中的记录
+        const beastItems = items.filter(item => item.item_type === "beast");
+        if (beastItems.length > 0) {
+            beastItems.forEach(item => {
+                // 解锁灵兽（如果还没有解锁）
+                GameDB.unlockBeast(userId, item.item_id);
+                // 删除道具背包中的灵兽
+                db.prepare("DELETE FROM user_items WHERE user_id = ? AND item_type = ? AND item_id = ?").run(userId, "beast", item.item_id);
+            });
+        }
+        
+        // 重新获取数据（迁移后）
+        const updatedItems = GameDB.getUserItems(userId);
+        const beasts = GameDB.getUserBeasts(userId);
+        
+        // 调试日志
+        if (beasts && beasts.length > 0) {
+            logger.info(`用户 ${userId} 的灵兽数据:`, beasts);
+        }
 
         // 境界名称映射
         const levelNames = [
@@ -6116,8 +6146,9 @@ router.get("/game/data", requireLogin, (req, res) => {
                 todayReadWords: todayWords,
                 todayReadTime: todayTime,
                 fragments,
-                items,
-                techniques
+                items: updatedItems,
+                techniques,
+                beasts
             }
         });
     } catch (error) {
@@ -6276,7 +6307,7 @@ router.post("/game/reading", requireLogin, async (req, res) => {
             // 获取书籍分类信息
             let bookCategories = [];
             if (bookId) {
-                const bookMeta = BookMetadataDB.getBookMetadata(bookId);
+                const bookMeta = BookMetadataDB.get(bookId);
                 if (bookMeta && bookMeta.tags) {
                     bookCategories = bookMeta.tags.split(/[·,，]/).map(t => t.trim()).filter(t => t);
                 }
@@ -6354,6 +6385,32 @@ router.post("/game/items/use", requireLogin, (req, res) => {
         const userId = req.session.userId;
         const { itemType, itemId, quantity = 1 } = req.body;
 
+        // 特殊处理：如果使用灵兽类型道具，解锁灵兽而不是删除道具
+        if (itemType === "beast") {
+            // 检查道具是否存在
+            const existing = db.prepare("SELECT * FROM user_items WHERE user_id = ? AND item_type = ? AND item_id = ?").get(userId, itemType, itemId);
+            if (!existing || existing.quantity < quantity) {
+                return res.status(400).json({ error: "道具不足" });
+            }
+
+            // 解锁灵兽
+            GameDB.unlockBeast(userId, itemId);
+
+            // 删除道具
+            if (existing.quantity === quantity) {
+                db.prepare("DELETE FROM user_items WHERE user_id = ? AND item_type = ? AND item_id = ?").run(userId, itemType, itemId);
+            } else {
+                db.prepare("UPDATE user_items SET quantity = quantity - ? WHERE user_id = ? AND item_type = ? AND item_id = ?").run(quantity, userId, itemType, itemId);
+            }
+
+            // 更新任务进度
+            GameDB.updateTaskProgress(userId, "cultivation", {
+                itemsUsed: 1
+            });
+
+            return res.json({ success: true, message: "解锁成功", effect: `成功解锁灵兽：${itemId}` });
+        }
+
         const success = GameDB.useItem(userId, itemType, itemId, quantity);
         if (!success) {
             return res.status(400).json({ error: "道具不足" });
@@ -6402,6 +6459,21 @@ router.post("/game/techniques/toggle", requireLogin, (req, res) => {
         res.json({ success: true, isEquipped });
     } catch (error) {
         logger.error("切换功法装备状态失败", { error: error.message });
+        res.status(500).json({ error: "操作失败" });
+    }
+});
+
+// 装备/卸下灵兽
+router.post("/game/beasts/toggle", requireLogin, (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const { beastId } = req.body;
+
+        const isEquipped = GameDB.toggleBeastEquip(userId, beastId);
+        
+        res.json({ success: true, isEquipped });
+    } catch (error) {
+        logger.error("切换灵兽装备状态失败", { error: error.message });
         res.status(500).json({ error: "操作失败" });
     }
 });
@@ -6720,14 +6792,22 @@ router.post("/admin/game/config", requireLogin, (req, res) => {
     try {
         // TODO: 添加管理员权限检查
         const { configKey, configValue, configDesc } = req.body;
-        if (!configKey || configValue === undefined) {
+        if (!configKey || configValue === undefined || configValue === null) {
             return res.status(400).json({ error: "参数不完整" });
         }
+        
+        logger.info(`更新游戏配置: ${configKey} = ${configValue}`, { configKey, configValue, configDesc });
+        
         const result = GameDB.updateGameConfig(configKey, configValue, configDesc);
+        
+        // 验证更新是否成功
+        const updated = GameDB.getGameConfig(configKey);
+        logger.info(`配置更新后验证: ${configKey} = ${updated}`);
+        
         res.json(result);
     } catch (error) {
-        logger.error("更新游戏配置失败", { error: error.message });
-        res.status(500).json({ error: "更新失败" });
+        logger.error("更新游戏配置失败", { error: error.message, stack: error.stack });
+        res.status(500).json({ error: "更新失败: " + error.message });
     }
 });
 

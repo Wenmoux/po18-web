@@ -1218,10 +1218,17 @@ const App = {
                     </div>
                 </div>
                 <div class="book-card-footer" onclick="event.stopPropagation();">
-                    <button class="btn btn-sm btn-outline view-detail-btn" data-book-id="${book.bookId}">详情</button>
-                    <button class="btn btn-sm btn-primary add-queue-btn" data-book-id="${book.bookId}" title="下载自己订阅的章节">下载订阅</button>
+                    <button class="btn btn-sm btn-outline view-detail-btn" data-book-id="${book.bookId}">
+                        <span class="btn-icon-mobile">📖</span>
+                        <span class="btn-text-mobile">详情</span>
+                    </button>
+                    <button class="btn btn-sm btn-primary add-queue-btn" data-book-id="${book.bookId}" title="下载自己订阅的章节">
+                        <span class="btn-icon-mobile">⬇️</span>
+                        <span class="btn-text-mobile">下载</span>
+                    </button>
                     <a href="${detailUrl}" target="_blank" class="btn btn-sm btn-outline" title="跳转到${book.platform === 'popo' ? 'POPO' : 'PO18'}原站">
-                        💋 脸红心跳
+                        <span class="btn-icon-mobile">💋</span>
+                        <span class="btn-text-mobile">原站</span>
                     </a>
                 </div>
             </div>
@@ -4062,7 +4069,7 @@ const App = {
     },
 
     // 加载订阅列表页面
-    async loadSubscriptions() {
+    async loadSubscriptions(retryCount = 0) {
         const listEl = document.getElementById("subscription-list");
         if (!listEl) return;
 
@@ -4075,13 +4082,25 @@ const App = {
         listEl.innerHTML = '<p class="empty-message">加载中...</p>';
 
         try {
+            console.log('[订阅] 开始加载订阅列表...');
             const data = await API.subscriptions.getList();
+            console.log('[订阅] API返回数据:', data);
+            
+            // 检查返回数据格式
+            if (!data) {
+                console.error('[订阅] 服务器返回数据为空');
+                throw new Error("服务器返回数据为空");
+            }
+            
             const subscriptions = data.subscriptions || [];
+            console.log(`[订阅] 获取到 ${subscriptions.length} 条订阅记录`);
             const updateCount = subscriptions.filter(s => s.hasUpdate).length;
 
             // 更新标签页计数
-            document.getElementById("sub-count-all").textContent = subscriptions.length;
-            document.getElementById("sub-count-updated").textContent = updateCount;
+            const countAllEl = document.getElementById("sub-count-all");
+            const countUpdatedEl = document.getElementById("sub-count-updated");
+            if (countAllEl) countAllEl.textContent = subscriptions.length;
+            if (countUpdatedEl) countUpdatedEl.textContent = updateCount;
 
             // 绑定标签页事件
             this.bindSubscriptionTabs(subscriptions);
@@ -4098,13 +4117,84 @@ const App = {
             // 渲染列表
             this.renderSubscriptionList(listEl, subscriptions, "all");
             
-            // 刷新提醒数量
-            await this.checkSubscriptionUpdates();
+            // 刷新提醒数量（不阻塞主流程）
+            this.checkSubscriptionUpdates().catch(err => {
+                console.warn('[订阅] 检查更新失败:', err);
+            });
         } catch (error) {
             console.error('[订阅] 加载失败:', error);
-            const listEl = document.getElementById("subscription-list");
+            console.error('[订阅] 错误详情:', {
+                message: error.message,
+                name: error.name,
+                status: error.status,
+                code: error.code
+            });
+            
+            // 服务器错误（5xx）不应该重试，直接显示错误
+            if (error.status >= 500) {
+                console.error('[订阅] 服务器错误，不进行重试');
+                if (listEl) {
+                    const errorMsg = error.message || '服务器错误，请稍后重试';
+                    listEl.innerHTML = `
+                        <div class="empty-message" style="text-align: center; padding: 20px;">
+                            <p style="margin-bottom: 12px; color: var(--md-error);">
+                                ⚠️ ${errorMsg}
+                            </p>
+                            <p style="font-size: 12px; color: var(--md-on-surface-variant); margin-bottom: 12px;">
+                                错误代码: ${error.status}${error.code ? ` (${error.code})` : ''}
+                            </p>
+                            <button class="btn btn-sm btn-primary" onclick="App.loadSubscriptions()" style="margin-top: 8px;">
+                                🔄 重试
+                            </button>
+                        </div>
+                    `;
+                }
+                return;
+            }
+            
+            // 如果是网络错误且未超过重试次数，自动重试
+            const isNetworkError = error.message && (
+                                   error.message.includes('网络') || 
+                                   error.message.includes('超时') || 
+                                   error.message.includes('连接失败') ||
+                                   error.name === 'TypeError'
+                               );
+            
+            if (isNetworkError && retryCount < 2) {
+                const remainingRetries = 2 - retryCount;
+                console.log(`[订阅] 网络错误，${remainingRetries}秒后重试 (剩余 ${remainingRetries} 次)...`);
+                if (listEl) {
+                    listEl.innerHTML = `<p class="empty-message">网络错误，${remainingRetries}秒后自动重试...</p>`;
+                }
+                setTimeout(() => {
+                    this.loadSubscriptions(retryCount + 1);
+                }, 2000);
+                return;
+            }
+            
+            // 显示友好的错误信息
             if (listEl) {
-                listEl.innerHTML = '<p class="empty-message">加载失败，请稍后重试</p>';
+                const errorMsg = error.message || '加载失败';
+                const isAuthError = error.message.includes('登录') || error.message.includes('401');
+                
+                if (isAuthError) {
+                    listEl.innerHTML = `
+                        <p class="empty-message" style="color: var(--md-error);">
+                            ⚠️ 登录已失效，请重新登录
+                        </p>
+                    `;
+                } else {
+                    listEl.innerHTML = `
+                        <div class="empty-message" style="text-align: center; padding: 20px;">
+                            <p style="margin-bottom: 12px; color: var(--md-on-surface-variant);">
+                                ❌ ${errorMsg}
+                            </p>
+                            <button class="btn btn-sm btn-primary" onclick="App.loadSubscriptions()" style="margin-top: 8px;">
+                                🔄 重试
+                            </button>
+                        </div>
+                    `;
+                }
             }
         }
     },

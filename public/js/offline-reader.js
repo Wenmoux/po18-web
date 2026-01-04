@@ -57,16 +57,24 @@
                 // 监听数据库错误
                 db.onerror = (event) => {
                     const error = event.target.error;
-                    console.error('[OfflineReader] IndexedDB错误:', error);
+                    // 使用warn而不是error，避免在控制台显示过多错误
+                    console.warn('[OfflineReader] IndexedDB错误:', error?.name || 'Unknown error');
                     
                     // 如果是 NotReadableError，尝试重建数据库
                     if (error && (error.name === 'NotReadableError' || error.name === 'InvalidStateError')) {
                         console.log('[OfflineReader] 检测到数据库运行时错误，尝试重建...');
-                        db.close();
-                        db = null;
-                        indexedDB.deleteDatabase(OFFLINE_DB_NAME).onsuccess = () => {
-                            console.log('[OfflineReader] 数据库已重建，请刷新页面');
-                        };
+                        try {
+                            db.close();
+                            db = null;
+                            indexedDB.deleteDatabase(OFFLINE_DB_NAME).onsuccess = () => {
+                                console.log('[OfflineReader] 数据库已重建，请刷新页面');
+                            };
+                            indexedDB.deleteDatabase(OFFLINE_DB_NAME).onerror = () => {
+                                console.warn('[OfflineReader] 删除数据库失败，可能需要手动清理');
+                            };
+                        } catch (e) {
+                            console.warn('[OfflineReader] 处理数据库错误时发生异常:', e);
+                        }
                     }
                 };
                 
