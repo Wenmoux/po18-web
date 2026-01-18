@@ -424,65 +424,59 @@ class GameSystem {
         const consecutiveDays = signinInfo.consecutiveDays || 0;
         const monthSignins = signinInfo.monthSignins || [];
 
-        // 生成本月日历
+        // 生成最近7天的签到记录
+        const recentDays = [];
         const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth();
-        const firstDay = new Date(year, month, 1);
-        const lastDay = new Date(year, month + 1, 0);
-        const daysInMonth = lastDay.getDate();
-        const startDay = firstDay.getDay();
-
-        let calendarHTML = `
-            <div class="game-signin-calendar">
-                <div class="game-signin-header">
-                    <div class="game-signin-consecutive">
-                        <span style="font-size: 24px; font-weight: 600; color: var(--game-primary);">
-                            ${consecutiveDays}
-                        </span>
-                        <span style="font-size: 12px; color: var(--game-text-secondary);">
-                            连续签到
-                        </span>
-                    </div>
-                    <button class="game-btn game-btn-primary" 
-                            ${isTodaySigned ? 'disabled' : ''} 
-                            id="signin-btn">
-                        ${isTodaySigned ? '✓ 已签到' : '签到'}
-                    </button>
-                </div>
-                <div class="game-signin-calendar-grid">
-        `;
-
-        // 星期标题
-        const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
-        weekDays.forEach(day => {
-            calendarHTML += `<div class="game-signin-weekday">${day}</div>`;
-        });
-
-        // 空白填充
-        for (let i = 0; i < startDay; i++) {
-            calendarHTML += `<div class="game-signin-day empty"></div>`;
-        }
-
-        // 日期
-        for (let day = 1; day <= daysInMonth; day++) {
-            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date(now);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
             const isSigned = monthSignins.includes(dateStr);
             const isToday = dateStr === today;
-            const isPast = dateStr < today;
+            const dayName = ['日', '一', '二', '三', '四', '五', '六'][date.getDay()];
+            const dayNum = date.getDate();
+            
+            recentDays.push({
+                dateStr,
+                dayName,
+                dayNum,
+                isSigned,
+                isToday
+            });
+        }
 
-            let className = 'game-signin-day';
-            if (isToday) className += ' today';
-            if (isSigned) className += ' signed';
-            if (isPast && !isSigned) className += ' missed';
+        let calendarHTML = `
+            <div class="game-signin-simple">
+                <div class="game-signin-header-simple">
+                    <div class="game-signin-stats">
+                        <div class="game-signin-stat-item">
+                            <div class="game-signin-stat-value">${consecutiveDays}</div>
+                            <div class="game-signin-stat-label">连续签到</div>
+                        </div>
+                    </div>
+                    <button class="game-signin-btn ${isTodaySigned ? 'signed' : ''}" 
+                            ${isTodaySigned ? 'disabled' : ''} 
+                            id="signin-btn">
+                        ${isTodaySigned ? '✓ 今日已签到' : '立即签到'}
+                    </button>
+                </div>
+                <div class="game-signin-days">
+        `;
+
+        // 显示最近7天
+        recentDays.forEach(day => {
+            let className = 'game-signin-day-item';
+            if (day.isToday) className += ' today';
+            if (day.isSigned) className += ' signed';
 
             calendarHTML += `
-                <div class="${className}" title="${dateStr}">
-                    <div class="game-signin-day-number">${day}</div>
-                    ${isSigned ? '<div class="game-signin-check">✓</div>' : ''}
+                <div class="${className}" title="${day.dateStr}">
+                    <div class="game-signin-day-name">${day.dayName}</div>
+                    <div class="game-signin-day-num">${day.dayNum}</div>
+                    ${day.isSigned ? '<div class="game-signin-day-check">✓</div>' : ''}
                 </div>
             `;
-        }
+        });
 
         calendarHTML += `
                 </div>

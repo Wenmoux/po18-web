@@ -686,89 +686,118 @@
 }
 
 /* ===== 签到系统 ===== */
-.game-signin-calendar {
-    border: 1px solid var(--game-border);
-    border-radius: var(--game-radius);
-    padding: var(--game-spacing);
+.game-signin-simple {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }
 
-.game-signin-header {
+.game-signin-header-simple {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--game-spacing);
-    padding-bottom: var(--game-spacing);
-    border-bottom: 1px solid var(--game-border);
+    padding: 16px;
+    background: var(--md-surface-container-low);
+    border-radius: 12px;
 }
 
-.game-signin-consecutive {
+.game-signin-stats {
+    display: flex;
+    gap: 24px;
+}
+
+.game-signin-stat-item {
     display: flex;
     flex-direction: column;
     gap: 4px;
 }
 
-.game-signin-calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 8px;
+.game-signin-stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--game-primary);
+    line-height: 1;
 }
 
-.game-signin-weekday {
-    text-align: center;
+.game-signin-stat-label {
     font-size: 12px;
     color: var(--game-text-secondary);
-    font-weight: 500;
-    padding: 4px;
 }
 
-.game-signin-day {
+.game-signin-btn {
+    padding: 10px 24px;
+    border: none;
+    border-radius: 8px;
+    background: var(--game-primary);
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.game-signin-btn:hover:not(:disabled) {
+    background: rgba(216, 27, 96, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(216, 27, 96, 0.3);
+}
+
+.game-signin-btn:disabled {
+    background: var(--game-success);
+    cursor: not-allowed;
+    opacity: 0.8;
+}
+
+.game-signin-days {
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+}
+
+.game-signin-day-item {
+    flex: 1;
     aspect-ratio: 1;
-    border: 1px solid var(--game-border);
-    border-radius: 4px;
+    border: 2px solid var(--game-border);
+    border-radius: 8px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     position: relative;
     transition: all 0.2s ease;
-    cursor: pointer;
+    background: var(--md-surface-container-low);
+    min-width: 0;
 }
 
-.game-signin-day:hover:not(.empty) {
-    border-color: var(--game-border-hover);
-    background: #fafafa;
-}
-
-.game-signin-day.empty {
-    border: none;
-    cursor: default;
-}
-
-.game-signin-day.today {
+.game-signin-day-item.today {
     border-color: var(--game-primary);
-    background: #fff5f8;
+    background: rgba(216, 27, 96, 0.1);
+    box-shadow: 0 0 0 2px rgba(216, 27, 96, 0.1);
 }
 
-.game-signin-day.signed {
-    background: #e8f5e9;
+.game-signin-day-item.signed {
+    background: rgba(76, 175, 80, 0.1);
     border-color: var(--game-success);
 }
 
-.game-signin-day.missed {
-    opacity: 0.4;
-}
-
-.game-signin-day-number {
-    font-size: 12px;
-    color: var(--game-text-primary);
+.game-signin-day-name {
+    font-size: 11px;
+    color: var(--game-text-secondary);
+    margin-bottom: 4px;
     font-weight: 500;
 }
 
-.game-signin-check {
+.game-signin-day-num {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--game-text-primary);
+}
+
+.game-signin-day-check {
     position: absolute;
-    top: 2px;
-    right: 2px;
-    font-size: 10px;
+    top: 4px;
+    right: 4px;
+    font-size: 12px;
     color: var(--game-success);
     font-weight: bold;
 }

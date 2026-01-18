@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI阅读分析报告 - PO18小说下载站</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <style>
+        .analysis-container {
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+
+        .analysis-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            box-shadow: var(--md-elevation-3);
+        }
+
+        .analysis-header h1 {
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .analysis-header p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .analysis-controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--md-surface-container);
+            padding: 8px 16px;
+            border-radius: 12px;
+        }
+
+        .control-group label {
+            font-size: 13px;
+            color: var(--md-on-surface-variant);
+            font-weight: 500;
+        }
+
+        .control-group select {
+            padding: 6px 12px;
+            border: 1px solid var(--md-outline-variant);
+            border-radius: 8px;
+            background: var(--md-surface);
+            color: var(--md-on-surface);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .control-group select:hover {
+            border-color: var(--md-primary);
+        }
+
+        .control-group select:focus {
+            outline: none;
+            border-color: var(--md-primary);
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+
+        .analyze-button {
+            padding: 10px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: var(--md-elevation-2);
+        }
+
+        .analyze-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: var(--md-elevation-3);
+        }
+
+        .analyze-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .loading-state {
+            text-align: center;
+            padding: 60px 20px;
+            background: var(--md-surface-container);
+            border-radius: 16px;
+            margin-bottom: 24px;
+        }
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--md-outline-variant);
+            border-top-color: var(--md-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: var(--md-on-surface-variant);
+            font-size: 14px;
+        }
+
+        .analysis-content {
+            background: var(--md-surface-container);
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: var(--md-elevation-2);
+            margin-bottom: 24px;
+        }
+
+        .analysis-markdown {
+            color: var(--md-on-surface);
+            line-height: 1.8;
+            font-size: 15px;
+        }
+
+        .analysis-markdown h1,
+        .analysis-markdown h2,
+        .analysis-markdown h3 {
+            color: var(--md-primary);
+            margin-top: 32px;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        .analysis-markdown h1 {
+            font-size: 24px;
+            border-bottom: 2px solid var(--md-primary-container);
+            padding-bottom: 8px;
+        }
+
+        .analysis-markdown h2 {
+            font-size: 20px;
+        }
+
+        .analysis-markdown h3 {
+            font-size: 18px;
+        }
+
+        .analysis-markdown p {
+            margin: 12px 0;
+        }
+
+        .analysis-markdown ul,
+        .analysis-markdown ol {
+            margin: 12px 0;
+            padding-left: 24px;
+        }
+
+        .analysis-markdown li {
+            margin: 8px 0;
+        }
+
+        .analysis-markdown strong {
+            color: var(--md-primary);
+            font-weight: 600;
+        }
+
+        .analysis-markdown code {
+            background: var(--md-surface-container-high);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .analysis-markdown blockquote {
+            border-left: 4px solid var(--md-primary);
+            padding-left: 16px;
+            margin: 16px 0;
+            color: var(--md-on-surface-variant);
+            font-style: italic;
+        }
+
+        .error-state {
+            background: var(--md-error-container);
+            color: var(--md-on-error-container);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .data-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .data-card {
+            background: var(--md-surface-container-high);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .data-card-value {
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--md-primary);
+            margin-bottom: 8px;
+        }
+
+        .data-card-label {
+            font-size: 13px;
+            color: var(--md-on-surface-variant);
+        }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: var(--md-surface-container);
+            color: var(--md-on-surface);
+            text-decoration: none;
+            border-radius: 12px;
+            font-size: 14px;
+            transition: all 0.2s;
+            margin-bottom: 20px;
+        }
+
+        .back-button:hover {
+            background: var(--md-surface-container-high);
+            transform: translateX(-4px);
+        }
+
+        @media (max-width: 768px) {
+            .analysis-container {
+                padding: 12px;
+            }
+
+            .analysis-header {
+                padding: 20px;
+            }
+
+            .analysis-header h1 {
+                font-size: 22px;
+            }
+
+            .analysis-content {
+                padding: 20px;
+            }
+
+            .analysis-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .control-group {
+                justify-content: space-between;
+            }
+
+            .data-summary {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="analysis-container">
+        <a href="/" class="back-button">← 返回首页</a>
+
+        <div class="analysis-header">
+            <h1>🤖 AI阅读分析报告</h1>
+            <p>基于您的阅读数据，AI将为您生成个性化的阅读分析报告</p>
+        </div>
+
+        <div class="analysis-controls">
+            <div class="control-group">
+                <label>分析周期：</label>
+                <select id="period-select">
+                    <option value="all">全部数据</option>
+                    <option value="year">近一年</option>
+                    <option value="month">近一月</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>AI模型：</label>
+                <select id="model-select">
+                    <option value="grok-4-0709">grok-4-0709（高质量）</option>
+                    <option value="grok-4-1-fast-non-reasoning">grok-4-1-fast-non-reasoning</option>
+                    <option value="grok-4-1-fast-reasoning">grok-4-1-fast-reasoning</option>
+                    <option value="grok-4-fast-reasoning">grok-4-fast-reasoning</option>
+                </select>
+            </div>
+            <button class="analyze-button" id="analyze-btn">
+                <span>✨</span>
+                <span>生成分析报告</span>
+            </button>
+            <button class="analyze-button" id="config-btn" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <span>⚙️</span>
+                <span>AI配置</span>
+            </button>
+        </div>
+
+        <div id="data-summary" class="data-summary" style="display: none;">
+            <!-- 数据摘要卡片将在这里动态生成 -->
+        </div>
+
+        <div id="loading-state" class="loading-state" style="display: none;">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">AI正在分析您的阅读数据，请稍候...</div>
+        </div>
+
+        <div id="error-state" class="error-state" style="display: none;">
+            <!-- 错误信息将在这里显示 -->
+        </div>
+
+        <div id="analysis-content" class="analysis-content" style="display: none;">
+            <div class="analysis-markdown" id="analysis-markdown"></div>
+        </div>
+    </div>
+
+    <!-- AI配置对话框 -->
+    <div id="config-modal" class="config-modal" style="display: none;">
+        <div class="config-modal-content">
+            <div class="config-modal-header">
+                <h2>🤖 AI配置</h2>
+                <button class="config-modal-close" id="config-modal-close">×</button>
+            </div>
+            <div class="config-modal-body">
+                <div class="config-form-group">
+                    <label for="config-api-url">API地址：</label>
+                    <input type="text" id="config-api-url" placeholder="https://api.pipellm.ai/v1/chat/completions" />
+                    <small>AI API的完整地址</small>
+                </div>
+                <div class="config-form-group">
+                    <label for="config-api-key">API密钥：</label>
+                    <input type="password" id="config-api-key" placeholder="输入您的API密钥" />
+                    <small>您的API密钥将安全保存在服务器上</small>
+                </div>
+                <div class="config-form-group">
+                    <label>当前状态：</label>
+                    <div id="config-status" style="padding: 8px; background: var(--md-surface-container-high); border-radius: 8px; font-size: 13px;">
+                        加载中...
+                    </div>
+                </div>
+            </div>
+            <div class="config-modal-footer">
+                <button class="config-button config-button-secondary" id="config-cancel-btn">取消</button>
+                <button class="config-button config-button-primary" id="config-save-btn">保存配置</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .config-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            backdrop-filter: blur(4px);
+        }
+
+        .config-modal-content {
+            background: var(--md-surface);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--md-elevation-5);
+        }
+
+        .config-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--md-outline-variant);
+        }
+
+        .config-modal-header h2 {
+            margin: 0;
+            font-size: 20px;
+            color: var(--md-on-surface);
+        }
+
+        .config-modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            color: var(--md-on-surface-variant);
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+
+        .config-modal-close:hover {
+            background: var(--md-surface-container-high);
+            color: var(--md-on-surface);
+        }
+
+        .config-modal-body {
+            padding: 24px;
+        }
+
+        .config-form-group {
+            margin-bottom: 20px;
+        }
+
+        .config-form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--md-on-surface);
+        }
+
+        .config-form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--md-outline-variant);
+            border-radius: 8px;
+            font-size: 14px;
+            background: var(--md-surface);
+            color: var(--md-on-surface);
+            box-sizing: border-box;
+            transition: all 0.2s;
+        }
+
+        .config-form-group input:focus {
+            outline: none;
+            border-color: var(--md-primary);
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+
+        .config-form-group small {
+            display: block;
+            margin-top: 4px;
+            font-size: 12px;
+            color: var(--md-on-surface-variant);
+        }
+
+        .config-modal-footer {
+            display: flex;
+            gap: 12px;
+            padding: 16px 24px;
+            border-top: 1px solid var(--md-outline-variant);
+            justify-content: flex-end;
+        }
+
+        .config-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .config-button-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .config-button-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--md-elevation-2);
+        }
+
+        .config-button-secondary {
+            background: var(--md-surface-container);
+            color: var(--md-on-surface);
+        }
+
+        .config-button-secondary:hover {
+            background: var(--md-surface-container-high);
+        }
+    </style>
+
+    <script src="/js/api.js"></script>
+    <script>
+        // 改进的Markdown转HTML转换器
+        function markdownToHtml(markdown) {
+            if (!markdown) return '';
+            
+            let html = markdown;
+            
+            // 代码块（先处理，避免被其他规则影响）
+            html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+            
+            // 行内代码
+            html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+            
+            // 粗体
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/__(.*?)__/g, '<strong>$1</strong>');
+            
+            // 斜体
+            html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            html = html.replace(/_(.*?)_/g, '<em>$1</em>');
+            
+            // 分割成行处理
+            const lines = html.split('\n');
+            const result = [];
+            let inList = false;
+            let listItems = [];
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
+                // 标题
+                if (line.startsWith('### ')) {
+                    if (inList) {
+                        result.push('<ul>' + listItems.join('') + '</ul>');
+                        listItems = [];
+                        inList = false;
+                    }
+                    result.push('<h3>' + line.substring(4) + '</h3>');
+                    continue;
+                }
+                if (line.startsWith('## ')) {
+                    if (inList) {
+                        result.push('<ul>' + listItems.join('') + '</ul>');
+                        listItems = [];
+                        inList = false;
+                    }
+                    result.push('<h2>' + line.substring(3) + '</h2>');
+                    continue;
+                }
+                if (line.startsWith('# ')) {
+                    if (inList) {
+                        result.push('<ul>' + listItems.join('') + '</ul>');
+                        listItems = [];
+                        inList = false;
+                    }
+                    result.push('<h1>' + line.substring(2) + '</h1>');
+                    continue;
+                }
+                
+                // 列表项
+                if (line.match(/^[\-\*\+]\s/)) {
+                    if (!inList) {
+                        inList = true;
+                    }
+                    listItems.push('<li>' + line.substring(2) + '</li>');
+                    continue;
+                }
+                if (line.match(/^\d+\.\s/)) {
+                    if (!inList) {
+                        inList = true;
+                    }
+                    listItems.push('<li>' + line.replace(/^\d+\.\s/, '') + '</li>');
+                    continue;
+                }
+                
+                // 结束列表
+                if (inList && line === '') {
+                    result.push('<ul>' + listItems.join('') + '</ul>');
+                    listItems = [];
+                    inList = false;
+                    continue;
+                }
+                
+                // 段落
+                if (line === '') {
+                    if (inList) {
+                        result.push('<ul>' + listItems.join('') + '</ul>');
+                        listItems = [];
+                        inList = false;
+                    }
+                    continue;
+                }
+                
+                if (inList) {
+                    // 继续列表项
+                    if (listItems.length > 0) {
+                        listItems[listItems.length - 1] = listItems[listItems.length - 1].replace('</li>', ' ' + line + '</li>');
+                    }
+                } else {
+                    // 普通段落
+                    if (line.startsWith('>')) {
+                        result.push('<blockquote>' + line.substring(1).trim() + '</blockquote>');
+                    } else {
+                        result.push('<p>' + line + '</p>');
+                    }
+                }
+            }
+            
+            // 处理剩余的列表
+            if (inList && listItems.length > 0) {
+                result.push('<ul>' + listItems.join('') + '</ul>');
+            }
+            
+            return result.join('\n');
+        }
+
+        // 显示数据摘要
+        function showDataSummary(data) {
+            const container = document.getElementById('data-summary');
+            if (!data || !data.summary) {
+                container.style.display = 'none';
+                return;
+            }
+
+            const summary = data.summary;
+            container.innerHTML = `
+                <div class="data-card">
+                    <div class="data-card-value">${summary.totalDays}</div>
+                    <div class="data-card-label">总阅读天数</div>
+                </div>
+                <div class="data-card">
+                    <div class="data-card-value">${summary.totalHours}</div>
+                    <div class="data-card-label">总阅读时长（小时）</div>
+                </div>
+                <div class="data-card">
+                    <div class="data-card-value">${summary.avgMinutesPerDay}</div>
+                    <div class="data-card-label">日均阅读（分钟）</div>
+                </div>
+                <div class="data-card">
+                    <div class="data-card-value">${data.streak.current}</div>
+                    <div class="data-card-label">当前连续天数</div>
+                </div>
+            `;
+            container.style.display = 'grid';
+        }
+
+        // 生成分析报告
+        async function generateAnalysis() {
+            const period = document.getElementById('period-select').value;
+            const model = document.getElementById('model-select').value;
+            const analyzeBtn = document.getElementById('analyze-btn');
+            const loadingState = document.getElementById('loading-state');
+            const errorState = document.getElementById('error-state');
+            const analysisContent = document.getElementById('analysis-content');
+            const dataSummary = document.getElementById('data-summary');
+
+            // 显示加载状态
+            analyzeBtn.disabled = true;
+            loadingState.style.display = 'block';
+            errorState.style.display = 'none';
+            analysisContent.style.display = 'none';
+            dataSummary.style.display = 'none';
+
+            try {
+                const response = await API.userStats.getReadingAnalysis(model, period);
+                
+                if (response.success) {
+                    // 显示数据摘要
+                    showDataSummary(response.data);
+                    
+                    // 显示分析内容
+                    const markdownContent = response.analysis;
+                    const htmlContent = markdownToHtml(markdownContent);
+                    document.getElementById('analysis-markdown').innerHTML = htmlContent;
+                    analysisContent.style.display = 'block';
+                } else {
+                    throw new Error(response.error || '分析失败');
+                }
+            } catch (error) {
+                console.error('AI分析失败:', error);
+                let errorMessage = error.message || '未知错误，请稍后重试';
+                
+                // 如果是400错误，可能是配置问题
+                if (error.status === 400) {
+                    errorMessage = error.message || '请检查AI配置是否正确';
+                }
+                
+                errorState.innerHTML = `
+                    <strong>分析失败</strong><br>
+                    ${errorMessage}<br>
+                    <small style="margin-top: 8px; display: block; color: var(--md-on-surface-variant);">
+                        提示：如果这是首次使用，请先点击"AI配置"按钮配置API密钥
+                    </small>
+                `;
+                errorState.style.display = 'block';
+            } finally {
+                loadingState.style.display = 'none';
+                analyzeBtn.disabled = false;
+            }
+        }
+
+        // 配置对话框相关
+        const configModal = document.getElementById('config-modal');
+        const configBtn = document.getElementById('config-btn');
+        const configCloseBtn = document.getElementById('config-modal-close');
+        const configCancelBtn = document.getElementById('config-cancel-btn');
+        const configSaveBtn = document.getElementById('config-save-btn');
+        const configApiUrlInput = document.getElementById('config-api-url');
+        const configApiKeyInput = document.getElementById('config-api-key');
+        const configStatus = document.getElementById('config-status');
+
+        // 打开配置对话框
+        function openConfigModal() {
+            loadAIConfig();
+            configModal.style.display = 'flex';
+        }
+
+        // 关闭配置对话框
+        function closeConfigModal() {
+            configModal.style.display = 'none';
+            // 清空输入框（不保存）
+            configApiKeyInput.value = '';
+        }
+
+        // 加载AI配置
+        async function loadAIConfig() {
+            try {
+                const config = await API.userStats.getAIConfig();
+                configApiUrlInput.value = config.apiUrl || '';
+                configApiKeyInput.value = ''; // 不显示密钥
+                
+                if (config.hasApiKey) {
+                    if (config.isDefault) {
+                        configStatus.innerHTML = '<span style="color: var(--md-success);">✓ 使用默认API配置（可修改）</span>';
+                    } else {
+                        configStatus.innerHTML = '<span style="color: var(--md-success);">✓ 已配置自定义API</span>';
+                    }
+                } else {
+                    configStatus.innerHTML = '<span style="color: var(--md-warning);">⚠ 未配置API密钥，请填写API地址和密钥</span>';
+                }
+            } catch (error) {
+                console.error('加载AI配置失败:', error);
+                configStatus.innerHTML = '<span style="color: var(--md-error);">✗ 加载配置失败</span>';
+            }
+        }
+
+        // 保存AI配置
+        async function saveAIConfig() {
+            const apiUrl = configApiUrlInput.value.trim();
+            const apiKey = configApiKeyInput.value.trim();
+
+            if (!apiUrl || !apiKey) {
+                alert('请填写API地址和密钥');
+                return;
+            }
+
+            try {
+                configSaveBtn.disabled = true;
+                configSaveBtn.textContent = '保存中...';
+                
+                await API.userStats.saveAIConfig(apiUrl, apiKey);
+                
+                configStatus.innerHTML = '<span style="color: var(--md-success);">✓ 配置已保存</span>';
+                
+                setTimeout(() => {
+                    closeConfigModal();
+                    configSaveBtn.disabled = false;
+                    configSaveBtn.textContent = '保存配置';
+                }, 1000);
+            } catch (error) {
+                console.error('保存AI配置失败:', error);
+                alert('保存失败: ' + (error.details || error.message || '未知错误'));
+                configSaveBtn.disabled = false;
+                configSaveBtn.textContent = '保存配置';
+            }
+        }
+
+        // 绑定事件
+        document.getElementById('analyze-btn').addEventListener('click', generateAnalysis);
+        configBtn.addEventListener('click', openConfigModal);
+        configCloseBtn.addEventListener('click', closeConfigModal);
+        configCancelBtn.addEventListener('click', closeConfigModal);
+        configSaveBtn.addEventListener('click', saveAIConfig);
+
+        // 点击背景关闭对话框
+        configModal.addEventListener('click', (e) => {
+            if (e.target === configModal) {
+                closeConfigModal();
+            }
+        });
+
+        // 页面加载时加载配置状态
+        window.addEventListener('DOMContentLoaded', () => {
+            loadAIConfig();
+        });
+    </script>
+</body>
+</html>
+

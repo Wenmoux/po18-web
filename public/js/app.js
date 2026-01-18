@@ -3732,6 +3732,7 @@ const App = {
 
             // 加载阅读统计热力图
             this.loadReadingHeatmap();
+            this.initAIAnalysisButton();
 
             // 绑定快捷功能事件
             this.bindQuickActions();
@@ -3945,6 +3946,16 @@ const App = {
         html += "</div></div>";
 
         container.innerHTML = html;
+    },
+
+    // 初始化AI分析按钮
+    initAIAnalysisButton() {
+        const aiBtn = document.getElementById("ai-analysis-btn");
+        if (aiBtn) {
+            aiBtn.addEventListener("click", () => {
+                window.location.href = "/reading-analysis.html";
+            });
+        }
     },
 
     // 计算热力图等级

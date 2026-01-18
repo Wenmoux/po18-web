@@ -132,6 +132,7 @@ const API = {
                 const error = new Error(errorMessage);
                 error.status = response.status;
                 error.code = errorData.code;
+                error.details = errorData.details; // 传递详细信息
                 throw error;
             }
 
@@ -428,6 +429,18 @@ const API = {
         // 获取阅读统计（热力图）
         getReadingStats(days = 365) {
             return API.get("/user/reading-stats", { days });
+        },
+        // AI阅读分析
+        getReadingAnalysis(model = "grok-4-0709", period = "all") {
+            return API.post("/user/reading-analysis", { model, period });
+        },
+        // 获取AI配置
+        getAIConfig() {
+            return API.get("/user/ai-config");
+        },
+        // 保存AI配置
+        saveAIConfig(apiUrl, apiKey) {
+            return API.post("/user/ai-config", { apiUrl, apiKey });
         }
     },
 
